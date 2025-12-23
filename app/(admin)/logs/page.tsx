@@ -39,6 +39,14 @@ const CHILD_COLORS: Record<ChildName, { bg: string; text: string; ring: string }
   'Zander': { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-500' },
 };
 
+// Convert 24-hour time to 12-hour AM/PM format
+function formatTime12h(time: string): string {
+  const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+}
+
 export default function UnifiedLogPage() {
   const t = useTranslations();
 
@@ -162,9 +170,9 @@ export default function UnifiedLogPage() {
           </div>
           <div className="text-sm text-muted-foreground mt-1">
             {log.category === 'sleep' && log.startTime && log.endTime ? (
-              <span>{log.startTime.slice(0, 5)} - {log.endTime.slice(0, 5)}</span>
+              <span>{formatTime12h(log.startTime)} - {formatTime12h(log.endTime)}</span>
             ) : (
-              <span>{log.logTime.slice(0, 5)}</span>
+              <span>{formatTime12h(log.logTime)}</span>
             )}
           </div>
           {log.description && (
