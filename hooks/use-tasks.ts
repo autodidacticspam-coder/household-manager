@@ -392,17 +392,31 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     category: row.category as { id: string; name: string; color: string; icon: string | null } | null,
-    createdByUser: row.created_by_user as { id: string; fullName: string; avatarUrl: string | null } | null,
-    completedByUser: row.completed_by_user as { id: string; fullName: string; avatarUrl: string | null } | null,
-    assignments: ((row.assignments as Record<string, unknown>[]) || []).map((a) => ({
-      id: a.id as string,
-      taskId: a.task_id as string,
-      targetType: a.target_type as 'user' | 'group' | 'all',
-      targetUserId: a.target_user_id as string | null,
-      targetGroupId: a.target_group_id as string | null,
-      createdAt: a.created_at as string,
-      targetUser: a.target_user as { id: string; fullName: string; avatarUrl: string | null } | null,
-      targetGroup: a.target_group as { id: string; name: string } | null,
-    })),
+    createdByUser: (() => {
+      const raw = row.created_by_user as { id: string; full_name: string; avatar_url: string | null } | null;
+      return raw ? { id: raw.id, fullName: raw.full_name, avatarUrl: raw.avatar_url } : null;
+    })(),
+    completedByUser: (() => {
+      const raw = row.completed_by_user as { id: string; full_name: string; avatar_url: string | null } | null;
+      return raw ? { id: raw.id, fullName: raw.full_name, avatarUrl: raw.avatar_url } : null;
+    })(),
+    assignments: ((row.assignments as Record<string, unknown>[]) || []).map((a) => {
+      const targetUserRaw = a.target_user as { id: string; full_name: string; avatar_url: string | null } | null;
+      const targetGroupRaw = a.target_group as { id: string; name: string } | null;
+      return {
+        id: a.id as string,
+        taskId: a.task_id as string,
+        targetType: a.target_type as 'user' | 'group' | 'all',
+        targetUserId: a.target_user_id as string | null,
+        targetGroupId: a.target_group_id as string | null,
+        createdAt: a.created_at as string,
+        targetUser: targetUserRaw ? {
+          id: targetUserRaw.id,
+          fullName: targetUserRaw.full_name,
+          avatarUrl: targetUserRaw.avatar_url,
+        } : null,
+        targetGroup: targetGroupRaw,
+      };
+    }),
   };
 }
