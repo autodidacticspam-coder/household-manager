@@ -272,11 +272,15 @@ export function useDeleteMenuRating() {
 }
 
 function transformRating(row: Record<string, unknown>): MenuRating {
-  const ratedByUser = row.rated_by_user as {
-    id: string;
-    full_name: string;
-    avatar_url: string | null;
-  } | null;
+  // Handle Supabase join which may return array or object
+  const rawRatedByUser = row.rated_by_user as unknown;
+  let ratedByUser: { id: string; full_name: string; avatar_url: string | null } | null = null;
+
+  if (Array.isArray(rawRatedByUser) && rawRatedByUser[0]) {
+    ratedByUser = rawRatedByUser[0];
+  } else if (rawRatedByUser && typeof rawRatedByUser === 'object') {
+    ratedByUser = rawRatedByUser as { id: string; full_name: string; avatar_url: string | null };
+  }
 
   return {
     id: row.id as string,
