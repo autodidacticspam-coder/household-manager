@@ -311,6 +311,44 @@ export function useUpdateTaskStatus() {
   });
 }
 
+export function usePendingTasks() {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ['pending-tasks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, title, status, priority, due_date')
+        .in('status', ['pending', 'in_progress'])
+        .order('due_date', { ascending: true, nullsFirst: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+export function useOverdueTasks() {
+  const supabase = createClient();
+  const today = new Date().toISOString().split('T')[0];
+
+  return useQuery({
+    queryKey: ['overdue-tasks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, title, status, priority, due_date')
+        .in('status', ['pending', 'in_progress'])
+        .lt('due_date', today)
+        .order('due_date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
 // Helper function to get translated content based on locale
 function getTranslatedTitle(row: Record<string, unknown>, locale: SupportedLocale): string {
   const title = row.title as string;

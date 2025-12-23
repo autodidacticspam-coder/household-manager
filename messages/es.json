@@ -35,7 +35,12 @@
     "day": "día",
     "days": "días",
     "hours": "horas",
-    "error": "Algo salió mal"
+    "error": "Algo salió mal",
+    "until": "Hasta",
+    "viewAll": "Ver Todo"
+  },
+  "dashboard": {
+    "noOneOnLeave": "Nadie está de permiso actualmente"
   },
   "auth": {
     "login": "Iniciar Sesión",

@@ -35,7 +35,12 @@
     "day": "天",
     "days": "天",
     "hours": "小时",
-    "error": "出错了"
+    "error": "出错了",
+    "until": "至",
+    "viewAll": "查看全部"
+  },
+  "dashboard": {
+    "noOneOnLeave": "目前没有人休假"
   },
   "auth": {
     "login": "登录",

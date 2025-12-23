@@ -35,7 +35,12 @@
     "day": "day",
     "days": "days",
     "hours": "hours",
-    "error": "Something went wrong"
+    "error": "Something went wrong",
+    "until": "Until",
+    "viewAll": "View All"
+  },
+  "dashboard": {
+    "noOneOnLeave": "No one is currently on leave"
   },
   "auth": {
     "login": "Sign In",
