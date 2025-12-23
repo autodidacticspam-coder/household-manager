@@ -21,8 +21,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useMyLeaveRequests, useCancelLeaveRequest } from '@/hooks/use-leave';
 import { format } from 'date-fns';
-import { Plus, Calendar, X } from 'lucide-react';
+import { Plus, Calendar, X, Clock } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
+
+// Helper to format 24h time to 12h format
+const formatTime = (time: string | null) => {
+  if (!time) return '';
+  const [hours, minutes] = time.split(':').map(Number);
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+};
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -72,7 +81,17 @@ export default function TimeOffPage() {
             </div>
             <p className="text-sm text-muted-foreground">
               {request.totalDays} {request.totalDays === 1 ? t('common.day') : t('common.days')}
-              {!request.isFullDay && ` ${t('leave.partial')}`}
+              {!request.isFullDay && (
+                <>
+                  {' '}({t('leave.partial')})
+                  {request.startTime && request.endTime && (
+                    <span className="flex items-center gap-1 mt-1">
+                      <Clock className="h-3 w-3" />
+                      {formatTime(request.startTime)} - {formatTime(request.endTime)}
+                    </span>
+                  )}
+                </>
+              )}
             </p>
             {request.reason && (
               <p className="text-sm mt-2">{request.reason}</p>

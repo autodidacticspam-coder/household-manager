@@ -55,7 +55,9 @@ export type UpdateLeaveBalanceInput = z.infer<typeof updateLeaveBalanceSchema>;
 export function calculateTotalDays(
   startDate: string,
   endDate: string,
-  isFullDay: boolean
+  isFullDay: boolean,
+  startTime?: string | null,
+  endTime?: string | null
 ): number {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -67,6 +69,21 @@ export function calculateTotalDays(
     return diffDays;
   }
 
-  // Partial day - return 0.5
+  // Partial day - calculate based on hours (assuming 8-hour workday)
+  if (startTime && endTime) {
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    const startMinutes = startH * 60 + startM;
+    const endMinutes = endH * 60 + endM;
+    const diffMinutes = endMinutes - startMinutes;
+
+    if (diffMinutes > 0) {
+      const hours = diffMinutes / 60;
+      // Convert hours to days (8-hour workday)
+      return Math.round((hours / 8) * 100) / 100;
+    }
+  }
+
+  // Default partial day to 0.5 if no times specified
   return 0.5;
 }

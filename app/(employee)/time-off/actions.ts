@@ -32,8 +32,10 @@ export async function createLeaveRequest(input: CreateLeaveRequestInput): Promis
 
   const data = result.data;
   const isFullDay = data.isFullDay ?? true;
-  // Use selectedDaysCount if provided (from calendar multi-select), otherwise calculate
-  const totalDays = data.selectedDaysCount || calculateTotalDays(data.startDate, data.endDate, isFullDay);
+  // For partial days, calculate based on hours; for full days, use selectedDaysCount from calendar
+  const totalDays = isFullDay
+    ? (data.selectedDaysCount || calculateTotalDays(data.startDate, data.endDate, true))
+    : calculateTotalDays(data.startDate, data.endDate, false, data.startTime, data.endTime);
 
   // No balance limit checks - just track usage
 
