@@ -47,9 +47,34 @@ const employeeNavItems: NavItem[] = [
 export function Sidebar() {
   const t = useTranslations();
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLoading } = useAuth();
 
   const navItems = isAdmin ? adminNavItems : employeeNavItems;
+
+  // Don't render navigation until auth is loaded to prevent flashing wrong menu
+  if (isLoading) {
+    return (
+      <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 hidden lg:block">
+        <div className="flex flex-col h-full">
+          <div className="flex items-center h-16 px-6 border-b border-gray-200">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">H</span>
+            </div>
+            <span className="ml-2 text-lg font-semibold text-gray-900">
+              {t('common.appName')}
+            </span>
+          </div>
+          <nav className="flex-1 px-3 py-4">
+            <div className="animate-pulse space-y-2">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="h-10 bg-gray-100 rounded-lg" />
+              ))}
+            </div>
+          </nav>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 hidden lg:block">

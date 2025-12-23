@@ -23,6 +23,7 @@ import {
   Settings,
   Clock,
   User,
+  Package,
 } from 'lucide-react';
 
 type NavItem = {
@@ -37,14 +38,16 @@ const adminNavItems: NavItem[] = [
   { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
   { href: '/employees', labelKey: 'nav.employees', icon: <Users className="h-5 w-5" /> },
   { href: '/leave-requests', labelKey: 'nav.leaveRequests', icon: <FileText className="h-5 w-5" /> },
+  { href: '/supply-requests', labelKey: 'nav.supplyRequests', icon: <Package className="h-5 w-5" /> },
   { href: '/reports', labelKey: 'nav.reports', icon: <BarChart3 className="h-5 w-5" /> },
   { href: '/settings', labelKey: 'nav.settings', icon: <Settings className="h-5 w-5" /> },
 ];
 
 const employeeNavItems: NavItem[] = [
   { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
+  { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
   { href: '/time-off', labelKey: 'nav.timeOff', icon: <Clock className="h-5 w-5" /> },
+  { href: '/supplies', labelKey: 'nav.supplies', icon: <Package className="h-5 w-5" /> },
   { href: '/profile', labelKey: 'nav.profile', icon: <User className="h-5 w-5" /> },
   { href: '/settings', labelKey: 'nav.settings', icon: <Settings className="h-5 w-5" /> },
 ];
@@ -53,9 +56,19 @@ export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const t = useTranslations();
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLoading } = useAuth();
 
   const navItems = isAdmin ? adminNavItems : employeeNavItems;
+
+  // Show loading state in menu button while auth loads
+  if (isLoading) {
+    return (
+      <Button variant="ghost" size="icon" className="lg:hidden" disabled>
+        <Menu className="h-6 w-6 animate-pulse" />
+        <span className="sr-only">Loading menu</span>
+      </Button>
+    );
+  }
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
