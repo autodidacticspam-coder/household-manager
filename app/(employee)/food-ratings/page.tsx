@@ -15,7 +15,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User } from 'lucide-react';
 import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
 import { cn } from '@/lib/utils';
 
@@ -47,9 +54,22 @@ function getRatingColor(rating: number): string {
 export default function FoodRatingsPage() {
   const t = useTranslations();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDish, setSelectedDish] = useState<string | null>(null);
   const { data: canAccess, isLoading: accessLoading } = useCanAccessFoodRatings();
   const { data: summary, isLoading: summaryLoading } = useMenuRatingsSummary();
   const { data: allRatings, isLoading: ratingsLoading } = useAllMenuRatings();
+
+  // Get all ratings for the selected dish
+  const selectedDishRatings = useMemo(() => {
+    if (!selectedDish || !allRatings) return [];
+    return allRatings.filter(r => r.menuItem === selectedDish);
+  }, [selectedDish, allRatings]);
+
+  // Get summary for selected dish
+  const selectedDishSummary = useMemo(() => {
+    if (!selectedDish || !summary) return null;
+    return summary.find(s => s.menuItem === selectedDish);
+  }, [selectedDish, summary]);
 
   const filteredSummary = useMemo(() => {
     if (!summary) return [];
@@ -240,9 +260,16 @@ export default function FoodRatingsPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredSummary.map((item, i) => (
-                      <TableRow key={i}>
+                      <TableRow
+                        key={i}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedDish(item.menuItem)}
+                      >
                         <TableCell className="font-medium max-w-[300px] truncate">
-                          {item.menuItem}
+                          <span className="hover:underline">{item.menuItem}</span>
+                          {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                            <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <RatingBadge rating={item.averageRating} />
@@ -289,14 +316,20 @@ export default function FoodRatingsPage() {
                     .map((item, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900"
+                        className="flex items-center justify-between p-4 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900 cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/40 transition-colors"
+                        onClick={() => setSelectedDish(item.menuItem)}
                       >
                         <div className="flex items-center gap-3">
                           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-500 text-white font-bold text-sm">
                             {i + 1}
                           </div>
                           <div>
-                            <p className="font-medium">{item.menuItem}</p>
+                            <p className="font-medium hover:underline">
+                              {item.menuItem}
+                              {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                                <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                              )}
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} from {item.raters.join(', ')}
                             </p>
@@ -335,10 +368,16 @@ export default function FoodRatingsPage() {
                     .map((item, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-4 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900"
+                        className="flex items-center justify-between p-4 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-950/40 transition-colors"
+                        onClick={() => setSelectedDish(item.menuItem)}
                       >
                         <div>
-                          <p className="font-medium">{item.menuItem}</p>
+                          <p className="font-medium hover:underline">
+                            {item.menuItem}
+                            {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                              <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">
                             {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} from {item.raters.join(', ')}
                           </p>
@@ -414,6 +453,75 @@ export default function FoodRatingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dish Details Dialog */}
+      <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ChefHat className="h-5 w-5" />
+              {selectedDish}
+            </DialogTitle>
+            {selectedDishSummary && (
+              <DialogDescription className="flex items-center gap-4 pt-2">
+                <RatingBadge rating={selectedDishSummary.averageRating} />
+                <span>
+                  {selectedDishSummary.totalRatings} rating{selectedDishSummary.totalRatings !== 1 ? 's' : ''}
+                </span>
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {selectedDishRatings.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">
+                No ratings found for this dish.
+              </p>
+            ) : (
+              selectedDishRatings.map((rating) => (
+                <div
+                  key={rating.id}
+                  className="p-4 rounded-lg border bg-muted/30"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">
+                        {rating.ratedByUser?.fullName || 'Unknown'}
+                      </span>
+                    </div>
+                    <Badge
+                      className={cn(
+                        "font-mono",
+                        rating.rating >= 8 && "bg-green-500",
+                        rating.rating >= 6 && rating.rating < 8 && "bg-yellow-500",
+                        rating.rating >= 4 && rating.rating < 6 && "bg-orange-500",
+                        rating.rating < 4 && "bg-red-500"
+                      )}
+                    >
+                      {rating.rating}/10
+                    </Badge>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground mb-2">
+                    {rating.dayOfWeek} {rating.mealType} • {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                  </div>
+
+                  {rating.comment && (
+                    <div className="mt-3 p-3 bg-background rounded border">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                        <MessageSquare className="h-3 w-3" />
+                        Comment
+                      </div>
+                      <p className="text-sm">{rating.comment}</p>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
