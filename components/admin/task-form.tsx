@@ -29,7 +29,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, X, Plus, Users, User } from 'lucide-react';
+import { Loader2, X, Plus, Users, User, Clock, CalendarClock } from 'lucide-react';
 import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput } from '@/lib/validators/task';
 import type { TaskWithRelations } from '@/types';
@@ -100,6 +100,9 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
       dueDate: task?.dueDate || today,
       dueTime: task?.dueTime || undefined,
       isAllDay: task?.isAllDay ?? false,
+      isActivity: task?.isActivity ?? false,
+      startTime: task?.startTime || undefined,
+      endTime: task?.endTime || undefined,
       isRecurring: task?.isRecurring ?? false,
       recurrenceRule: task?.recurrenceRule || undefined,
       syncToCalendar: task?.syncToCalendar ?? false,
@@ -323,44 +326,23 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
               <CardTitle>{t('tasks.dueDate')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('tasks.dueDate')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="dueTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('tasks.dueTime')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="time"
-                          {...field}
-                          value={field.value || ''}
-                          disabled={form.watch('isAllDay')}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name="dueDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('tasks.dueDate')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}
@@ -370,13 +352,112 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
                     <FormControl>
                       <Checkbox
                         checked={field.value}
-                        onCheckedChange={field.onChange}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          if (checked) {
+                            form.setValue('isActivity', false);
+                          }
+                        }}
+                        disabled={form.watch('isActivity')}
                       />
                     </FormControl>
                     <FormLabel className="!mt-0">{t('tasks.allDay')}</FormLabel>
                   </FormItem>
                 )}
               />
+
+              {!form.watch('isAllDay') && (
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="isActivity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Button
+                          type="button"
+                          variant={field.value ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => {
+                            const newValue = !field.value;
+                            field.onChange(newValue);
+                            if (newValue) {
+                              form.setValue('dueTime', null);
+                            } else {
+                              form.setValue('startTime', null);
+                              form.setValue('endTime', null);
+                            }
+                          }}
+                          className="gap-2"
+                        >
+                          <CalendarClock className="h-4 w-4" />
+                          {t('tasks.activity')}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t('tasks.activityDescription')}
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch('isActivity') ? (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormField
+                        control={form.control}
+                        name="startTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('tasks.startTime')}</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                {...field}
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('tasks.endTime')}</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                {...field}
+                                value={field.value || ''}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="dueTime"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('tasks.dueTime')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="time"
+                              {...field}
+                              value={field.value || ''}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+              )}
 
               <FormField
                 control={form.control}

@@ -107,12 +107,33 @@ export function useCalendarEvents(filters: CalendarFilters) {
           if (!task.due_date) continue;
           if (filters.userId && !task.assignments.some((a: { target_type: string; target_user_id: string }) => a.target_type === 'all' || (a.target_type === 'user' && a.target_user_id === filters.userId))) continue;
           const assignees = formatAssignees(task.assignments);
+
+          // Calculate start and end times based on activity mode
+          const getEventTimes = (date: string) => {
+            if (task.is_all_day) {
+              return { start: date, end: date };
+            }
+            if (task.is_activity && task.start_time && task.end_time) {
+              return {
+                start: date + 'T' + task.start_time,
+                end: date + 'T' + task.end_time
+              };
+            }
+            // Regular task with due time
+            return {
+              start: date + 'T' + (task.due_time || '09:00'),
+              end: date + 'T' + (task.due_time || '10:00')
+            };
+          };
+
           if (task.is_recurring && task.recurrence_rule) {
             for (const o of expandRecurringTask(task, rangeStart, rangeEnd)) {
-              events.push({ id: 'task-' + o.instanceId, type: 'task', title: task.title, start: task.is_all_day ? o.date : o.date + 'T' + (task.due_time || '09:00'), end: task.is_all_day ? o.date : o.date + 'T' + (task.due_time || '10:00'), allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isRecurring: true, assignees } });
+              const times = getEventTimes(o.date);
+              events.push({ id: 'task-' + o.instanceId, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isRecurring: true, isActivity: task.is_activity, assignees } });
             }
           } else {
-            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: task.is_all_day ? task.due_date : task.due_date + 'T' + (task.due_time || '09:00'), end: task.is_all_day ? task.due_date : task.due_date + 'T' + (task.due_time || '10:00'), allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, assignees } });
+            const times = getEventTimes(task.due_date);
+            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, assignees } });
           }
         }
       }

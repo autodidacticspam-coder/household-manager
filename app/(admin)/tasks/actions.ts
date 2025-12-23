@@ -85,6 +85,9 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
       due_date: taskData.dueDate || null,
       due_time: taskData.dueTime || null,
       is_all_day: taskData.isAllDay,
+      is_activity: taskData.isActivity || false,
+      start_time: taskData.startTime || null,
+      end_time: taskData.endTime || null,
       is_recurring: taskData.isRecurring,
       recurrence_rule: taskData.recurrenceRule || null,
       sync_to_calendar: taskData.syncToCalendar,
@@ -195,6 +198,9 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
   if (taskData.dueDate !== undefined) updateData.due_date = taskData.dueDate;
   if (taskData.dueTime !== undefined) updateData.due_time = taskData.dueTime;
   if (taskData.isAllDay !== undefined) updateData.is_all_day = taskData.isAllDay;
+  if (taskData.isActivity !== undefined) updateData.is_activity = taskData.isActivity;
+  if (taskData.startTime !== undefined) updateData.start_time = taskData.startTime;
+  if (taskData.endTime !== undefined) updateData.end_time = taskData.endTime;
   if (taskData.isRecurring !== undefined) updateData.is_recurring = taskData.isRecurring;
   if (taskData.recurrenceRule !== undefined) updateData.recurrence_rule = taskData.recurrenceRule;
   if (taskData.syncToCalendar !== undefined) updateData.sync_to_calendar = taskData.syncToCalendar;

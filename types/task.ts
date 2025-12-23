@@ -42,6 +42,9 @@ export interface Task {
   dueDate: string | null;
   dueTime: string | null;
   isAllDay: boolean;
+  isActivity: boolean;
+  startTime: string | null;
+  endTime: string | null;
   isRecurring: boolean;
   recurrenceRule: string | null;
   syncToCalendar: boolean;
