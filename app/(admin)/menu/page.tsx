@@ -1,0 +1,466 @@
+'use client';
+
+import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
+import type { DayMeals, DayOfWeek } from '@/types';
+
+const DAYS: Array<{ key: keyof Omit<DayMeals, 'day'>; label: string }> = [
+  { key: 'breakfast', label: 'Breakfast' },
+  { key: 'lunch', label: 'Lunch' },
+  { key: 'dinner', label: 'Dinner' },
+  { key: 'snacks', label: 'Snacks' },
+];
+
+const DAY_NAMES: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+function parseMenuText(text: string): DayMeals[] {
+  const meals: DayMeals[] = DAY_NAMES.map(day => ({
+    day,
+    breakfast: '',
+    lunch: '',
+    dinner: '',
+    snacks: '',
+  }));
+
+  // Normalize line endings and split into lines
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+
+  let currentDayIndex = -1;
+  let currentMeal: keyof Omit<DayMeals, 'day'> | null = null;
+  let mealContent: string[] = [];
+
+  const saveMealContent = () => {
+    if (currentDayIndex >= 0 && currentMeal && mealContent.length > 0) {
+      // Append to existing content if there's already content for this meal
+      const existingContent = meals[currentDayIndex][currentMeal];
+      const newContent = mealContent.join('\n').trim();
+      meals[currentDayIndex][currentMeal] = existingContent
+        ? existingContent + '\n' + newContent
+        : newContent;
+      mealContent = [];
+    }
+  };
+
+  // Day name patterns (case insensitive) - matches "TUESDAY December 23" or "Monday:" etc.
+  const dayPatterns: Array<{ day: DayOfWeek; patterns: string[] }> = [
+    { day: 'Monday', patterns: ['monday', 'lunes', '周一', '星期一'] },
+    { day: 'Tuesday', patterns: ['tuesday', 'martes', '周二', '星期二'] },
+    { day: 'Wednesday', patterns: ['wednesday', 'miércoles', 'miercoles', '周三', '星期三'] },
+    { day: 'Thursday', patterns: ['thursday', 'jueves', '周四', '星期四'] },
+    { day: 'Friday', patterns: ['friday', 'viernes', '周五', '星期五'] },
+    { day: 'Saturday', patterns: ['saturday', 'sábado', 'sabado', '周六', '星期六'] },
+    { day: 'Sunday', patterns: ['sunday', 'domingo', '周日', '星期日'] },
+  ];
+
+  // Meal type patterns
+  const mealTypes: Array<{ key: keyof Omit<DayMeals, 'day'>; patterns: string[] }> = [
+    { key: 'breakfast', patterns: ['breakfast', 'brekkie', 'desayuno', '早餐'] },
+    { key: 'lunch', patterns: ['lunch', 'almuerzo', '午餐'] },
+    { key: 'dinner', patterns: ['dinner', 'cena', '晚餐'] },
+    { key: 'snacks', patterns: ['snack', 'merienda', '零食'] },
+  ];
+
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) continue;
+
+    const lowerLine = trimmedLine.toLowerCase();
+
+    // Skip lines that are just "PREPPED" or similar markers
+    if (lowerLine === 'prepped' || lowerLine === 'prep') continue;
+
+    // Check if this line is a day header (e.g., "TUESDAY December 23, 2025" or "Monday:")
+    let foundDay = false;
+    for (let i = 0; i < dayPatterns.length; i++) {
+      const { patterns } = dayPatterns[i];
+      if (patterns.some(p => lowerLine.startsWith(p))) {
+        // This is a day header - save previous content and switch days
+        saveMealContent();
+        currentDayIndex = i;
+        currentMeal = null;
+        foundDay = true;
+        break;
+      }
+    }
+    if (foundDay) continue;
+
+    // Check if this line contains a meal type (e.g., "Breakfast: 4 adults" or "PREPPED Breakfast:")
+    let foundMealType = false;
+    for (const { key, patterns } of mealTypes) {
+      // Check if any meal pattern appears in the line
+      const mealMatch = patterns.find(p => lowerLine.includes(p));
+      if (mealMatch) {
+        saveMealContent();
+        currentMeal = key;
+
+        // Extract content after the meal type and colon
+        const mealIndex = lowerLine.indexOf(mealMatch);
+        const afterMeal = trimmedLine.substring(mealIndex + mealMatch.length);
+        const colonIndex = afterMeal.indexOf(':');
+        if (colonIndex >= 0) {
+          const afterColon = afterMeal.substring(colonIndex + 1).trim();
+          if (afterColon) {
+            mealContent.push(afterColon);
+          }
+        }
+        foundMealType = true;
+        break;
+      }
+    }
+    if (foundMealType) continue;
+
+    // If we have a current day and meal, add this line as content
+    if (currentDayIndex >= 0 && currentMeal) {
+      mealContent.push(trimmedLine);
+    }
+  }
+
+  // Save any remaining content
+  saveMealContent();
+
+  return meals;
+}
+
+export default function MenuPage() {
+  const t = useTranslations();
+  const [selectedWeek, setSelectedWeek] = useState(() =>
+    startOfWeek(new Date(), { weekStartsOn: 1 })
+  );
+  const weekStartStr = format(selectedWeek, 'yyyy-MM-dd');
+  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const isCurrentWeek = format(selectedWeek, 'yyyy-MM-dd') === format(currentWeekStart, 'yyyy-MM-dd');
+
+  const { data: menu, isLoading } = useWeeklyMenu(weekStartStr);
+  const updateMenu = useUpdateMenu(weekStartStr);
+  const { data: canEdit } = useCanEditMenu();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedMeals, setEditedMeals] = useState<DayMeals[]>([]);
+  const [editedNotes, setEditedNotes] = useState<string>('');
+  const [showPasteDialog, setShowPasteDialog] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+
+  const goToPreviousWeek = () => {
+    setSelectedWeek(prev => subWeeks(prev, 1));
+    setIsEditing(false);
+  };
+
+  const goToNextWeek = () => {
+    setSelectedWeek(prev => addWeeks(prev, 1));
+    setIsEditing(false);
+  };
+
+  const goToCurrentWeek = () => {
+    setSelectedWeek(currentWeekStart);
+    setIsEditing(false);
+  };
+
+  const handleStartEdit = () => {
+    if (menu) {
+      setEditedMeals([...menu.meals]);
+      setEditedNotes(menu.notes || '');
+      setIsEditing(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedMeals([]);
+    setEditedNotes('');
+  };
+
+  const handleSave = async () => {
+    await updateMenu.mutateAsync({
+      meals: editedMeals,
+      notes: editedNotes || null,
+    });
+    setIsEditing(false);
+  };
+
+  const updateMeal = (dayIndex: number, mealType: keyof Omit<DayMeals, 'day'>, value: string) => {
+    const newMeals = [...editedMeals];
+    newMeals[dayIndex] = { ...newMeals[dayIndex], [mealType]: value };
+    setEditedMeals(newMeals);
+  };
+
+  const handlePaste = () => {
+    if (pasteText.trim()) {
+      const parsedMeals = parseMenuText(pasteText);
+      setEditedMeals(parsedMeals);
+      setShowPasteDialog(false);
+      setPasteText('');
+      setIsEditing(true);
+    }
+  };
+
+  const handleOpenPasteDialog = () => {
+    if (menu) {
+      setEditedMeals([...menu.meals]);
+      setEditedNotes(menu.notes || '');
+    }
+    setShowPasteDialog(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const meals = isEditing ? editedMeals : (menu?.meals || []);
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Week Navigation */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <UtensilsCrossed className="h-6 w-6" />
+              {t('menu.title')}
+            </h1>
+          </div>
+          {canEdit && !isEditing && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleOpenPasteDialog}>
+                <ClipboardPaste className="h-4 w-4 mr-2" />
+                {t('menu.pasteMenu')}
+              </Button>
+              <Button onClick={handleStartEdit}>
+                <Edit2 className="h-4 w-4 mr-2" />
+                {t('menu.editMenu')}
+              </Button>
+            </div>
+          )}
+          {isEditing && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCancelEdit}>
+                <X className="h-4 w-4 mr-2" />
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={handleSave} disabled={updateMenu.isPending}>
+                {updateMenu.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                {t('common.save')}
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Week Navigation */}
+        <div className="flex items-center justify-center gap-2">
+          <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center min-w-[200px]">
+            <p className="font-medium">
+              {t('menu.weekOf')} {format(selectedWeek, 'MMMM d, yyyy')}
+            </p>
+            {isCurrentWeek && (
+              <Badge variant="secondary" className="mt-1">{t('menu.currentWeek')}</Badge>
+            )}
+          </div>
+          <Button variant="outline" size="icon" onClick={goToNextWeek}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          {!isCurrentWeek && (
+            <Button variant="ghost" size="sm" onClick={goToCurrentWeek} className="ml-2">
+              {t('common.today')}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Restaurant-Style Menu */}
+      <div className="max-w-4xl mx-auto">
+        {/* Menu Card with elegant styling */}
+        <div className="bg-gradient-to-b from-amber-50 to-orange-50 dark:from-stone-900 dark:to-stone-800 rounded-lg border-2 border-amber-200 dark:border-amber-900 shadow-xl overflow-hidden">
+          {/* Decorative top border */}
+          <div className="h-2 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600" />
+
+          {/* Menu Header */}
+          <div className="text-center py-6 px-4 border-b border-amber-200 dark:border-amber-900">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="h-px w-12 bg-amber-400" />
+              <UtensilsCrossed className="h-6 w-6 text-amber-600 dark:text-amber-500" />
+              <div className="h-px w-12 bg-amber-400" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-amber-900 dark:text-amber-100 tracking-wide">
+              {t('menu.weekOf')}
+            </h2>
+            <p className="text-lg text-amber-700 dark:text-amber-300 font-medium mt-1">
+              {format(selectedWeek, 'MMMM d')} - {format(addDays(selectedWeek, 6), 'MMMM d, yyyy')}
+            </p>
+          </div>
+
+          {/* Chef's Notes */}
+          {(menu?.notes || isEditing) && (
+            <div className="px-6 py-4 bg-amber-100/50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-900">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-amber-600 dark:text-amber-500 text-sm font-semibold uppercase tracking-widest">
+                  Chef&apos;s Notes
+                </span>
+              </div>
+              {isEditing ? (
+                <Textarea
+                  value={editedNotes}
+                  onChange={(e) => setEditedNotes(e.target.value)}
+                  placeholder={t('menu.notesPlaceholder')}
+                  rows={2}
+                  className="bg-white/80 dark:bg-stone-800/80"
+                />
+              ) : (
+                <p className="text-amber-800 dark:text-amber-200 italic whitespace-pre-wrap">{menu?.notes}</p>
+              )}
+            </div>
+          )}
+
+          {/* Daily Menus */}
+          <div className="divide-y divide-amber-200 dark:divide-amber-900">
+            {meals.map((dayMeal, dayIndex) => {
+              const dayDate = addDays(selectedWeek, dayIndex);
+              const isToday = format(new Date(), 'yyyy-MM-dd') === format(dayDate, 'yyyy-MM-dd');
+              const hasContent = dayMeal.breakfast || dayMeal.lunch || dayMeal.dinner || dayMeal.snacks;
+
+              return (
+                <div
+                  key={dayMeal.day}
+                  className={`px-6 py-5 ${isToday ? 'bg-amber-100 dark:bg-amber-900/30' : ''}`}
+                >
+                  {/* Day Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-serif font-bold text-amber-900 dark:text-amber-100">
+                        {t(`menu.days.${dayMeal.day.toLowerCase()}`)}
+                      </h3>
+                      <span className="text-amber-600 dark:text-amber-400 text-sm">
+                        {format(dayDate, 'MMM d')}
+                      </span>
+                    </div>
+                    {isToday && (
+                      <Badge className="bg-amber-600 hover:bg-amber-700 text-white">
+                        {t('common.today')}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Meals */}
+                  {isEditing ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {DAYS.map(({ key }) => (
+                        <div key={key} className="space-y-1">
+                          <Label className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+                            {t(`menu.meals.${key}`)}
+                          </Label>
+                          <Textarea
+                            value={editedMeals[dayIndex]?.[key] || ''}
+                            onChange={(e) => updateMeal(dayIndex, key, e.target.value)}
+                            placeholder={t(`menu.placeholder.${key}`)}
+                            rows={3}
+                            className="text-sm resize-none bg-white/80 dark:bg-stone-800/80"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : hasContent ? (
+                    <div className="space-y-4">
+                      {DAYS.map(({ key }) => {
+                        const content = dayMeal[key];
+                        if (!content) return null;
+
+                        return (
+                          <div key={key} className="group">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest">
+                                {t(`menu.meals.${key}`)}
+                              </span>
+                              <div className="flex-1 h-px bg-amber-300/50 dark:bg-amber-700/50" />
+                            </div>
+                            <div className="pl-2 text-amber-900 dark:text-amber-100 whitespace-pre-wrap leading-relaxed">
+                              {content.split('\n').map((line, i) => (
+                                <p key={i} className={line.toLowerCase().includes('zander') || line.toLowerCase().includes('zara') || line.toLowerCase().includes('kids') ? 'text-amber-600 dark:text-amber-400 text-sm mt-2 italic' : ''}>
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-amber-500 dark:text-amber-600 italic text-center py-2">
+                      {t('menu.notSet')}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Decorative bottom border */}
+          <div className="h-2 bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600" />
+        </div>
+      </div>
+
+      {/* Last Updated Info */}
+      {menu?.updatedAt && menu.updatedByUser && (
+        <p className="text-sm text-muted-foreground text-center">
+          {t('menu.lastUpdated')}: {format(new Date(menu.updatedAt), 'MMM d, yyyy h:mm a')} {t('menu.by')} {menu.updatedByUser.fullName}
+        </p>
+      )}
+
+      {/* Paste Menu Dialog */}
+      <Dialog open={showPasteDialog} onOpenChange={setShowPasteDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardPaste className="h-5 w-5" />
+              {t('menu.pasteMenu')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('menu.pasteDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder={t('menu.pasteExample')}
+              rows={15}
+              className="font-mono text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasteDialog(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handlePaste} disabled={!pasteText.trim()}>
+              {t('menu.applyMenu')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

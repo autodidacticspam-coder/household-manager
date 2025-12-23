@@ -89,7 +89,8 @@
     "reports": "Reports",
     "settings": "Settings",
     "profile": "Profile",
-    "log": "Log"
+    "log": "Log",
+    "menu": "Menu"
   },
   "tasks": {
     "title": "Tasks",
@@ -410,6 +411,42 @@
       "sleep": "Sleep",
       "food": "Food",
       "poop": "Poop"
+    }
+  },
+  "menu": {
+    "title": "Weekly Menu",
+    "weekOf": "Week of",
+    "currentWeek": "Current Week",
+    "editMenu": "Edit Menu",
+    "pasteMenu": "Paste Menu",
+    "applyMenu": "Apply Menu",
+    "pasteDescription": "Paste your weekly menu below. Format each day with the day name followed by meals (Breakfast, Lunch, Dinner, Snacks).",
+    "pasteExample": "Monday:\nBreakfast: Oatmeal with berries\nLunch: Grilled chicken salad\nDinner: Pasta with vegetables\nSnacks: Fruit and yogurt\n\nTuesday:\nBreakfast: Scrambled eggs\n...",
+    "notes": "Notes",
+    "notesPlaceholder": "Add any notes about this week's menu...",
+    "notSet": "Not set",
+    "lastUpdated": "Last updated",
+    "by": "by",
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "meals": {
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "snacks": "Snacks"
+    },
+    "placeholder": {
+      "breakfast": "Enter breakfast items...",
+      "lunch": "Enter lunch items...",
+      "dinner": "Enter dinner items...",
+      "snacks": "Enter snacks..."
     }
   }
 }

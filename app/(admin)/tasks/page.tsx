@@ -32,7 +32,7 @@ export default function TasksPage() {
   const router = useRouter();
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('pending');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);

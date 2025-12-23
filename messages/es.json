@@ -89,7 +89,8 @@
     "reports": "Informes",
     "settings": "Configuración",
     "profile": "Perfil",
-    "log": "Registro"
+    "log": "Registro",
+    "menu": "Menú"
   },
   "tasks": {
     "title": "Tareas",
@@ -410,6 +411,42 @@
       "sleep": "Sueño",
       "food": "Comida",
       "poop": "Pañal"
+    }
+  },
+  "menu": {
+    "title": "Menú Semanal",
+    "weekOf": "Semana del",
+    "currentWeek": "Semana Actual",
+    "editMenu": "Editar Menú",
+    "pasteMenu": "Pegar Menú",
+    "applyMenu": "Aplicar Menú",
+    "pasteDescription": "Pega tu menú semanal abajo. Formatea cada día con el nombre del día seguido de las comidas (Desayuno, Almuerzo, Cena, Meriendas).",
+    "pasteExample": "Lunes:\nDesayuno: Avena con frutas\nAlmuerzo: Ensalada de pollo\nCena: Pasta con verduras\nMeriendas: Fruta y yogur\n\nMartes:\nDesayuno: Huevos revueltos\n...",
+    "notes": "Notas",
+    "notesPlaceholder": "Agregar notas sobre el menú de esta semana...",
+    "notSet": "No establecido",
+    "lastUpdated": "Última actualización",
+    "by": "por",
+    "days": {
+      "monday": "Lunes",
+      "tuesday": "Martes",
+      "wednesday": "Miércoles",
+      "thursday": "Jueves",
+      "friday": "Viernes",
+      "saturday": "Sábado",
+      "sunday": "Domingo"
+    },
+    "meals": {
+      "breakfast": "Desayuno",
+      "lunch": "Almuerzo",
+      "dinner": "Cena",
+      "snacks": "Meriendas"
+    },
+    "placeholder": {
+      "breakfast": "Ingresa los platos del desayuno...",
+      "lunch": "Ingresa los platos del almuerzo...",
+      "dinner": "Ingresa los platos de la cena...",
+      "snacks": "Ingresa las meriendas..."
     }
   }
 }

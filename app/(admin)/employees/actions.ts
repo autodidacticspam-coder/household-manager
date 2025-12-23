@@ -53,10 +53,11 @@ export async function createEmployee(input: z.infer<typeof createEmployeeSchema>
   }
 
   const { email, password, fullName, phone, groupIds } = result.data;
+  const normalizedEmail = email.toLowerCase();
 
   // Create auth user
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-    email,
+    email: normalizedEmail,
     password,
     email_confirm: true,
   });
@@ -75,7 +76,7 @@ export async function createEmployee(input: z.infer<typeof createEmployeeSchema>
     .from('users')
     .insert({
       id: authData.user.id,
-      email,
+      email: normalizedEmail,
       full_name: fullName,
       phone: phone || null,
       role: 'employee',

@@ -89,7 +89,8 @@
     "reports": "报告",
     "settings": "设置",
     "profile": "个人资料",
-    "log": "记录"
+    "log": "记录",
+    "menu": "菜单"
   },
   "tasks": {
     "title": "任务",
@@ -410,6 +411,42 @@
       "sleep": "睡眠",
       "food": "饮食",
       "poop": "排便"
+    }
+  },
+  "menu": {
+    "title": "每周菜单",
+    "weekOf": "周",
+    "currentWeek": "本周",
+    "editMenu": "编辑菜单",
+    "pasteMenu": "粘贴菜单",
+    "applyMenu": "应用菜单",
+    "pasteDescription": "在下方粘贴您的每周菜单。每天的格式为：日期名称，然后是餐食（早餐、午餐、晚餐、零食）。",
+    "pasteExample": "周一:\n早餐: 燕麦粥配浆果\n午餐: 烤鸡沙拉\n晚餐: 意面配蔬菜\n零食: 水果和酸奶\n\n周二:\n早餐: 炒蛋\n...",
+    "notes": "备注",
+    "notesPlaceholder": "添加本周菜单的备注...",
+    "notSet": "未设置",
+    "lastUpdated": "最后更新",
+    "by": "由",
+    "days": {
+      "monday": "周一",
+      "tuesday": "周二",
+      "wednesday": "周三",
+      "thursday": "周四",
+      "friday": "周五",
+      "saturday": "周六",
+      "sunday": "周日"
+    },
+    "meals": {
+      "breakfast": "早餐",
+      "lunch": "午餐",
+      "dinner": "晚餐",
+      "snacks": "零食"
+    },
+    "placeholder": {
+      "breakfast": "输入早餐内容...",
+      "lunch": "输入午餐内容...",
+      "dinner": "输入晚餐内容...",
+      "snacks": "输入零食内容..."
     }
   }
 }

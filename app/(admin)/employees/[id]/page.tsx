@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,40 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { useEmployee } from '@/hooks/use-employees';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useEmployee, useUpdateEmployee, useDeleteEmployee } from '@/hooks/use-employees';
+import { useEmployeeGroups } from '@/hooks/use-tasks';
 import { useMyLeaveRequests } from '@/hooks/use-leave';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { format } from 'date-fns';
-import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2 } from 'lucide-react';
 
 type EmployeeDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -27,6 +56,71 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
   const { data: employee, isLoading } = useEmployee(id);
   const { data: leaveRequests } = useMyLeaveRequests(id);
   const { data: tasks } = useMyTasks(id);
+  const { data: groups } = useEmployeeGroups();
+  const updateEmployee = useUpdateEmployee();
+  const deleteEmployee = useDeleteEmployee();
+
+  // Edit dialog state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    phone: '',
+    role: 'employee' as 'admin' | 'employee',
+    dateOfBirth: '',
+    hireDate: '',
+    emergencyContact: '',
+    notes: '',
+    groupIds: [] as string[],
+  });
+
+  // Delete dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const handleOpenEditDialog = () => {
+    if (employee) {
+      setEditForm({
+        fullName: employee.fullName || '',
+        phone: employee.phone || '',
+        role: employee.role,
+        dateOfBirth: employee.profile?.dateOfBirth || '',
+        hireDate: employee.profile?.hireDate || '',
+        emergencyContact: employee.profile?.emergencyContact || '',
+        notes: employee.profile?.notes || '',
+        groupIds: employee.groups.map(g => g.id),
+      });
+      setShowEditDialog(true);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    await updateEmployee.mutateAsync({
+      id,
+      data: {
+        fullName: editForm.fullName,
+        phone: editForm.phone || undefined,
+        groupIds: editForm.groupIds,
+        dateOfBirth: editForm.dateOfBirth || undefined,
+        hireDate: editForm.hireDate || undefined,
+        emergencyContact: editForm.emergencyContact || undefined,
+        notes: editForm.notes || undefined,
+      },
+    });
+    setShowEditDialog(false);
+  };
+
+  const handleDelete = async () => {
+    await deleteEmployee.mutateAsync(id);
+    router.push('/employees');
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      groupIds: prev.groupIds.includes(groupId)
+        ? prev.groupIds.filter(id => id !== groupId)
+        : [...prev.groupIds, groupId],
+    }));
+  };
 
   if (isLoading) {
     return (
@@ -51,15 +145,27 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/employees')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{employee.fullName}</h1>
-          <p className="text-muted-foreground">
-            Employee Profile
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/employees')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{employee.fullName}</h1>
+            <p className="text-muted-foreground">
+              Employee Profile
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleOpenEditDialog}>
+            <Edit2 className="h-4 w-4 mr-2" />
+            {t('common.edit')}
+          </Button>
+          <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            {t('common.delete')}
+          </Button>
         </div>
       </div>
 
@@ -240,6 +346,124 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
           </Card>
         </div>
       </div>
+
+      {/* Edit Employee Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('employees.editEmployee')}</DialogTitle>
+            <DialogDescription>
+              Update employee information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="fullName">{t('employees.fullName')}</Label>
+              <Input
+                id="fullName"
+                value={editForm.fullName}
+                onChange={(e) => setEditForm(prev => ({ ...prev, fullName: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">{t('employees.phone')}</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="dateOfBirth">{t('employees.dateOfBirth')}</Label>
+                <Input
+                  id="dateOfBirth"
+                  type="date"
+                  value={editForm.dateOfBirth}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="hireDate">{t('employees.hireDate')}</Label>
+                <Input
+                  id="hireDate"
+                  type="date"
+                  value={editForm.hireDate}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, hireDate: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="emergencyContact">{t('profile.emergencyContact')}</Label>
+              <Input
+                id="emergencyContact"
+                value={editForm.emergencyContact}
+                onChange={(e) => setEditForm(prev => ({ ...prev, emergencyContact: e.target.value }))}
+                placeholder={t('profile.emergencyContactPlaceholder')}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>{t('employees.groups')}</Label>
+              <div className="flex flex-wrap gap-2 p-3 border rounded-md min-h-[60px]">
+                {groups && groups.length > 0 ? (
+                  groups.map((group) => (
+                    <Badge
+                      key={group.id}
+                      variant={editForm.groupIds.includes(group.id) ? 'default' : 'outline'}
+                      className="cursor-pointer"
+                      onClick={() => toggleGroup(group.id)}
+                    >
+                      {group.name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted-foreground">{t('descriptions.noGroupsAvailable')}</span>
+                )}
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={editForm.notes}
+                onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateEmployee.isPending}>
+              {updateEmployee.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {employee.fullName}? This will permanently remove their account, all task assignments, leave requests, and other data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteEmployee.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

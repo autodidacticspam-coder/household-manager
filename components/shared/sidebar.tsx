@@ -17,6 +17,7 @@ import {
   User,
   Package,
   ClipboardList,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 type NavItem = {
@@ -29,6 +30,8 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard', labelKey: 'nav.dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
   { href: '/tasks', labelKey: 'nav.tasks', icon: <CheckSquare className="h-5 w-5" /> },
   { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
+  { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
+  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { href: '/employees', labelKey: 'nav.employees', icon: <Users className="h-5 w-5" /> },
   { href: '/leave-requests', labelKey: 'nav.leaveRequests', icon: <FileText className="h-5 w-5" /> },
   { href: '/supply-requests', labelKey: 'nav.supplyRequests', icon: <Package className="h-5 w-5" /> },
@@ -38,8 +41,9 @@ const adminNavItems: NavItem[] = [
 
 const employeeNavItems: NavItem[] = [
   { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { href: '/log', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
+  { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
   { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
+  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { href: '/time-off', labelKey: 'nav.timeOff', icon: <Clock className="h-5 w-5" /> },
   { href: '/supplies', labelKey: 'nav.supplies', icon: <Package className="h-5 w-5" /> },
   { href: '/profile', labelKey: 'nav.profile', icon: <User className="h-5 w-5" /> },

@@ -149,6 +149,45 @@ export function useDeleteChildLog() {
   });
 }
 
+// Check if user can access child logs (admin or in Nanny/Teacher group)
+export function useCanAccessChildLogs() {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ['can-access-child-logs'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      // Check if admin
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (userData?.role === 'admin') return true;
+
+      // Check if in Nanny or Teacher group
+      const { data: membership } = await supabase
+        .from('employee_group_memberships')
+        .select(`
+          group:employee_groups!inner(name)
+        `)
+        .eq('user_id', user.id);
+
+      if (membership) {
+        const allowedGroups = ['nanny', 'teacher'];
+        return membership.some((m: any) =>
+          allowedGroups.includes(m.group?.name?.toLowerCase())
+        );
+      }
+
+      return false;
+    },
+  });
+}
+
 // Helper function to transform database row
 function transformChildLog(row: Record<string, unknown>): ChildLogWithUser {
   const loggedByUser = row.logged_by_user as { id: string; full_name: string; avatar_url: string | null } | null;
