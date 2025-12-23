@@ -394,10 +394,10 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 <p className="text-sm text-muted-foreground">
                   {format(selectedEvent.start, 'h:mm a')}
                 </p>
-                {selectedEvent.extendedProps.description && (
+                {Boolean(selectedEvent.extendedProps.description) && (
                   <p className="text-sm">{String(selectedEvent.extendedProps.description)}</p>
                 )}
-                {selectedEvent.extendedProps.loggedBy && (
+                {Boolean(selectedEvent.extendedProps.loggedBy) && (
                   <p className="text-xs text-muted-foreground">
                     {t('childLogs.loggedBy')}: {String(selectedEvent.extendedProps.loggedBy)}
                   </p>
