@@ -88,7 +88,8 @@
     "timeOff": "Tiempo Libre",
     "reports": "Informes",
     "settings": "Configuración",
-    "profile": "Perfil"
+    "profile": "Perfil",
+    "log": "Registro"
   },
   "tasks": {
     "title": "Tareas",
@@ -385,5 +386,30 @@
     "unauthorized": "No tienes permiso para acceder a esto",
     "validation": "Por favor, revisa tu entrada e inténtalo de nuevo",
     "network": "Error de red. Por favor, verifica tu conexión."
+  },
+  "childLogs": {
+    "title": "Registro de Niños",
+    "description": "Registra sueño, comida y actividades de baño de los niños",
+    "newLog": "Nueva Entrada",
+    "newLogDescription": "Selecciona un niño y categoría para crear un nuevo registro",
+    "selectChild": "Seleccionar Niño",
+    "selectCategory": "Seleccionar Categoría",
+    "descriptionOptional": "Descripción (opcional)",
+    "descriptionPlaceholder": "Agregar notas...",
+    "addLog": "Agregar Registro",
+    "recentLogs": "Registros Recientes",
+    "recentLogsDescription": "Últimos registros de actividad",
+    "noLogs": "Sin registros aún",
+    "logCreated": "Registro creado exitosamente",
+    "logDeleted": "Registro eliminado exitosamente",
+    "deleteConfirmation": "¿Estás seguro de que deseas eliminar este registro?",
+    "loggedBy": "Registrado por",
+    "sleepStart": "Inicio del Sueño",
+    "sleepEnd": "Fin del Sueño",
+    "categories": {
+      "sleep": "Sueño",
+      "food": "Comida",
+      "poop": "Pañal"
+    }
   }
 }

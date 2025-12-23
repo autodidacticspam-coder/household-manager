@@ -88,7 +88,8 @@
     "timeOff": "休假",
     "reports": "报告",
     "settings": "设置",
-    "profile": "个人资料"
+    "profile": "个人资料",
+    "log": "记录"
   },
   "tasks": {
     "title": "任务",
@@ -385,5 +386,30 @@
     "unauthorized": "您没有权限访问",
     "validation": "请检查您的输入后重试",
     "network": "网络错误，请检查您的连接。"
+  },
+  "childLogs": {
+    "title": "儿童记录",
+    "description": "记录孩子的睡眠、饮食和排便活动",
+    "newLog": "新建记录",
+    "newLogDescription": "选择孩子和类别来创建新记录",
+    "selectChild": "选择孩子",
+    "selectCategory": "选择类别",
+    "descriptionOptional": "描述（可选）",
+    "descriptionPlaceholder": "添加备注...",
+    "addLog": "添加记录",
+    "recentLogs": "最近记录",
+    "recentLogsDescription": "最新活动记录",
+    "noLogs": "暂无记录",
+    "logCreated": "记录创建成功",
+    "logDeleted": "记录删除成功",
+    "deleteConfirmation": "您确定要删除此记录吗？",
+    "loggedBy": "记录人",
+    "sleepStart": "入睡时间",
+    "sleepEnd": "醒来时间",
+    "categories": {
+      "sleep": "睡眠",
+      "food": "饮食",
+      "poop": "排便"
+    }
   }
 }

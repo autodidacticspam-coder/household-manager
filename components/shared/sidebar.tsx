@@ -16,6 +16,7 @@ import {
   Clock,
   User,
   Package,
+  ClipboardList,
 } from 'lucide-react';
 
 type NavItem = {
@@ -37,6 +38,7 @@ const adminNavItems: NavItem[] = [
 
 const employeeNavItems: NavItem[] = [
   { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-5 w-5" /> },
+  { href: '/log', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
   { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
   { href: '/time-off', labelKey: 'nav.timeOff', icon: <Clock className="h-5 w-5" /> },
   { href: '/supplies', labelKey: 'nav.supplies', icon: <Package className="h-5 w-5" /> },

@@ -19,7 +19,7 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask } from '@/hooks/use-tasks';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby } from 'lucide-react';
 
 type CalendarViewProps = {
   userId?: string;
@@ -35,10 +35,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [currentView, setCurrentView] = useState<ViewType>('timeGridWeek');
   const [showTasks, setShowTasks] = useState(true);
   const [showLeave, setShowLeave] = useState(true);
+  const [showSleep, setShowSleep] = useState(true);
+  const [showFood, setShowFood] = useState(true);
+  const [showPoop, setShowPoop] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{
     id: string;
     title: string;
-    type: 'task' | 'leave';
+    type: 'task' | 'leave' | 'log';
     start: Date;
     end: Date;
     extendedProps: Record<string, unknown>;
@@ -52,6 +55,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     endDate,
     showTasks,
     showLeave,
+    showSleep,
+    showFood,
+    showPoop,
     userId: isEmployee ? userId : undefined,
   });
 
@@ -98,7 +104,12 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     end: Date | null;
     extendedProps: Record<string, unknown>;
   } }) => {
-    const eventType = info.event.id.startsWith('task-') ? 'task' : 'leave';
+    let eventType: 'task' | 'leave' | 'log' = 'task';
+    if (info.event.id.startsWith('leave-')) {
+      eventType = 'leave';
+    } else if (info.event.id.startsWith('log-')) {
+      eventType = 'log';
+    }
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
@@ -186,6 +197,44 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   {t('calendar.showLeave')}
                 </Label>
               </div>
+              <div className="border-t pt-2 mt-2">
+                <p className="text-xs font-medium text-muted-foreground mb-2">{t('childLogs.title')}</p>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="show-sleep"
+                      checked={showSleep}
+                      onCheckedChange={(checked) => setShowSleep(!!checked)}
+                    />
+                    <Label htmlFor="show-sleep" className="flex items-center">
+                      <Moon className="h-4 w-4 mr-2 text-indigo-500" />
+                      {t('childLogs.categories.sleep')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="show-food"
+                      checked={showFood}
+                      onCheckedChange={(checked) => setShowFood(!!checked)}
+                    />
+                    <Label htmlFor="show-food" className="flex items-center">
+                      <Utensils className="h-4 w-4 mr-2 text-orange-500" />
+                      {t('childLogs.categories.food')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="show-poop"
+                      checked={showPoop}
+                      onCheckedChange={(checked) => setShowPoop(!!checked)}
+                    />
+                    <Label htmlFor="show-poop" className="flex items-center">
+                      <Baby className="h-4 w-4 mr-2 text-amber-500" />
+                      {t('childLogs.categories.poop')}
+                    </Label>
+                  </div>
+                </div>
+              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -234,6 +283,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   <span className="flex items-center">
                     <CheckSquare className="h-4 w-4 mr-2 text-indigo-500" />
                     {t('nav.tasks')}
+                  </span>
+                ) : selectedEvent.type === 'log' ? (
+                  <span className="flex items-center">
+                    <Baby className="h-4 w-4 mr-2 text-amber-500" />
+                    {t('childLogs.title')}
                   </span>
                 ) : (
                   <span className="flex items-center">
@@ -324,6 +378,30 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 <p className="text-sm text-muted-foreground mt-2">
                   {String(selectedEvent.extendedProps.totalDays)} {t('common.days')}
                 </p>
+              </div>
+            )}
+
+            {selectedEvent.type === 'log' && (
+              <div className="mt-3 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">
+                    {String(selectedEvent.extendedProps.child)}
+                  </Badge>
+                  <Badge variant="outline">
+                    {t(`childLogs.categories.${String(selectedEvent.extendedProps.logCategory)}`)}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {format(selectedEvent.start, 'h:mm a')}
+                </p>
+                {selectedEvent.extendedProps.description && (
+                  <p className="text-sm">{String(selectedEvent.extendedProps.description)}</p>
+                )}
+                {selectedEvent.extendedProps.loggedBy && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('childLogs.loggedBy')}: {String(selectedEvent.extendedProps.loggedBy)}
+                  </p>
+                )}
               </div>
             )}
           </CardContent>

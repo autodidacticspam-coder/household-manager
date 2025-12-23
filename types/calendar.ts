@@ -5,7 +5,7 @@ export interface CalendarEvent {
   start: Date | string;
   end: Date | string;
   allDay: boolean;
-  type: 'task' | 'task_instance' | 'leave';
+  type: 'task' | 'task_instance' | 'leave' | 'log';
   color: string;
   sourceId?: string;
   resourceId?: string;

@@ -10,6 +10,9 @@ export type CalendarFilters = {
   endDate: string;
   showTasks?: boolean;
   showLeave?: boolean;
+  showSleep?: boolean;
+  showFood?: boolean;
+  showPoop?: boolean;
   userId?: string;
 };
 
@@ -146,6 +149,70 @@ export function useCalendarEvents(filters: CalendarFilters) {
           events.push({ id: 'leave-' + l.id, type: 'leave', title: ((l.user as any)?.full_name || 'Employee') + ' - ' + (l.leave_type === 'pto' ? 'PTO' : 'Sick'), start: l.start_date, end: l.end_date, allDay: true, color: l.leave_type === 'pto' ? '#3b82f6' : '#10b981', resourceId: l.id, extendedProps: { leaveType: l.leave_type, userId: l.user_id, userName: (l.user as any)?.full_name, totalDays: l.total_days } });
         }
       }
+
+      // Fetch child logs
+      const showAnyLogs = filters.showSleep !== false || filters.showFood !== false || filters.showPoop !== false;
+      if (showAnyLogs) {
+        const categoryFilters: string[] = [];
+        if (filters.showSleep !== false) categoryFilters.push('sleep');
+        if (filters.showFood !== false) categoryFilters.push('food');
+        if (filters.showPoop !== false) categoryFilters.push('poop');
+
+        const { data: childLogs, error: logsError } = await supabase
+          .from('child_logs')
+          .select('*, logged_by_user:users!child_logs_logged_by_fkey(full_name)')
+          .gte('log_date', filters.startDate)
+          .lte('log_date', filters.endDate)
+          .in('category', categoryFilters);
+
+        if (logsError) throw logsError;
+
+        const logColors: Record<string, string> = {
+          sleep: '#6366f1', // indigo
+          food: '#f97316', // orange
+          poop: '#d97706', // amber
+        };
+
+        const logEmojis: Record<string, string> = {
+          sleep: '💤',
+          food: '🍽️',
+          poop: '💩',
+        };
+
+        for (const log of childLogs || []) {
+          const emoji = logEmojis[log.category] || '';
+          const title = `${emoji} ${log.child} - ${log.category.charAt(0).toUpperCase() + log.category.slice(1)}`;
+
+          // For sleep, use start_time and end_time if available
+          let eventStart = log.log_date + 'T' + log.log_time;
+          let eventEnd = log.log_date + 'T' + log.log_time;
+
+          if (log.category === 'sleep' && log.start_time && log.end_time) {
+            eventStart = log.log_date + 'T' + log.start_time;
+            eventEnd = log.log_date + 'T' + log.end_time;
+          }
+
+          events.push({
+            id: 'log-' + log.id,
+            type: 'log' as any,
+            title,
+            start: eventStart,
+            end: eventEnd,
+            allDay: false,
+            color: logColors[log.category] || '#6b7280',
+            resourceId: log.id,
+            extendedProps: {
+              logCategory: log.category,
+              child: log.child,
+              description: log.description,
+              loggedBy: (log.logged_by_user as any)?.full_name,
+              startTime: log.start_time,
+              endTime: log.end_time,
+            },
+          });
+        }
+      }
+
       return events;
     },
   });
