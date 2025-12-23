@@ -2,7 +2,30 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { DateRange, EmployeeReport } from '@/types';
+import type { DateRange } from '@/types';
+
+type SimpleEmployeeReport = {
+  employee: {
+    id: string;
+    fullName: string;
+    email: string;
+    avatarUrl: string | null;
+  };
+  dateRange: DateRange;
+  taskStats: {
+    total: number;
+    completed: number;
+    pending: number;
+    inProgress: number;
+    completionRate: number;
+  };
+  leaveStats: {
+    ptoTaken: number;
+    sickTaken: number;
+    totalDaysOff: number;
+  };
+  tasksByCategory: { name: string; count: number }[];
+};
 
 export function useTeamStats(dateRange: DateRange) {
   const supabase = createClient();
@@ -63,7 +86,7 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
 
   return useQuery({
     queryKey: ['employee-report', employeeId, dateRange],
-    queryFn: async (): Promise<EmployeeReport> => {
+    queryFn: async (): Promise<SimpleEmployeeReport> => {
       // Get employee info
       const { data: employee } = await supabase
         .from('users')
@@ -133,7 +156,8 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
           a.target_type === 'all' || a.target_user_id === employeeId
         );
         if (isAssigned) {
-          const categoryName = (task.category as { name: string })?.name || 'Other';
+          const categoryObj = Array.isArray(task.category) ? task.category[0] : task.category;
+          const categoryName = (categoryObj as { name: string } | null)?.name || 'Other';
           tasksByCategory[categoryName] = (tasksByCategory[categoryName] || 0) + 1;
         }
       });

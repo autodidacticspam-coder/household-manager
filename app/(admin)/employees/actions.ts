@@ -33,7 +33,7 @@ export async function createEmployee(input: z.infer<typeof createEmployeeSchema>
   // Validate input
   const result = createEmployeeSchema.safeParse(input);
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   // Check if current user is admin

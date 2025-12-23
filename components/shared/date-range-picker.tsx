@@ -96,9 +96,9 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     setOpen(false);
   };
 
-  const displayText = value.preset === 'custom'
+  const displayText = value.preset === 'custom' && value.startDate && value.endDate
     ? `${format(new Date(value.startDate), 'MMM d, yyyy')} - ${format(new Date(value.endDate), 'MMM d, yyyy')}`
-    : t(`reports.dateRange.presets.${value.preset}`);
+    : t(`reports.dateRange.presets.${value.preset || 'last30days'}`);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

@@ -7,7 +7,7 @@ export const createLeaveRequestSchema = z.object({
   leaveType: leaveTypeSchema,
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
-  isFullDay: z.boolean().default(true),
+  isFullDay: z.boolean().optional(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
   reason: z.string().max(1000).nullable().optional(),

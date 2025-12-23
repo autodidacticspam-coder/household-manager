@@ -21,7 +21,7 @@ export async function createSupplyRequest(input: z.infer<typeof createSupplyRequ
 
   const result = createSupplyRequestSchema.safeParse(input);
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -24,14 +24,14 @@ export const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().max(5000).nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
-  priority: taskPrioritySchema.default('medium'),
+  priority: taskPrioritySchema.optional(),
   dueDate: z.string().nullable().optional(),
   dueTime: z.string().nullable().optional(),
-  isAllDay: z.boolean().default(true),
-  isRecurring: z.boolean().default(false),
+  isAllDay: z.boolean().optional(),
+  isRecurring: z.boolean().optional(),
   recurrenceRule: z.string().nullable().optional(),
-  syncToCalendar: z.boolean().default(false),
-  assignments: z.array(taskAssignmentSchema).default([]),
+  syncToCalendar: z.boolean().optional(),
+  assignments: z.array(taskAssignmentSchema).optional(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial().extend({

@@ -119,15 +119,13 @@ export function useLeaveBalance(userId?: string, year?: number) {
         if (error.code === 'PGRST116') {
           // No balance record, return defaults
           return {
-            id: null,
+            id: '',
             userId,
             year: targetYear,
             ptoTotal: 15,
             ptoUsed: 0,
             sickTotal: 10,
             sickUsed: 0,
-            createdAt: null,
-            updatedAt: null,
           } as LeaveBalance;
         }
         throw error;
@@ -306,6 +304,6 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     user: row.user as { id: string; fullName: string; avatarUrl: string | null; email: string } | undefined,
-    reviewedByUser: row.reviewed_by_user as { id: string; fullName: string } | undefined,
+    reviewer: row.reviewed_by_user as { id: string; fullName: string } | undefined,
   };
 }

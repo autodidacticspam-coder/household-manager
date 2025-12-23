@@ -27,7 +27,7 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
   // Validate input
   const result = createTaskSchema.safeParse(input);
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -132,7 +132,7 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
   // Validate input
   const result = updateTaskSchema.safeParse(input);
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   const { data: { user } } = await supabase.auth.getUser();

@@ -312,17 +312,17 @@ export default function LeaveRequestsPage() {
               {/* Employee Info */}
               <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
                 <Avatar className="h-14 w-14">
-                  <AvatarImage src={(selectedRequest.user as { avatarUrl: string | null })?.avatarUrl || undefined} />
+                  <AvatarImage src={selectedRequest.user?.avatarUrl || undefined} />
                   <AvatarFallback className="text-lg">
-                    {(selectedRequest.user as { fullName: string })?.fullName?.[0] || 'U'}
+                    {selectedRequest.user?.fullName?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
                   <p className="font-semibold text-lg">
-                    {(selectedRequest.user as { fullName: string })?.fullName}
+                    {selectedRequest.user?.fullName}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {(selectedRequest.user as { email: string })?.email}
+                    {selectedRequest.user?.email}
                   </p>
                 </div>
               </div>

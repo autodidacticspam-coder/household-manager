@@ -22,7 +22,7 @@ export async function createLeaveRequest(input: CreateLeaveRequestInput): Promis
   // Validate input
   const result = createLeaveRequestSchema.safeParse(input);
   if (!result.success) {
-    return { error: result.error.errors[0].message };
+    return { error: result.error.issues[0].message };
   }
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -31,8 +31,9 @@ export async function createLeaveRequest(input: CreateLeaveRequestInput): Promis
   }
 
   const data = result.data;
+  const isFullDay = data.isFullDay ?? true;
   // Use selectedDaysCount if provided (from calendar multi-select), otherwise calculate
-  const totalDays = data.selectedDaysCount || calculateTotalDays(data.startDate, data.endDate, data.isFullDay);
+  const totalDays = data.selectedDaysCount || calculateTotalDays(data.startDate, data.endDate, isFullDay);
 
   // No balance limit checks - just track usage
 
@@ -44,9 +45,9 @@ export async function createLeaveRequest(input: CreateLeaveRequestInput): Promis
       leave_type: data.leaveType,
       start_date: data.startDate,
       end_date: data.endDate,
-      is_full_day: data.isFullDay,
-      start_time: data.isFullDay ? null : data.startTime,
-      end_time: data.isFullDay ? null : data.endTime,
+      is_full_day: isFullDay,
+      start_time: isFullDay ? null : data.startTime,
+      end_time: isFullDay ? null : data.endTime,
       total_days: totalDays,
       reason: data.reason || null,
     })

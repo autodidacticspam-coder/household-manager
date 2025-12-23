@@ -195,6 +195,6 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     user: row.user as { id: string; fullName: string; avatarUrl: string | null; email: string } | undefined,
-    reviewedByUser: row.reviewed_by_user as { id: string; fullName: string } | undefined,
+    reviewer: row.reviewed_by_user as { id: string; fullName: string } | undefined,
   };
 }

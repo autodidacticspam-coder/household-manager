@@ -2,18 +2,20 @@ export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;
-  start: Date;
-  end: Date;
+  start: Date | string;
+  end: Date | string;
   allDay: boolean;
   type: 'task' | 'task_instance' | 'leave';
   color: string;
-  sourceId: string;
-  sourceType: 'task' | 'task_instance' | 'leave_request';
+  sourceId?: string;
+  resourceId?: string;
+  sourceType?: 'task' | 'task_instance' | 'leave_request';
   priority?: string;
   status?: string;
   category?: string;
   leaveType?: string;
   employeeName?: string;
+  extendedProps?: Record<string, unknown>;
 }
 
 export interface GoogleCalendarToken {

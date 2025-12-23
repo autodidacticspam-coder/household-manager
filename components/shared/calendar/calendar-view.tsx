@@ -263,22 +263,22 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             {selectedEvent.type === 'task' && (
               <div className="mt-3 space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  {selectedEvent.extendedProps.status && (
+                  {!!selectedEvent.extendedProps.status && (
                     <Badge variant="secondary">
                       {String(selectedEvent.extendedProps.status)}
                     </Badge>
                   )}
-                  {selectedEvent.extendedProps.priority && (
+                  {!!selectedEvent.extendedProps.priority && (
                     <Badge variant="outline">
                       {String(selectedEvent.extendedProps.priority)}
                     </Badge>
                   )}
-                  {selectedEvent.extendedProps.category && (
+                  {!!selectedEvent.extendedProps.category && (
                     <Badge variant="outline">
                       {String(selectedEvent.extendedProps.category)}
                     </Badge>
                   )}
-                  {selectedEvent.extendedProps.isRecurring && (
+                  {!!selectedEvent.extendedProps.isRecurring && (
                     <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
                       {t('tasks.recurring')}
                     </Badge>
@@ -298,7 +298,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 )}
 
                 {/* Mark Complete Button */}
-                {selectedEvent.extendedProps.status !== 'completed' && (
+                {String(selectedEvent.extendedProps.status) !== 'completed' && (
                   <Button
                     size="sm"
                     className="w-full mt-2"
@@ -319,10 +319,10 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             {selectedEvent.type === 'leave' && (
               <div className="mt-3">
                 <Badge variant="secondary">
-                  {selectedEvent.extendedProps.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                  {String(selectedEvent.extendedProps.leaveType) === 'pto' ? t('leave.pto') : t('leave.sick')}
                 </Badge>
                 <p className="text-sm text-muted-foreground mt-2">
-                  {selectedEvent.extendedProps.totalDays} {t('common.days')}
+                  {String(selectedEvent.extendedProps.totalDays)} {t('common.days')}
                 </p>
               </div>
             )}

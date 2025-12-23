@@ -303,7 +303,7 @@ export default function ReportsPage() {
                     <CardContent>
                       <div className="h-48">
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={employeeReport.tasksByCategory}>
+                          <BarChart data={employeeReport.tasksByCategory as unknown as Record<string, unknown>[]}>
                             <CartesianGrid strokeDasharray="3 3" />
                             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                             <YAxis />
@@ -324,13 +324,13 @@ export default function ReportsPage() {
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={employeeReport.tasksByCategory}
+                              data={employeeReport.tasksByCategory as unknown as Record<string, unknown>[]}
                               dataKey="count"
                               nameKey="name"
                               cx="50%"
                               cy="50%"
                               outerRadius={60}
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
                             >
                               {employeeReport.tasksByCategory.map((_, index) => (
                                 <Cell key={index} fill={COLORS[index % COLORS.length]} />

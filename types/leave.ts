@@ -21,6 +21,7 @@ export interface LeaveRequest {
   user?: {
     id: string;
     fullName: string;
+    email: string;
     avatarUrl: string | null;
   };
   reviewer?: {
@@ -39,6 +40,8 @@ export interface LeaveBalance {
   sickUsed: number;
   ptoRemaining?: number;
   sickRemaining?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface LeaveStats {

@@ -1,6 +1,9 @@
 export interface DateRange {
-  from: Date;
-  to: Date;
+  from?: Date;
+  to?: Date;
+  startDate?: string;
+  endDate?: string;
+  preset?: PresetKey;
 }
 
 export type PresetKey =

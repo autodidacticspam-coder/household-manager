@@ -9,6 +9,8 @@ export interface AuthUser {
   phone: string | null;
   smsNotificationsEnabled: boolean;
   preferredLocale: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Session {

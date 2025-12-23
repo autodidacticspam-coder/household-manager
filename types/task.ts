@@ -46,7 +46,7 @@ export interface Task {
   recurrenceRule: string | null;
   syncToCalendar: boolean;
   googleCalendarEventId: string | null;
-  createdBy: string;
+  createdBy: string | null;
   completedBy: string | null;
   completedAt: string | null;
   createdAt: string;
@@ -82,7 +82,7 @@ export interface TaskFilters {
 }
 
 // Task with all relations populated
-export interface TaskWithRelations extends Task {
+export type TaskWithRelations = Omit<Task, 'category' | 'createdByUser' | 'assignments'> & {
   category: TaskCategory | null;
   createdByUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   completedByUser: { id: string; fullName: string; avatarUrl: string | null } | null;
@@ -90,7 +90,7 @@ export interface TaskWithRelations extends Task {
     targetUser: { id: string; fullName: string; avatarUrl: string | null } | null;
     targetGroup: { id: string; name: string } | null;
   }>;
-}
+};
 
 export interface RecurrencePattern {
   frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';

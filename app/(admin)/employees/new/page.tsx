@@ -29,7 +29,7 @@ const formSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(1, 'Full name is required'),
   phone: z.string().optional(),
-  groupIds: z.array(z.string()).default([]),
+  groupIds: z.array(z.string()).optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -69,10 +69,10 @@ export default function NewEmployeePage() {
     }
   };
 
-  const selectedGroups = form.watch('groupIds');
+  const selectedGroups = form.watch('groupIds') || [];
 
   const toggleGroup = (groupId: string) => {
-    const current = form.getValues('groupIds');
+    const current = form.getValues('groupIds') || [];
     if (current.includes(groupId)) {
       form.setValue('groupIds', current.filter((id) => id !== groupId));
     } else {
