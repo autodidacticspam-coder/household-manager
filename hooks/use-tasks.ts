@@ -338,9 +338,10 @@ export function useOverdueTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, status, priority, due_date')
+        .select('id, title, status, priority, due_date, is_recurring')
         .in('status', ['pending', 'in_progress'])
         .lt('due_date', today)
+        .eq('is_recurring', false) // Don't show recurring tasks from previous days as overdue
         .order('due_date', { ascending: true });
 
       if (error) throw error;

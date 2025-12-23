@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+import { format, startOfDay, isBefore } from 'date-fns';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,23 @@ export function TaskCard({
   const t = useTranslations();
 
   const StatusIcon = statusIcons[task.status];
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== 'completed';
+
+  // Check if task is overdue
+  // For recurring tasks, don't show as overdue if due date is from a previous day
+  const isOverdue = (() => {
+    if (!task.dueDate || task.status === 'completed') return false;
+
+    const dueDate = new Date(task.dueDate);
+    const now = new Date();
+
+    // If the task is recurring and the due date is before today, don't show as overdue
+    if (task.isRecurring && isBefore(startOfDay(dueDate), startOfDay(now))) {
+      return false;
+    }
+
+    // Otherwise, show as overdue if due date has passed
+    return dueDate < now;
+  })();
 
   const getAllAssignees = (): Array<{ type: string; name: string; avatar?: string | null }> => {
     if (!task.assignments || task.assignments.length === 0) return [];
