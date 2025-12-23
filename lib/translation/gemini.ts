@@ -33,7 +33,7 @@ export async function translateToAllLanguages(
   }
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
     const targetLocales = (['en', 'es', 'zh'] as SupportedLocale[]).filter(
       (locale) => locale !== sourceLocale
