@@ -131,6 +131,7 @@
       "occurrences": "repeticiones"
     },
     "noTasks": "No se encontraron tareas",
+    "noDueDate": "Sin fecha límite",
     "noPendingTasks": "No hay tareas pendientes. ¡Buen trabajo!",
     "taskCreated": "Tarea creada exitosamente",
     "taskUpdated": "Tarea actualizada exitosamente",

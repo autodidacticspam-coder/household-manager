@@ -131,6 +131,7 @@
       "occurrences": "occurrences"
     },
     "noTasks": "No tasks found",
+    "noDueDate": "No due date",
     "noPendingTasks": "No pending tasks. Great job!",
     "taskCreated": "Task created successfully",
     "taskUpdated": "Task updated successfully",
