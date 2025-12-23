@@ -31,10 +31,14 @@ export function useCanAccessFoodRatings() {
         `)
         .eq('user_id', user.id);
 
-      if (membership) {
-        return membership.some((m: { group?: { name?: string } }) =>
-          m.group?.name?.toLowerCase() === 'chef'
-        );
+      if (membership && membership.length > 0) {
+        return membership.some((m) => {
+          const group = m.group as { name: string }[] | { name: string } | null;
+          if (Array.isArray(group)) {
+            return group.some(g => g.name?.toLowerCase() === 'chef');
+          }
+          return (group as { name?: string } | null)?.name?.toLowerCase() === 'chef';
+        });
       }
 
       return false;
@@ -162,7 +166,13 @@ export function useMenuRatingsSummary() {
       for (const row of data || []) {
         const item = row.menu_item;
         const existing = itemMap.get(item);
-        const raterName = (row.rated_by_user as { full_name: string } | null)?.full_name || 'Unknown';
+        const ratedByUser = row.rated_by_user as unknown;
+        let raterName = 'Unknown';
+        if (Array.isArray(ratedByUser) && ratedByUser[0]?.full_name) {
+          raterName = ratedByUser[0].full_name;
+        } else if (ratedByUser && typeof ratedByUser === 'object' && 'full_name' in ratedByUser) {
+          raterName = (ratedByUser as { full_name: string }).full_name;
+        }
 
         if (existing) {
           existing.ratings.push(row.rating);

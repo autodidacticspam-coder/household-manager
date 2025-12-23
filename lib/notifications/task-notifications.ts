@@ -5,9 +5,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 type TaskAssignment = {
-  targetType: 'user' | 'group' | 'all';
-  targetUserId?: string;
-  targetGroupId?: string;
+  targetType: 'user' | 'group' | 'all' | 'all_admins';
+  targetUserId?: string | null;
+  targetGroupId?: string | null;
 };
 
 type TaskInfo = {
@@ -80,6 +80,26 @@ export async function getTaskAssigneePhones(
       const { data: users } = await supabase
         .from('users')
         .select('id, full_name, phone, sms_notifications_enabled')
+        .eq('sms_notifications_enabled', true)
+        .not('phone', 'is', null);
+
+      if (users) {
+        for (const user of users) {
+          if (user.phone) {
+            recipientMap.set(user.id, {
+              userId: user.id,
+              phoneNumber: user.phone,
+              fullName: user.full_name,
+            });
+          }
+        }
+      }
+    } else if (assignment.targetType === 'all_admins') {
+      // All admin users
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, phone, sms_notifications_enabled')
+        .eq('role', 'admin')
         .eq('sms_notifications_enabled', true)
         .not('phone', 'is', null);
 
@@ -251,7 +271,7 @@ export async function getUpcomingHighPriorityTasks(minutesBefore: number = 15): 
         target_user_id: string | null;
         target_group_id: string | null;
       }) => ({
-        targetType: a.target_type as 'user' | 'group' | 'all',
+        targetType: a.target_type as 'user' | 'group' | 'all' | 'all_admins',
         targetUserId: a.target_user_id || undefined,
         targetGroupId: a.target_group_id || undefined,
       })),
