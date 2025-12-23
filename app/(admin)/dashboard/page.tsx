@@ -12,15 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, CheckSquare, Clock, Calendar, Loader2, AlertTriangle } from 'lucide-react';
+import { Users, CheckSquare, Clock, Calendar, Loader2, AlertTriangle, Package } from 'lucide-react';
 import { useTeamStats } from '@/hooks/use-reports';
 import { usePendingLeaveRequests, useCurrentlyOnLeave } from '@/hooks/use-leave';
 import { usePendingTasks, useOverdueTasks } from '@/hooks/use-tasks';
 import { useEmployees } from '@/hooks/use-tasks';
+import { usePendingSupplyRequests } from '@/hooks/use-supplies';
 import { format, subDays } from 'date-fns';
 import Link from 'next/link';
 
-type DialogType = 'employees' | 'tasks' | 'leave' | 'onLeave' | null;
+type DialogType = 'employees' | 'tasks' | 'leave' | 'onLeave' | 'supplies' | null;
 
 export default function DashboardPage() {
   const t = useTranslations();
@@ -38,8 +39,9 @@ export default function DashboardPage() {
   const { data: pendingTasks } = usePendingTasks();
   const { data: overdueTasks } = useOverdueTasks();
   const { data: employees } = useEmployees();
+  const { data: pendingSupplyRequests, isLoading: suppliesLoading } = usePendingSupplyRequests();
 
-  const isLoading = statsLoading || leaveLoading;
+  const isLoading = statsLoading || leaveLoading || suppliesLoading;
 
   return (
     <div className="space-y-6">
@@ -50,7 +52,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {/* Employees Card */}
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
@@ -134,9 +136,30 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Supply Requests Card */}
+        <Card
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setOpenDialog('supplies')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('nav.supplyRequests')}
+            </CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (pendingSupplyRequests?.length ?? 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t('leave.awaitingApproval')}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t('leave.pendingRequests')}</CardTitle>
@@ -215,6 +238,51 @@ export default function DashboardPage() {
             ) : (
               <p className="text-muted-foreground text-sm">
                 {t('dashboard.noOneOnLeave')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pending Supply Requests Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>{t('nav.supplyRequests')}</CardTitle>
+            {(pendingSupplyRequests?.length ?? 0) > 0 && (
+              <Link href="/supply-requests">
+                <Button variant="outline" size="sm">{t('common.viewAll')}</Button>
+              </Link>
+            )}
+          </CardHeader>
+          <CardContent>
+            {suppliesLoading ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : pendingSupplyRequests && pendingSupplyRequests.length > 0 ? (
+              <div className="space-y-4">
+                {pendingSupplyRequests.slice(0, 5).map((request) => (
+                  <div key={request.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={request.user?.avatarUrl || ''} />
+                        <AvatarFallback>
+                          {request.user?.fullName?.charAt(0) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{request.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {request.user?.fullName} - {format(new Date(request.createdAt), 'MMM d')}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="outline">{t('leave.status.pending')}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {t('descriptions.noPendingRequests')}
               </p>
             )}
           </CardContent>
@@ -394,6 +462,49 @@ export default function DashboardPage() {
             ) : (
               <p className="text-muted-foreground text-center py-4">{t('dashboard.noOneOnLeave')}</p>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Supply Requests Dialog */}
+      <Dialog open={openDialog === 'supplies'} onOpenChange={() => setOpenDialog(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              {t('nav.supplyRequests')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {pendingSupplyRequests && pendingSupplyRequests.length > 0 ? (
+              pendingSupplyRequests.map((request) => (
+                <div key={request.id} className="flex items-center justify-between p-3 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={request.user?.avatarUrl || ''} />
+                      <AvatarFallback>{request.user?.fullName?.charAt(0) || '?'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{request.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {request.user?.fullName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(request.createdAt), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="outline">{t('leave.status.pending')}</Badge>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted-foreground text-center py-4">{t('descriptions.noPendingRequests')}</p>
+            )}
+            <div className="pt-2">
+              <Link href="/supply-requests">
+                <Button className="w-full">{t('nav.supplyRequests')}</Button>
+              </Link>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
