@@ -90,7 +90,8 @@
     "settings": "Settings",
     "profile": "Profile",
     "log": "Log",
-    "menu": "Menu"
+    "menu": "Menu",
+    "foodRatings": "Food Ratings"
   },
   "tasks": {
     "title": "Tasks",

@@ -5,6 +5,7 @@ import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { createTaskSchema, updateTaskSchema, type CreateTaskInput, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
+import { sendTaskAssignedNotification } from '@/lib/notifications/task-notifications';
 
 export type ActionState = {
   error?: string;
@@ -119,6 +120,24 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
       // Rollback task creation
       await supabaseAdmin.from('tasks').delete().eq('id', task.id);
       return { error: 'Failed to create task assignments' };
+    }
+
+    // Send SMS notification for high/urgent priority tasks (non-blocking)
+    if (taskData.priority === 'high' || taskData.priority === 'urgent') {
+      sendTaskAssignedNotification({
+        id: task.id,
+        title: taskData.title,
+        priority: taskData.priority,
+        dueDate: taskData.dueDate || undefined,
+        dueTime: taskData.dueTime || undefined,
+        assignments: assignments.map(a => ({
+          targetType: a.targetType,
+          targetUserId: a.targetUserId,
+          targetGroupId: a.targetGroupId,
+        })),
+      }).catch(err => {
+        console.error('Failed to send task assignment SMS:', err);
+      });
     }
   }
 

@@ -90,7 +90,8 @@
     "settings": "设置",
     "profile": "个人资料",
     "log": "记录",
-    "menu": "菜单"
+    "menu": "菜单",
+    "foodRatings": "食物评分"
   },
   "tasks": {
     "title": "任务",

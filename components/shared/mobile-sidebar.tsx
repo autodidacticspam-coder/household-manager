@@ -6,6 +6,8 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
+import { useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
+import { useCanAccessChildLogs } from '@/hooks/use-child-logs';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -26,6 +28,7 @@ import {
   Package,
   ClipboardList,
   UtensilsCrossed,
+  Star,
 } from 'lucide-react';
 
 type NavItem = {
@@ -38,7 +41,6 @@ const adminNavItems: NavItem[] = [
   { href: '/dashboard', labelKey: 'nav.dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
   { href: '/tasks', labelKey: 'nav.tasks', icon: <CheckSquare className="h-5 w-5" /> },
   { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
-  { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
   { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { href: '/employees', labelKey: 'nav.employees', icon: <Users className="h-5 w-5" /> },
   { href: '/leave-requests', labelKey: 'nav.leaveRequests', icon: <FileText className="h-5 w-5" /> },
@@ -49,7 +51,6 @@ const adminNavItems: NavItem[] = [
 
 const employeeNavItems: NavItem[] = [
   { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
   { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
   { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
   { href: '/time-off', labelKey: 'nav.timeOff', icon: <Clock className="h-5 w-5" /> },
@@ -58,13 +59,44 @@ const employeeNavItems: NavItem[] = [
   { href: '/settings', labelKey: 'nav.settings', icon: <Settings className="h-5 w-5" /> },
 ];
 
+const logsNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> };
+const foodRatingsNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-5 w-5" /> };
+
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const t = useTranslations();
   const pathname = usePathname();
   const { isAdmin, isLoading } = useAuth();
+  const { data: canAccessFoodRatings } = useCanAccessFoodRatings();
+  const { data: canAccessLogs } = useCanAccessChildLogs();
 
-  const navItems = isAdmin ? adminNavItems : employeeNavItems;
+  // Build nav items, conditionally including logs and food ratings
+  const buildNavItems = () => {
+    const items: NavItem[] = [];
+
+    if (isAdmin) {
+      // Admin nav: dashboard, tasks, calendar, [logs], menu, [food-ratings], employees...
+      items.push(adminNavItems[0]); // dashboard
+      items.push(adminNavItems[1]); // tasks
+      items.push(adminNavItems[2]); // calendar
+      if (canAccessLogs) items.push(logsNavItem);
+      items.push(adminNavItems[3]); // menu
+      if (canAccessFoodRatings) items.push(foodRatingsNavItem);
+      items.push(...adminNavItems.slice(4)); // employees, leave-requests, etc.
+    } else {
+      // Employee nav: my-tasks, [logs], my-calendar, menu, [food-ratings], time-off...
+      items.push(employeeNavItems[0]); // my-tasks
+      if (canAccessLogs) items.push(logsNavItem);
+      items.push(employeeNavItems[1]); // my-calendar
+      items.push(employeeNavItems[2]); // menu
+      if (canAccessFoodRatings) items.push(foodRatingsNavItem);
+      items.push(...employeeNavItems.slice(3)); // time-off, supplies, etc.
+    }
+
+    return items;
+  };
+
+  const navItems = buildNavItems();
 
   // Show loading state in menu button while auth loads
   if (isLoading) {

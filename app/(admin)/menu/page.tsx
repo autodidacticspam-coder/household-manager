@@ -16,9 +16,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
+import { useMenuRatings, useRateMenuItem, type MenuRating } from '@/hooks/use-menu-ratings';
+import { useAuth } from '@/contexts/auth-context';
 import type { DayMeals, DayOfWeek } from '@/types';
+import { cn } from '@/lib/utils';
 
 const DAYS: Array<{ key: keyof Omit<DayMeals, 'day'>; label: string }> = [
   { key: 'breakfast', label: 'Breakfast' },
@@ -28,6 +36,80 @@ const DAYS: Array<{ key: keyof Omit<DayMeals, 'day'>; label: string }> = [
 ];
 
 const DAY_NAMES: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Rating selector component
+function RatingSelector({
+  menuItem,
+  weekStart,
+  dayOfWeek,
+  mealType,
+  currentRating,
+}: {
+  menuItem: string;
+  weekStart: string;
+  dayOfWeek: string;
+  mealType: string;
+  currentRating?: MenuRating;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const rateMenuItem = useRateMenuItem();
+
+  const handleRate = (rating: number) => {
+    rateMenuItem.mutate({
+      weekStart,
+      dayOfWeek,
+      mealType,
+      menuItem,
+      rating,
+    });
+    setIsOpen(false);
+  };
+
+  return (
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-6 px-2 text-xs gap-1",
+            currentRating ? "text-amber-600" : "text-gray-400 opacity-0 group-hover:opacity-100"
+          )}
+        >
+          <Star className={cn("h-3 w-3", currentRating && "fill-amber-500")} />
+          {currentRating ? currentRating.rating : 'Rate'}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-2" align="start">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Rate this item (1-10)</p>
+          <div className="flex gap-1 flex-wrap">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+              <Button
+                key={num}
+                variant={currentRating?.rating === num ? "default" : "outline"}
+                size="sm"
+                className={cn(
+                  "h-8 w-8 p-0",
+                  num <= 3 && "hover:bg-red-100 hover:text-red-700 hover:border-red-300",
+                  num >= 4 && num <= 6 && "hover:bg-yellow-100 hover:text-yellow-700 hover:border-yellow-300",
+                  num >= 7 && "hover:bg-green-100 hover:text-green-700 hover:border-green-300",
+                  currentRating?.rating === num && num <= 3 && "bg-red-500 hover:bg-red-600",
+                  currentRating?.rating === num && num >= 4 && num <= 6 && "bg-yellow-500 hover:bg-yellow-600",
+                  currentRating?.rating === num && num >= 7 && "bg-green-500 hover:bg-green-600"
+                )}
+                onClick={() => handleRate(num)}
+                disabled={rateMenuItem.isPending}
+              >
+                {num}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 function parseMenuText(text: string): DayMeals[] {
   const meals: DayMeals[] = DAY_NAMES.map(day => ({
@@ -149,6 +231,15 @@ export default function MenuPage() {
   const { data: menu, isLoading } = useWeeklyMenu(weekStartStr);
   const updateMenu = useUpdateMenu(weekStartStr);
   const { data: canEdit } = useCanEditMenu();
+  const { data: ratings } = useMenuRatings(weekStartStr);
+  const { isAdmin } = useAuth();
+
+  // Helper to find rating for a specific menu item
+  const getRating = (dayOfWeek: string, mealType: string, menuItem: string) => {
+    return ratings?.find(
+      r => r.dayOfWeek === dayOfWeek && r.mealType === mealType && r.menuItem === menuItem
+    );
+  };
 
   const [isEditing, setIsEditing] = useState(false);
   const [editedMeals, setEditedMeals] = useState<DayMeals[]>([]);
@@ -389,20 +480,44 @@ export default function MenuPage() {
                         const content = dayMeal[key];
                         if (!content) return null;
 
+                        const lines = content.split('\n').filter(l => l.trim());
+
                         return (
-                          <div key={key} className="group">
+                          <div key={key}>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-bold text-amber-600 dark:text-amber-500 uppercase tracking-widest">
                                 {t(`menu.meals.${key}`)}
                               </span>
                               <div className="flex-1 h-px bg-amber-300/50 dark:bg-amber-700/50" />
                             </div>
-                            <div className="pl-2 text-amber-900 dark:text-amber-100 whitespace-pre-wrap leading-relaxed">
-                              {content.split('\n').map((line, i) => (
-                                <p key={i} className={line.toLowerCase().includes('zander') || line.toLowerCase().includes('zara') || line.toLowerCase().includes('kids') ? 'text-amber-600 dark:text-amber-400 text-sm mt-2 italic' : ''}>
-                                  {line}
-                                </p>
-                              ))}
+                            <div className="pl-2 space-y-1">
+                              {lines.map((line, i) => {
+                                const trimmedLine = line.trim();
+                                const isKidsLine = trimmedLine.toLowerCase().includes('zander') ||
+                                                   trimmedLine.toLowerCase().includes('zara') ||
+                                                   trimmedLine.toLowerCase().includes('kids');
+
+                                return (
+                                  <div key={i} className="group flex items-center gap-2">
+                                    <p className={cn(
+                                      "flex-1 text-amber-900 dark:text-amber-100",
+                                      isKidsLine && "text-amber-600 dark:text-amber-400 text-sm italic"
+                                    )}>
+                                      {line}
+                                    </p>
+                                    {/* Rating selector for admins - each line item */}
+                                    {isAdmin && trimmedLine && !isKidsLine && (
+                                      <RatingSelector
+                                        menuItem={trimmedLine}
+                                        weekStart={weekStartStr}
+                                        dayOfWeek={dayMeal.day}
+                                        mealType={key}
+                                        currentRating={getRating(dayMeal.day, key, trimmedLine)}
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );

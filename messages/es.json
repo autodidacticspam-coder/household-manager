@@ -90,7 +90,8 @@
     "settings": "Configuración",
     "profile": "Perfil",
     "log": "Registro",
-    "menu": "Menú"
+    "menu": "Menú",
+    "foodRatings": "Calificaciones de Comida"
   },
   "tasks": {
     "title": "Tareas",
