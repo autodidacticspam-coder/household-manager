@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
+import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +21,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
 import { useMenuRatings, useRateMenuItem, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useAuth } from '@/contexts/auth-context';
@@ -52,21 +53,39 @@ function RatingSelector({
   currentRating?: MenuRating;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [comment, setComment] = useState(currentRating?.comment || '');
+  const [selectedRating, setSelectedRating] = useState<number | null>(currentRating?.rating || null);
   const rateMenuItem = useRateMenuItem();
 
+  // Reset state when popover opens
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      setComment(currentRating?.comment || '');
+      setSelectedRating(currentRating?.rating || null);
+    }
+  };
+
   const handleRate = (rating: number) => {
-    rateMenuItem.mutate({
-      weekStart,
-      dayOfWeek,
-      mealType,
-      menuItem,
-      rating,
-    });
-    setIsOpen(false);
+    setSelectedRating(rating);
+  };
+
+  const handleSave = () => {
+    if (selectedRating) {
+      rateMenuItem.mutate({
+        weekStart,
+        dayOfWeek,
+        mealType,
+        menuItem,
+        rating: selectedRating,
+        comment: comment.trim() || null,
+      });
+      setIsOpen(false);
+    }
   };
 
   return (
-    <Popover open={isOpen} onOpenChange={setIsOpen}>
+    <Popover open={isOpen} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
@@ -78,25 +97,26 @@ function RatingSelector({
         >
           <Star className={cn("h-3 w-3", currentRating && "fill-amber-500")} />
           {currentRating ? currentRating.rating : 'Rate'}
+          {currentRating?.comment && <MessageSquare className="h-3 w-3 ml-0.5" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" align="start">
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Rate this item (1-10)</p>
+      <PopoverContent className="w-72 p-3" align="start">
+        <div className="flex flex-col gap-3">
+          <p className="text-xs font-medium text-muted-foreground">Rate this item (1-10)</p>
           <div className="flex gap-1 flex-wrap">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
               <Button
                 key={num}
-                variant={currentRating?.rating === num ? "default" : "outline"}
+                variant={selectedRating === num ? "default" : "outline"}
                 size="sm"
                 className={cn(
                   "h-8 w-8 p-0",
                   num <= 3 && "hover:bg-red-100 hover:text-red-700 hover:border-red-300",
                   num >= 4 && num <= 6 && "hover:bg-yellow-100 hover:text-yellow-700 hover:border-yellow-300",
                   num >= 7 && "hover:bg-green-100 hover:text-green-700 hover:border-green-300",
-                  currentRating?.rating === num && num <= 3 && "bg-red-500 hover:bg-red-600",
-                  currentRating?.rating === num && num >= 4 && num <= 6 && "bg-yellow-500 hover:bg-yellow-600",
-                  currentRating?.rating === num && num >= 7 && "bg-green-500 hover:bg-green-600"
+                  selectedRating === num && num <= 3 && "bg-red-500 hover:bg-red-600",
+                  selectedRating === num && num >= 4 && num <= 6 && "bg-yellow-500 hover:bg-yellow-600",
+                  selectedRating === num && num >= 7 && "bg-green-500 hover:bg-green-600"
                 )}
                 onClick={() => handleRate(num)}
                 disabled={rateMenuItem.isPending}
@@ -105,6 +125,38 @@ function RatingSelector({
               </Button>
             ))}
           </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              Comment (optional)
+            </Label>
+            <Input
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Add a note..."
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={!selectedRating || rateMenuItem.isPending}
+            className="w-full"
+          >
+            {rateMenuItem.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              'Save Rating'
+            )}
+          </Button>
+
+          {currentRating?.comment && (
+            <p className="text-xs text-muted-foreground italic border-t pt-2">
+              Current note: {currentRating.comment}
+            </p>
+          )}
         </div>
       </PopoverContent>
     </Popover>
@@ -228,11 +280,32 @@ export default function MenuPage() {
   const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const isCurrentWeek = format(selectedWeek, 'yyyy-MM-dd') === format(currentWeekStart, 'yyyy-MM-dd');
 
+  // Ref for scrolling to today
+  const todayRef = useRef<HTMLDivElement>(null);
+  const hasScrolledRef = useRef(false);
+
   const { data: menu, isLoading } = useWeeklyMenu(weekStartStr);
   const updateMenu = useUpdateMenu(weekStartStr);
   const { data: canEdit } = useCanEditMenu();
   const { data: ratings } = useMenuRatings(weekStartStr);
   const { isAdmin } = useAuth();
+
+  // Auto-scroll to today when menu loads (only once per page load)
+  useEffect(() => {
+    if (!isLoading && menu && isCurrentWeek && todayRef.current && !hasScrolledRef.current) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasScrolledRef.current = true;
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, menu, isCurrentWeek]);
+
+  // Reset scroll flag when week changes
+  useEffect(() => {
+    hasScrolledRef.current = false;
+  }, [weekStartStr]);
 
   // Helper to find rating for a specific menu item
   const getRating = (dayOfWeek: string, mealType: string, menuItem: string) => {
@@ -431,13 +504,14 @@ export default function MenuPage() {
           <div className="divide-y divide-amber-200 dark:divide-amber-900">
             {meals.map((dayMeal, dayIndex) => {
               const dayDate = addDays(selectedWeek, dayIndex);
-              const isToday = format(new Date(), 'yyyy-MM-dd') === format(dayDate, 'yyyy-MM-dd');
+              const isTodayDay = isToday(dayDate);
               const hasContent = dayMeal.breakfast || dayMeal.lunch || dayMeal.dinner || dayMeal.snacks;
 
               return (
                 <div
                   key={dayMeal.day}
-                  className={`px-6 py-5 ${isToday ? 'bg-amber-100 dark:bg-amber-900/30' : ''}`}
+                  ref={isTodayDay ? todayRef : undefined}
+                  className={`px-6 py-5 ${isTodayDay ? 'bg-amber-100 dark:bg-amber-900/30' : ''}`}
                 >
                   {/* Day Header */}
                   <div className="flex items-center justify-between mb-4">
@@ -449,7 +523,7 @@ export default function MenuPage() {
                         {format(dayDate, 'MMM d')}
                       </span>
                     </div>
-                    {isToday && (
+                    {isTodayDay && (
                       <Badge className="bg-amber-600 hover:bg-amber-700 text-white">
                         {t('common.today')}
                       </Badge>
