@@ -52,6 +52,8 @@
     "resetPassword": "Restablecer Contraseña",
     "welcomeBack": "Bienvenido de Nuevo",
     "signInDescription": "Inicia sesión en tu cuenta de gestión del hogar",
+    "enterPassword": "Ingresa la contraseña para {name}",
+    "signingIn": "Iniciando sesión...",
     "noAccount": "¿No tienes una cuenta?",
     "contactAdmin": "Contacta a tu administrador",
     "invalidCredentials": "Correo electrónico o contraseña inválidos",

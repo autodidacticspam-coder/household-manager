@@ -52,6 +52,8 @@
     "resetPassword": "Reset Password",
     "welcomeBack": "Welcome Back",
     "signInDescription": "Sign in to your household management account",
+    "enterPassword": "Enter password for {name}",
+    "signingIn": "Signing you in...",
     "noAccount": "Don't have an account?",
     "contactAdmin": "Contact your administrator",
     "invalidCredentials": "Invalid email or password",

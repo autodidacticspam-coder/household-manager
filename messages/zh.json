@@ -52,6 +52,8 @@
     "resetPassword": "重置密码",
     "welcomeBack": "欢迎回来",
     "signInDescription": "登录您的家庭管理账户",
+    "enterPassword": "请输入 {name} 的密码",
+    "signingIn": "正在登录...",
     "noAccount": "没有账户？",
     "contactAdmin": "请联系管理员",
     "invalidCredentials": "邮箱或密码无效",
