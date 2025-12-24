@@ -159,6 +159,7 @@
     "leaveType": "请假类型",
     "pto": "带薪休假",
     "sick": "病假",
+    "holiday": "节假日",
     "startDate": "开始日期",
     "endDate": "结束日期",
     "fullDay": "全天",

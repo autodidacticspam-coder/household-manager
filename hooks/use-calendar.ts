@@ -148,7 +148,46 @@ export function useCalendarEvents(filters: CalendarFilters) {
         const { data: leaves, error } = await q;
         if (error) throw error;
         for (const l of leaves || []) {
-          events.push({ id: 'leave-' + l.id, type: 'leave', title: ((l.user as any)?.full_name || 'Employee') + ' - ' + (l.leave_type === 'pto' ? 'PTO' : 'Sick'), start: l.start_date, end: l.end_date, allDay: true, color: l.leave_type === 'pto' ? '#3b82f6' : '#10b981', resourceId: l.id, extendedProps: { leaveType: l.leave_type, userId: l.user_id, userName: (l.user as any)?.full_name, totalDays: l.total_days } });
+          // Check if this is a holiday (reason starts with "Holiday:")
+          const isHoliday = l.reason?.startsWith('Holiday:') || false;
+          const holidayName = isHoliday ? l.reason.replace('Holiday: ', '') : null;
+
+          // Determine display type and color
+          let displayType: string;
+          let color: string;
+          if (isHoliday) {
+            displayType = 'Holiday';
+            color = '#f59e0b'; // amber for holidays
+          } else if (l.leave_type === 'pto') {
+            displayType = 'PTO';
+            color = '#3b82f6'; // blue for PTO
+          } else {
+            displayType = 'Sick';
+            color = '#10b981'; // green for sick
+          }
+
+          const title = isHoliday
+            ? `${(l.user as any)?.full_name || 'Employee'} - ${holidayName}`
+            : `${(l.user as any)?.full_name || 'Employee'} - ${displayType}`;
+
+          events.push({
+            id: 'leave-' + l.id,
+            type: 'leave',
+            title,
+            start: l.start_date,
+            end: l.end_date,
+            allDay: true,
+            color,
+            resourceId: l.id,
+            extendedProps: {
+              leaveType: isHoliday ? 'holiday' : l.leave_type,
+              userId: l.user_id,
+              userName: (l.user as any)?.full_name,
+              totalDays: l.total_days,
+              isHoliday,
+              holidayName,
+            }
+          });
         }
       }
 

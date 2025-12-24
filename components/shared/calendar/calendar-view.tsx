@@ -447,9 +447,21 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
             {selectedEvent.type === 'leave' && (
               <div className="mt-3">
-                <Badge variant="secondary">
-                  {String(selectedEvent.extendedProps.leaveType) === 'pto' ? t('leave.pto') : t('leave.sick')}
+                <Badge
+                  variant="secondary"
+                  className={selectedEvent.extendedProps.isHoliday ? 'bg-amber-100 text-amber-700' : ''}
+                >
+                  {selectedEvent.extendedProps.isHoliday
+                    ? t('leave.holiday')
+                    : String(selectedEvent.extendedProps.leaveType) === 'pto'
+                      ? t('leave.pto')
+                      : t('leave.sick')}
                 </Badge>
+                {selectedEvent.extendedProps.isHoliday && selectedEvent.extendedProps.holidayName && (
+                  <p className="text-sm font-medium mt-2">
+                    {String(selectedEvent.extendedProps.holidayName)}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground mt-2">
                   {String(selectedEvent.extendedProps.totalDays)} {t('common.days')}
                 </p>

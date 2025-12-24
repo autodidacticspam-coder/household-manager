@@ -159,6 +159,7 @@
     "leaveType": "Leave Type",
     "pto": "Paid Time Off",
     "sick": "Sick Leave",
+    "holiday": "Holiday",
     "startDate": "Start Date",
     "endDate": "End Date",
     "fullDay": "Full day(s)",
