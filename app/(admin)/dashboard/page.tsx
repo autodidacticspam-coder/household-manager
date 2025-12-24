@@ -19,7 +19,7 @@ import { usePendingTasks, useOverdueTasks } from '@/hooks/use-tasks';
 import { useEmployees } from '@/hooks/use-tasks';
 import { usePendingSupplyRequests } from '@/hooks/use-supplies';
 import { useUpcomingImportantDates } from '@/hooks/use-employees';
-import { format, subDays, eachDayOfInterval } from 'date-fns';
+import { format, subDays, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
 import type { LeaveRequest } from '@/types';
 import Link from 'next/link';
 
@@ -73,6 +73,19 @@ type GroupedLeave = {
   user: LeaveRequest['user'];
   leaveEntries: LeaveRequest[];
 };
+
+// Helper to filter dates within next N days
+function filterDatesWithinRange(dates: Date[], daysAhead: number = 14): Date[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = addDays(today, daysAhead);
+
+  return dates.filter(date => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return (isAfter(d, today) || isEqual(d, today)) && (isBefore(d, endDate) || isEqual(d, endDate));
+  });
+}
 
 // Helper to group leave entries by employee
 function groupLeaveByEmployee(leaves: LeaveRequest[] | undefined): GroupedLeave[] {
@@ -300,16 +313,20 @@ export default function DashboardPage() {
                       <p className="text-sm font-medium">{group.user?.fullName}</p>
                     </div>
                     <div className="flex flex-wrap gap-1 ml-11">
-                      {group.leaveEntries.map((leave) => (
-                        <Badge
-                          key={leave.id}
-                          variant="secondary"
-                          className={`text-xs ${getLeaveTypeBadgeClass(leave)}`}
-                        >
-                          {getLeaveTypeLabel(leave, t)}
-                          {leave.totalDays > 1 ? ` (${leave.totalDays}d)` : ''}
-                        </Badge>
-                      ))}
+                      {group.leaveEntries.map((leave) => {
+                        const filteredDates = filterDatesWithinRange(getRequestDates(leave));
+                        if (filteredDates.length === 0) return null;
+                        return (
+                          <Badge
+                            key={leave.id}
+                            variant="secondary"
+                            className={`text-xs ${getLeaveTypeBadgeClass(leave)}`}
+                          >
+                            {getLeaveTypeLabel(leave, t)}
+                            {filteredDates.length > 1 ? ` (${filteredDates.length}d)` : ''}
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -575,25 +592,29 @@ export default function DashboardPage() {
                     </Avatar>
                     <p className="font-medium">{group.user?.fullName}</p>
                   </div>
-                  {group.leaveEntries.map((leave) => (
-                    <div key={leave.id} className="ml-13 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
-                          {getLeaveTypeLabel(leave, t)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {leave.totalDays} {leave.totalDays === 1 ? t('common.day') : t('common.days')}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {getRequestDates(leave).map((date, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs font-normal">
-                            {format(date, 'EEE, MMM d')}
+                  {group.leaveEntries.map((leave) => {
+                    const filteredDates = filterDatesWithinRange(getRequestDates(leave));
+                    if (filteredDates.length === 0) return null;
+                    return (
+                      <div key={leave.id} className="ml-13 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
+                            {getLeaveTypeLabel(leave, t)}
                           </Badge>
-                        ))}
+                          <span className="text-xs text-muted-foreground">
+                            {filteredDates.length} {filteredDates.length === 1 ? t('common.day') : t('common.days')}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {filteredDates.map((date, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs font-normal">
+                              {format(date, 'EEE, MMM d')}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ))
             ) : (

@@ -37,7 +37,7 @@ import {
   useCancelLeaveRequest,
 } from '@/hooks/use-leave';
 import { useEmployeesList } from '@/hooks/use-employees';
-import { format, eachDayOfInterval } from 'date-fns';
+import { format, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
 import { Calendar, CheckCircle, XCircle, Users, Clock, Plus, Sparkles, Loader2, X, Trash2, User } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
 import { toast } from 'sonner';
@@ -92,6 +92,19 @@ type GroupedLeave = {
   user: LeaveRequest['user'];
   leaveEntries: LeaveRequest[];
 };
+
+// Helper to filter dates within next N days
+function filterDatesWithinRange(dates: Date[], daysAhead: number = 14): Date[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDate = addDays(today, daysAhead);
+
+  return dates.filter(date => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return (isAfter(d, today) || isEqual(d, today)) && (isBefore(d, endDate) || isEqual(d, endDate));
+  });
+}
 
 // Helper to group leave entries by employee
 function groupLeaveByEmployee(leaves: LeaveRequest[] | undefined): GroupedLeave[] {
@@ -1076,32 +1089,36 @@ export default function LeaveRequestsPage() {
                   <p className="font-medium">{group.user?.fullName}</p>
                 </div>
                 <div className="space-y-3 ml-13">
-                  {group.leaveEntries.map((request) => (
-                    <div
-                      key={request.id}
-                      className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => {
-                        setShowCurrentlyOutPopup(false);
-                        setSelectedRequest(request);
-                      }}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="secondary" className={`text-xs ${getLeaveTypeBadgeClass(request)}`}>
-                          {getLeaveTypeLabel(request, t)}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {request.totalDays} {request.totalDays === 1 ? t('common.day') : t('common.days')}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {getRequestDates(request).map((date, idx) => (
-                          <Badge key={idx} variant="outline" className="text-xs font-normal">
-                            {format(date, 'EEE, MMM d')}
+                  {group.leaveEntries.map((request) => {
+                    const filteredDates = filterDatesWithinRange(getRequestDates(request));
+                    if (filteredDates.length === 0) return null;
+                    return (
+                      <div
+                        key={request.id}
+                        className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setShowCurrentlyOutPopup(false);
+                          setSelectedRequest(request);
+                        }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="secondary" className={`text-xs ${getLeaveTypeBadgeClass(request)}`}>
+                            {getLeaveTypeLabel(request, t)}
                           </Badge>
-                        ))}
+                          <span className="text-xs text-muted-foreground">
+                            {filteredDates.length} {filteredDates.length === 1 ? t('common.day') : t('common.days')}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {filteredDates.map((date, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs font-normal">
+                              {format(date, 'EEE, MMM d')}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
