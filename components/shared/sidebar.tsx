@@ -66,14 +66,14 @@ export function Sidebar() {
     const items: NavItem[] = [];
 
     if (isAdmin) {
-      // Admin nav: dashboard, tasks, calendar, [logs], menu, [food-ratings], employees...
+      // Admin nav: dashboard, tasks, calendar, [logs], menu, [food-ratings], employees, leave-requests...
       items.push(adminNavItems[0]); // dashboard
       items.push(adminNavItems[1]); // tasks
       items.push(adminNavItems[2]); // calendar
       if (canAccessLogs) items.push(logsNavItem);
       items.push(adminNavItems[3]); // menu
       if (canAccessFoodRatings) items.push(foodRatingsNavItem);
-      items.push(...adminNavItems.slice(4)); // employees, leave-requests, etc.
+      items.push(...adminNavItems.slice(4)); // employees, vacations, leave-requests, etc.
     } else {
       // Employee nav: my-tasks, [logs], my-calendar, menu, [food-ratings], time-off...
       items.push(employeeNavItems[0]); // my-tasks

@@ -8,6 +8,7 @@ export interface LeaveRequest {
   status: LeaveStatus;
   startDate: string;
   endDate: string;
+  selectedDates: string[] | null;
   isFullDay: boolean;
   startTime: string | null;
   endTime: string | null;

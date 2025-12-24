@@ -21,10 +21,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare } from 'lucide-react';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
 import { useMenuRatings, useRateMenuItem, type MenuRating } from '@/hooks/use-menu-ratings';
+import { useCreateFoodRequest } from '@/hooks/use-food-requests';
 import { useAuth } from '@/contexts/auth-context';
 import type { DayMeals, DayOfWeek } from '@/types';
 import { cn } from '@/lib/utils';
@@ -319,6 +320,10 @@ export default function MenuPage() {
   const [editedNotes, setEditedNotes] = useState<string>('');
   const [showPasteDialog, setShowPasteDialog] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestFoodName, setRequestFoodName] = useState('');
+  const [requestNotes, setRequestNotes] = useState('');
+  const createFoodRequest = useCreateFoodRequest();
 
   const goToPreviousWeek = () => {
     setSelectedWeek(prev => subWeeks(prev, 1));
@@ -579,15 +584,29 @@ export default function MenuPage() {
                                     )}>
                                       {line}
                                     </p>
-                                    {/* Rating selector for admins - each line item */}
+                                    {/* Rating selector and request button for admins - each line item */}
                                     {isAdmin && trimmedLine && !isKidsLine && (
-                                      <RatingSelector
-                                        menuItem={trimmedLine}
-                                        weekStart={weekStartStr}
-                                        dayOfWeek={dayMeal.day}
-                                        mealType={key}
-                                        currentRating={getRating(dayMeal.day, key, trimmedLine)}
-                                      />
+                                      <>
+                                        <RatingSelector
+                                          menuItem={trimmedLine}
+                                          weekStart={weekStartStr}
+                                          dayOfWeek={dayMeal.day}
+                                          mealType={key}
+                                          currentRating={getRating(dayMeal.day, key, trimmedLine)}
+                                        />
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-700 dark:text-amber-400"
+                                          onClick={() => {
+                                            setRequestFoodName(trimmedLine);
+                                            setShowRequestDialog(true);
+                                          }}
+                                        >
+                                          <Send className="h-3 w-3" />
+                                          Request
+                                        </Button>
+                                      </>
                                     )}
                                   </div>
                                 );
@@ -646,6 +665,70 @@ export default function MenuPage() {
             </Button>
             <Button onClick={handlePaste} disabled={!pasteText.trim()}>
               {t('menu.applyMenu')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Food Dialog */}
+      <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Request Food
+            </DialogTitle>
+            <DialogDescription>
+              Request a specific dish from the chef
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="food-name">What would you like?</Label>
+              <Input
+                id="food-name"
+                value={requestFoodName}
+                onChange={(e) => setRequestFoodName(e.target.value)}
+                placeholder="e.g., Grilled salmon, Chocolate cake..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="request-notes">Notes (optional)</Label>
+              <Textarea
+                id="request-notes"
+                value={requestNotes}
+                onChange={(e) => setRequestNotes(e.target.value)}
+                placeholder="Any special instructions or preferences..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowRequestDialog(false);
+              setRequestFoodName('');
+              setRequestNotes('');
+            }}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                createFoodRequest.mutate({
+                  foodName: requestFoodName,
+                  notes: requestNotes || null,
+                });
+                setShowRequestDialog(false);
+                setRequestFoodName('');
+                setRequestNotes('');
+              }}
+              disabled={!requestFoodName.trim() || createFoodRequest.isPending}
+            >
+              {createFoodRequest.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Submit Request
             </Button>
           </DialogFooter>
         </DialogContent>

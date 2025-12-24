@@ -47,6 +47,7 @@ export async function createLeaveRequest(input: CreateLeaveRequestInput): Promis
       leave_type: data.leaveType,
       start_date: data.startDate,
       end_date: data.endDate,
+      selected_dates: data.selectedDates || null,
       is_full_day: isFullDay,
       start_time: isFullDay ? null : data.startTime,
       end_time: isFullDay ? null : data.endTime,
@@ -254,7 +255,8 @@ export async function cancelLeaveRequest(requestId: string): Promise<ActionState
     return { error: 'You can only cancel your own leave requests' };
   }
 
-  if (request.status !== 'pending') {
+  // Non-admins can only cancel pending requests
+  if (!isAdmin && request.status !== 'pending') {
     return { error: 'Only pending leave requests can be cancelled' };
   }
 

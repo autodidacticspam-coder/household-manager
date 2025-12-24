@@ -28,11 +28,19 @@ type CalendarViewProps = {
 
 type ViewType = 'dayGridMonth' | 'timeGridWeek' | 'timeGridTwoDay' | 'timeGridDay';
 
+// Get initial view based on screen width
+function getInitialView(): ViewType {
+  if (typeof window !== 'undefined') {
+    return window.innerWidth < 768 ? 'timeGridTwoDay' : 'timeGridWeek';
+  }
+  return 'timeGridWeek';
+}
+
 export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) {
   const t = useTranslations();
   const calendarRef = useRef<FullCalendar>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<ViewType>('timeGridWeek');
+  const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
   const [showTasks, setShowTasks] = useState(true);
   const [showLeave, setShowLeave] = useState(true);
   const [showSleep, setShowSleep] = useState(true);
@@ -64,6 +72,23 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   });
 
   const completeTask = useCompleteTask();
+
+  // Set initial view based on screen size on mount and sync with calendar
+  useEffect(() => {
+    const handleResize = () => {
+      const newView = window.innerWidth < 768 ? 'timeGridTwoDay' : 'timeGridWeek';
+      if (newView !== currentView) {
+        setCurrentView(newView);
+        calendarRef.current?.getApi().changeView(newView);
+      }
+    };
+
+    // Set initial view on mount
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [currentView]);
 
   const handleCompleteTask = async (eventId: string) => {
     // Extract the actual task ID from the event ID

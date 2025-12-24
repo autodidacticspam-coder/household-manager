@@ -109,10 +109,12 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
     if (sortedDates.length > 0) {
       form.setValue('startDate', format(sortedDates[0], 'yyyy-MM-dd'));
       form.setValue('endDate', format(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd'));
+      form.setValue('selectedDates', sortedDates.map(d => format(d, 'yyyy-MM-dd')));
       form.setValue('selectedDaysCount', sortedDates.length);
     } else {
       form.setValue('startDate', '');
       form.setValue('endDate', '');
+      form.setValue('selectedDates', undefined);
       form.setValue('selectedDaysCount', undefined);
     }
   };

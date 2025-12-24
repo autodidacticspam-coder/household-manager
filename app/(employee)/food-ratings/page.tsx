@@ -22,8 +22,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User } from 'lucide-react';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
+import { useFoodRequests, useCompleteFoodRequest, useCreateFoodRequest, usePendingFoodRequestsCount, useDeleteFoodRequest } from '@/hooks/use-food-requests';
+import { useAuth } from '@/contexts/auth-context';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 function RatingBadge({ rating }: { rating: number }) {
@@ -55,9 +64,18 @@ export default function FoodRatingsPage() {
   const t = useTranslations();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDish, setSelectedDish] = useState<string | null>(null);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestFoodName, setRequestFoodName] = useState('');
+  const [requestNotes, setRequestNotes] = useState('');
   const { data: canAccess, isLoading: accessLoading } = useCanAccessFoodRatings();
   const { data: summary, isLoading: summaryLoading } = useMenuRatingsSummary();
   const { data: allRatings, isLoading: ratingsLoading } = useAllMenuRatings();
+  const { data: foodRequests, isLoading: requestsLoading } = useFoodRequests();
+  const { data: pendingCount } = usePendingFoodRequestsCount();
+  const { user } = useAuth();
+  const completeFoodRequest = useCompleteFoodRequest();
+  const createFoodRequest = useCreateFoodRequest();
+  const deleteFoodRequest = useDeleteFoodRequest();
 
   // Get all ratings for the selected dish
   const selectedDishRatings = useMemo(() => {
@@ -105,7 +123,7 @@ export default function FoodRatingsPage() {
     };
   }, [summary]);
 
-  if (accessLoading || summaryLoading || ratingsLoading) {
+  if (accessLoading || summaryLoading || ratingsLoading || requestsLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -231,6 +249,15 @@ export default function FoodRatingsPage() {
             <Star className="h-4 w-4" />
             All Ratings
           </TabsTrigger>
+          <TabsTrigger value="requests" className="gap-2">
+            <Send className="h-4 w-4" />
+            Requests
+            {pendingCount && pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         {/* Summary Tab */}
@@ -252,6 +279,7 @@ export default function FoodRatingsPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Dish</TableHead>
+                      <TableHead className="text-center w-[100px]">Request</TableHead>
                       <TableHead className="text-center">Avg Rating</TableHead>
                       <TableHead className="text-center">Total Ratings</TableHead>
                       <TableHead className="text-center">Range</TableHead>
@@ -270,6 +298,21 @@ export default function FoodRatingsPage() {
                           {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
                             <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
                           )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-3 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRequestFoodName(item.menuItem);
+                              setShowRequestDialog(true);
+                            }}
+                          >
+                            <Send className="h-3 w-3 mr-1.5" />
+                            Request
+                          </Button>
                         </TableCell>
                         <TableCell className="text-center">
                           <RatingBadge rating={item.averageRating} />
@@ -452,6 +495,152 @@ export default function FoodRatingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Food Requests Tab */}
+        <TabsContent value="requests">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                Food Requests
+              </CardTitle>
+              <CardDescription>
+                Food requests from the family
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {!foodRequests || foodRequests.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No food requests yet
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Pending Requests */}
+                  {foodRequests.filter(r => r.status === 'pending').length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Pending Requests
+                      </h3>
+                      {foodRequests
+                        .filter(r => r.status === 'pending')
+                        .map((request) => (
+                          <div
+                            key={request.id}
+                            className="flex items-start justify-between p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                          >
+                            <div className="flex items-start gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
+                                <AvatarFallback>
+                                  {request.requestedByUser?.fullName?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold">{request.foodName}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Requested by {request.requestedByUser?.fullName || 'Unknown'}
+                                </p>
+                                {request.notes && (
+                                  <p className="text-sm text-muted-foreground mt-1 italic">
+                                    &quot;{request.notes}&quot;
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {format(new Date(request.createdAt), 'MMM d, yyyy h:mm a')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {/* Cancel button - visible to the requester */}
+                              {user?.id === request.requestedBy && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteFoodRequest.mutate(request.id)}
+                                  disabled={deleteFoodRequest.isPending}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                >
+                                  {deleteFoodRequest.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <X className="h-4 w-4 mr-1" />
+                                      Cancel
+                                    </>
+                                  )}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                onClick={() => completeFoodRequest.mutate(request.id)}
+                                disabled={completeFoodRequest.isPending}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                {completeFoodRequest.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Check className="h-4 w-4 mr-1" />
+                                    Complete
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Completed Requests */}
+                  {foodRequests.filter(r => r.status === 'completed').length > 0 && (
+                    <div className="space-y-3 pt-4 border-t">
+                      <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <Check className="h-4 w-4 text-green-500" />
+                        Completed Requests
+                      </h3>
+                      {foodRequests
+                        .filter(r => r.status === 'completed')
+                        .slice(0, 10)
+                        .map((request) => (
+                          <div
+                            key={request.id}
+                            className="flex items-start justify-between p-4 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+                          >
+                            <div className="flex items-start gap-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
+                                <AvatarFallback>
+                                  {request.requestedByUser?.fullName?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="font-semibold line-through text-muted-foreground">
+                                  {request.foodName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  Requested by {request.requestedByUser?.fullName || 'Unknown'}
+                                </p>
+                                {request.completedAt && (
+                                  <p className="text-xs text-green-600 mt-1">
+                                    Completed {format(new Date(request.completedAt), 'MMM d, yyyy')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge variant="secondary" className="bg-green-100 text-green-700">
+                              <Check className="h-3 w-3 mr-1" />
+                              Done
+                            </Badge>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Dish Details Dialog */}
@@ -520,6 +709,70 @@ export default function FoodRatingsPage() {
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Request Food Dialog */}
+      <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Request Food
+            </DialogTitle>
+            <DialogDescription>
+              Request this dish from the chef
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="food-name">Dish</Label>
+              <Input
+                id="food-name"
+                value={requestFoodName}
+                onChange={(e) => setRequestFoodName(e.target.value)}
+                placeholder="e.g., Grilled salmon, Chocolate cake..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="request-notes">Notes (optional)</Label>
+              <Textarea
+                id="request-notes"
+                value={requestNotes}
+                onChange={(e) => setRequestNotes(e.target.value)}
+                placeholder="Any special instructions or preferences..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowRequestDialog(false);
+              setRequestFoodName('');
+              setRequestNotes('');
+            }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                createFoodRequest.mutate({
+                  foodName: requestFoodName,
+                  notes: requestNotes || null,
+                });
+                setShowRequestDialog(false);
+                setRequestFoodName('');
+                setRequestNotes('');
+              }}
+              disabled={!requestFoodName.trim() || createFoodRequest.isPending}
+            >
+              {createFoodRequest.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4 mr-2" />
+              )}
+              Submit Request
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

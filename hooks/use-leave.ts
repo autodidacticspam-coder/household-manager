@@ -293,6 +293,7 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
     status: row.status as 'pending' | 'approved' | 'denied',
     startDate: row.start_date as string,
     endDate: row.end_date as string,
+    selectedDates: row.selected_dates as string[] | null,
     isFullDay: row.is_full_day as boolean,
     startTime: row.start_time as string | null,
     endTime: row.end_time as string | null,
