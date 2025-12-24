@@ -67,6 +67,33 @@ function getLeaveTypeBadgeClass(request: LeaveRequest): string {
   return 'bg-green-100 text-green-700';  // sick
 }
 
+// Type for grouped leave by employee
+type GroupedLeave = {
+  userId: string;
+  user: LeaveRequest['user'];
+  leaveEntries: LeaveRequest[];
+};
+
+// Helper to group leave entries by employee
+function groupLeaveByEmployee(leaves: LeaveRequest[] | undefined): GroupedLeave[] {
+  if (!leaves || leaves.length === 0) return [];
+
+  const grouped = leaves.reduce((acc, leave) => {
+    const userId = leave.userId;
+    if (!acc[userId]) {
+      acc[userId] = {
+        userId,
+        user: leave.user,
+        leaveEntries: [],
+      };
+    }
+    acc[userId].leaveEntries.push(leave);
+    return acc;
+  }, {} as Record<string, GroupedLeave>);
+
+  return Object.values(grouped);
+}
+
 export default function DashboardPage() {
   const t = useTranslations();
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
@@ -85,6 +112,9 @@ export default function DashboardPage() {
   const { data: employees } = useEmployees();
   const { data: pendingSupplyRequests, isLoading: suppliesLoading } = usePendingSupplyRequests();
   const { data: upcomingImportantDates } = useUpcomingImportantDates(7);
+
+  // Group leave entries by employee for proper counting and display
+  const groupedCurrentlyOnLeave = groupLeaveByEmployee(currentlyOnLeave);
 
   const isLoading = statsLoading || leaveLoading || suppliesLoading;
 
@@ -174,7 +204,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : (currentlyOnLeave?.length ?? 0)}
+              {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : groupedCurrentlyOnLeave.length}
             </div>
             <p className="text-xs text-muted-foreground">
               {t('leave.staffMembers')}
@@ -256,40 +286,30 @@ export default function DashboardPage() {
             <CardTitle>{t('reports.stats.onLeaveToday')}</CardTitle>
           </CardHeader>
           <CardContent>
-            {currentlyOnLeave && currentlyOnLeave.length > 0 ? (
+            {groupedCurrentlyOnLeave.length > 0 ? (
               <div className="space-y-4">
-                {currentlyOnLeave.slice(0, 5).map((leave) => (
-                  <div key={leave.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={leave.user?.avatarUrl || ''} />
-                          <AvatarFallback>
-                            {leave.user?.fullName?.charAt(0) || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">{leave.user?.fullName}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {leave.totalDays} {t('common.days')}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
-                        {getLeaveTypeLabel(leave, t)}
-                      </Badge>
+                {groupedCurrentlyOnLeave.slice(0, 5).map((group) => (
+                  <div key={group.userId} className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={group.user?.avatarUrl || ''} />
+                        <AvatarFallback>
+                          {group.user?.fullName?.charAt(0) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="text-sm font-medium">{group.user?.fullName}</p>
                     </div>
                     <div className="flex flex-wrap gap-1 ml-11">
-                      {getRequestDates(leave).slice(0, 5).map((date, idx) => (
-                        <Badge key={idx} variant="outline" className="text-xs font-normal">
-                          {format(date, 'MMM d')}
+                      {group.leaveEntries.map((leave) => (
+                        <Badge
+                          key={leave.id}
+                          variant="secondary"
+                          className={`text-xs ${getLeaveTypeBadgeClass(leave)}`}
+                        >
+                          {getLeaveTypeLabel(leave, t)}
+                          {leave.totalDays > 1 ? ` (${leave.totalDays}d)` : ''}
                         </Badge>
                       ))}
-                      {getRequestDates(leave).length > 5 && (
-                        <Badge variant="outline" className="text-xs font-normal">
-                          +{getRequestDates(leave).length - 5} more
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -545,33 +565,35 @@ export default function DashboardPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            {currentlyOnLeave && currentlyOnLeave.length > 0 ? (
-              currentlyOnLeave.map((leave) => (
-                <div key={leave.id} className="p-3 rounded-lg border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={leave.user?.avatarUrl || ''} />
-                        <AvatarFallback>{leave.user?.fullName?.charAt(0) || '?'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{leave.user?.fullName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {leave.totalDays} {t('common.days')}
-                        </p>
+            {groupedCurrentlyOnLeave.length > 0 ? (
+              groupedCurrentlyOnLeave.map((group) => (
+                <div key={group.userId} className="p-3 rounded-lg border space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={group.user?.avatarUrl || ''} />
+                      <AvatarFallback>{group.user?.fullName?.charAt(0) || '?'}</AvatarFallback>
+                    </Avatar>
+                    <p className="font-medium">{group.user?.fullName}</p>
+                  </div>
+                  {group.leaveEntries.map((leave) => (
+                    <div key={leave.id} className="ml-13 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
+                          {getLeaveTypeLabel(leave, t)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {leave.totalDays} {leave.totalDays === 1 ? t('common.day') : t('common.days')}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {getRequestDates(leave).map((date, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs font-normal">
+                            {format(date, 'EEE, MMM d')}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
-                    <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
-                      {getLeaveTypeLabel(leave, t)}
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-1 ml-13">
-                    {getRequestDates(leave).map((date, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs font-normal">
-                        {format(date, 'EEE, MMM d')}
-                      </Badge>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               ))
             ) : (

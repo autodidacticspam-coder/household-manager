@@ -75,6 +75,44 @@ function getRequestDates(request: LeaveRequest): Date[] {
   });
 }
 
+// Helper to get badge class based on leave type
+function getLeaveTypeBadgeClass(request: LeaveRequest): string {
+  if (isHoliday(request)) {
+    return 'bg-amber-100 text-amber-700';
+  }
+  if (request.leaveType === 'pto') {
+    return '';  // default variant
+  }
+  return 'bg-green-100 text-green-700';  // sick
+}
+
+// Type for grouped leave by employee
+type GroupedLeave = {
+  userId: string;
+  user: LeaveRequest['user'];
+  leaveEntries: LeaveRequest[];
+};
+
+// Helper to group leave entries by employee
+function groupLeaveByEmployee(leaves: LeaveRequest[] | undefined): GroupedLeave[] {
+  if (!leaves || leaves.length === 0) return [];
+
+  const grouped = leaves.reduce((acc, leave) => {
+    const userId = leave.userId;
+    if (!acc[userId]) {
+      acc[userId] = {
+        userId,
+        user: leave.user,
+        leaveEntries: [],
+      };
+    }
+    acc[userId].leaveEntries.push(leave);
+    return acc;
+  }, {} as Record<string, GroupedLeave>);
+
+  return Object.values(grouped);
+}
+
 // Calculate a specific holiday for a given year
 function getMemorialDay(year: number): Date {
   const may31 = new Date(year, 4, 31);
@@ -177,6 +215,9 @@ export default function LeaveRequestsPage() {
   const pendingRequests = useMemo(() => filterByEmployee(pendingRequestsRaw), [pendingRequestsRaw, filterByEmployee]);
   const currentlyOnLeave = useMemo(() => filterByEmployee(currentlyOnLeaveRaw), [currentlyOnLeaveRaw, filterByEmployee]);
   const upcomingLeave = useMemo(() => filterByEmployee(upcomingLeaveRaw), [upcomingLeaveRaw, filterByEmployee]);
+
+  // Group leave entries by employee for proper counting and display
+  const groupedCurrentlyOnLeave = useMemo(() => groupLeaveByEmployee(currentlyOnLeave), [currentlyOnLeave]);
 
   const approveRequest = useApproveLeaveRequest();
   const denyRequest = useDenyLeaveRequest();
@@ -456,7 +497,7 @@ export default function LeaveRequestsPage() {
 
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow hover:border-blue-300"
-          onClick={() => currentlyOnLeave && currentlyOnLeave.length > 0 && setShowCurrentlyOutPopup(true)}
+          onClick={() => groupedCurrentlyOnLeave.length > 0 && setShowCurrentlyOutPopup(true)}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
@@ -465,8 +506,8 @@ export default function LeaveRequestsPage() {
             <Users className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{currentlyOnLeave?.length || 0}</div>
-            {currentlyOnLeave && currentlyOnLeave.length > 0 && (
+            <div className="text-2xl font-bold">{groupedCurrentlyOnLeave.length}</div>
+            {groupedCurrentlyOnLeave.length > 0 && (
               <p className="text-xs text-muted-foreground mt-1">Click for details</p>
             )}
           </CardContent>
@@ -1019,45 +1060,48 @@ export default function LeaveRequestsPage() {
               {t('leave.currentlyOut')}
             </DialogTitle>
             <DialogDescription>
-              {currentlyOnLeave?.length || 0} employee(s) currently on leave
+              {groupedCurrentlyOnLeave.length} employee(s) currently on leave
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            {currentlyOnLeave?.map((request) => (
-              <div
-                key={request.id}
-                className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => {
-                  setShowCurrentlyOutPopup(false);
-                  setSelectedRequest(request);
-                }}
-              >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={(request.user as { avatarUrl: string | null })?.avatarUrl || undefined} />
-                  <AvatarFallback>
-                    {(request.user as { fullName: string })?.fullName?.[0] || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{(request.user as { fullName: string })?.fullName}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="secondary" className="text-xs">
-                      {getLeaveTypeLabel(request, t)}
-                    </Badge>
-                    <Badge className="bg-blue-100 text-blue-700 text-xs">
-                      Currently Out
-                    </Badge>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {getRequestDates(request).map((date, idx) => (
-                      <Badge key={idx} variant="outline" className="text-xs font-normal">
-                        {format(date, 'MMM d')}
-                      </Badge>
-                    ))}
-                  </div>
-                  {request.reason && (
-                    <p className="text-sm text-muted-foreground mt-2 truncate">{request.reason}</p>
-                  )}
+          <div className="space-y-4">
+            {groupedCurrentlyOnLeave.map((group) => (
+              <div key={group.userId} className="p-3 border rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={group.user?.avatarUrl || undefined} />
+                    <AvatarFallback>
+                      {group.user?.fullName?.[0] || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <p className="font-medium">{group.user?.fullName}</p>
+                </div>
+                <div className="space-y-3 ml-13">
+                  {group.leaveEntries.map((request) => (
+                    <div
+                      key={request.id}
+                      className="p-2 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setShowCurrentlyOutPopup(false);
+                        setSelectedRequest(request);
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="secondary" className={`text-xs ${getLeaveTypeBadgeClass(request)}`}>
+                          {getLeaveTypeLabel(request, t)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {request.totalDays} {request.totalDays === 1 ? t('common.day') : t('common.days')}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {getRequestDates(request).map((date, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs font-normal">
+                            {format(date, 'EEE, MMM d')}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
