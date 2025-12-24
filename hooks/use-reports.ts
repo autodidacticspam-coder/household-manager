@@ -33,13 +33,13 @@ export function useTeamStats(dateRange: DateRange) {
   return useQuery({
     queryKey: ['team-stats', dateRange],
     queryFn: async () => {
-      // Get total employees
+      // Get total staff members (employees + admins)
       const { count: totalEmployees } = await supabase
         .from('users')
         .select('*', { count: 'exact', head: true })
-        .eq('role', 'employee');
+        .in('role', ['employee', 'admin']);
 
-      // Get employees on leave today
+      // Get staff on leave today
       const today = new Date().toISOString().split('T')[0];
       const { count: onLeaveToday } = await supabase
         .from('leave_requests')
@@ -56,26 +56,37 @@ export function useTeamStats(dateRange: DateRange) {
         .gte('completed_at', dateRange.startDate)
         .lte('completed_at', dateRange.endDate);
 
-      // Get pending tasks
-      const { count: tasksPending } = await supabase
+      // Get pending tasks (not including recurring tasks from past days)
+      const { data: pendingTasks } = await supabase
         .from('tasks')
-        .select('*', { count: 'exact', head: true })
+        .select('id, is_recurring, due_date')
         .in('status', ['pending', 'in_progress']);
 
-      // Get overdue tasks
-      const { count: tasksOverdue } = await supabase
+      // Filter out recurring tasks from past days
+      const filteredPending = (pendingTasks || []).filter((task) => {
+        if (!task.is_recurring) return true;
+        if (!task.due_date) return true;
+        // Include recurring tasks only if due date is today or future
+        return task.due_date >= today;
+      });
+
+      // Get overdue tasks (exclude recurring tasks from past days)
+      const { data: overdueTasks } = await supabase
         .from('tasks')
-        .select('*', { count: 'exact', head: true })
+        .select('id, is_recurring, due_date')
         .in('status', ['pending', 'in_progress'])
         .lt('due_date', today);
+
+      // Filter out recurring tasks for overdue count
+      const filteredOverdue = (overdueTasks || []).filter((task) => !task.is_recurring);
 
       return {
         totalEmployees: totalEmployees || 0,
         activeToday: (totalEmployees || 0) - (onLeaveToday || 0),
         onLeaveToday: onLeaveToday || 0,
         tasksCompleted: tasksCompleted || 0,
-        tasksPending: tasksPending || 0,
-        tasksOverdue: tasksOverdue || 0,
+        tasksPending: filteredPending.length,
+        tasksOverdue: filteredOverdue.length,
       };
     },
   });
@@ -87,64 +98,86 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
   return useQuery({
     queryKey: ['employee-report', employeeId, dateRange],
     queryFn: async (): Promise<SimpleEmployeeReport> => {
-      // Get employee info
+      // Get employee info including role and group memberships
       const { data: employee } = await supabase
         .from('users')
-        .select('id, full_name, email, avatar_url')
+        .select(`
+          id, full_name, email, avatar_url, role,
+          employee_group_memberships(group_id)
+        `)
         .eq('id', employeeId)
         .single();
 
-      // Get tasks stats
+      const isAdmin = employee?.role === 'admin';
+      const employeeGroupIds = (employee?.employee_group_memberships || []).map(
+        (m: { group_id: string }) => m.group_id
+      );
+
+      // Helper function to check if task is assigned to this employee
+      const isTaskAssignedToEmployee = (assignments: { target_type: string; target_user_id: string | null; target_group_id: string | null }[]) => {
+        return assignments.some((a) => {
+          if (a.target_type === 'all') return true;
+          if (a.target_type === 'all_admins' && isAdmin) return true;
+          if (a.target_type === 'user' && a.target_user_id === employeeId) return true;
+          if (a.target_type === 'group' && a.target_group_id && employeeGroupIds.includes(a.target_group_id)) return true;
+          return false;
+        });
+      };
+
+      // Get tasks - filter by due_date OR completed_at in range
       const { data: tasks } = await supabase
         .from('tasks')
         .select(`
           id,
           status,
           completed_at,
-          created_at,
-          assignments:task_assignments(target_user_id, target_type)
+          due_date,
+          completed_by,
+          assignments:task_assignments(target_user_id, target_type, target_group_id)
         `)
-        .gte('created_at', dateRange.startDate)
-        .lte('created_at', dateRange.endDate);
+        .or(`due_date.gte.${dateRange.startDate},completed_at.gte.${dateRange.startDate}`)
+        .or(`due_date.lte.${dateRange.endDate},completed_at.lte.${dateRange.endDate}`);
 
       // Filter tasks assigned to this employee
-      const employeeTasks = (tasks || []).filter((task) => {
-        return task.assignments.some((a: { target_type: string; target_user_id: string }) =>
-          a.target_type === 'all' || a.target_user_id === employeeId
-        );
-      });
+      const employeeTasks = (tasks || []).filter((task) => isTaskAssignedToEmployee(task.assignments));
 
-      const tasksCompleted = employeeTasks.filter((t) => t.status === 'completed').length;
+      // For completed tasks, only count those completed by this employee or assigned to them
+      const tasksCompletedByEmployee = employeeTasks.filter((t) =>
+        t.status === 'completed' &&
+        (t.completed_by === employeeId || !t.completed_by)
+      ).length;
       const tasksPending = employeeTasks.filter((t) => t.status === 'pending').length;
       const tasksInProgress = employeeTasks.filter((t) => t.status === 'in_progress').length;
-      const completionRate = employeeTasks.length > 0
-        ? Math.round((tasksCompleted / employeeTasks.length) * 100)
+      const totalAssigned = employeeTasks.length;
+      const completionRate = totalAssigned > 0
+        ? Math.round((tasksCompletedByEmployee / totalAssigned) * 100)
         : 0;
 
-      // Get leave stats
+      // Get leave stats - check for any overlap with date range
       const { data: leaveRequests } = await supabase
         .from('leave_requests')
         .select('*')
         .eq('user_id', employeeId)
         .eq('status', 'approved')
-        .gte('start_date', dateRange.startDate)
-        .lte('end_date', dateRange.endDate);
+        .lte('start_date', dateRange.endDate)
+        .gte('end_date', dateRange.startDate);
 
       const ptoTaken = (leaveRequests || [])
         .filter((r) => r.leave_type === 'pto')
-        .reduce((sum, r) => sum + parseFloat(r.total_days), 0);
+        .reduce((sum, r) => sum + parseFloat(r.total_days || '0'), 0);
 
       const sickTaken = (leaveRequests || [])
         .filter((r) => r.leave_type === 'sick')
-        .reduce((sum, r) => sum + parseFloat(r.total_days), 0);
+        .reduce((sum, r) => sum + parseFloat(r.total_days || '0'), 0);
 
-      // Get tasks by category
+      // Get tasks by category - completed by this employee in date range
       const { data: categoryTasks } = await supabase
         .from('tasks')
         .select(`
           category:task_categories(name),
           status,
-          assignments:task_assignments(target_user_id, target_type)
+          completed_by,
+          assignments:task_assignments(target_user_id, target_type, target_group_id)
         `)
         .eq('status', 'completed')
         .gte('completed_at', dateRange.startDate)
@@ -152,12 +185,13 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
 
       const tasksByCategory: Record<string, number> = {};
       (categoryTasks || []).forEach((task) => {
-        const isAssigned = task.assignments.some((a: { target_type: string; target_user_id: string }) =>
-          a.target_type === 'all' || a.target_user_id === employeeId
-        );
-        if (isAssigned) {
+        // Only count if assigned to employee OR completed by employee
+        const isAssigned = isTaskAssignedToEmployee(task.assignments);
+        const completedByEmployee = task.completed_by === employeeId;
+
+        if (isAssigned || completedByEmployee) {
           const categoryObj = Array.isArray(task.category) ? task.category[0] : task.category;
-          const categoryName = (categoryObj as { name: string } | null)?.name || 'Other';
+          const categoryName = (categoryObj as { name: string } | null)?.name || 'Uncategorized';
           tasksByCategory[categoryName] = (tasksByCategory[categoryName] || 0) + 1;
         }
       });
@@ -167,12 +201,12 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
           id: employee?.id || employeeId,
           fullName: employee?.full_name || 'Unknown',
           email: employee?.email || '',
-          avatarUrl: employee?.avatar_url,
+          avatarUrl: employee?.avatar_url || null,
         },
         dateRange,
         taskStats: {
-          total: employeeTasks.length,
-          completed: tasksCompleted,
+          total: totalAssigned,
+          completed: tasksCompletedByEmployee,
           pending: tasksPending,
           inProgress: tasksInProgress,
           completionRate,

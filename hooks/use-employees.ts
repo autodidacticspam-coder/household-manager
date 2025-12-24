@@ -42,23 +42,34 @@ export function useEmployeesList() {
 
       if (error) throw error;
 
-      return (users || []).map((user): Employee => ({
-        id: user.id,
-        email: user.email,
-        fullName: user.full_name,
-        role: user.role,
-        avatarUrl: user.avatar_url,
-        phone: user.phone,
-        createdAt: user.created_at,
-        groups: (user.employee_group_memberships || []).map((m: { group: { id: string; name: string } }) => m.group),
-        profile: user.employee_profiles ? {
-          dateOfBirth: user.employee_profiles.date_of_birth,
-          hireDate: user.employee_profiles.hire_date,
-          emergencyContact: user.employee_profiles.emergency_contact,
-          notes: user.employee_profiles.notes,
-          importantDates: user.employee_profiles.important_dates || [],
-        } : null,
-      }));
+      return (users || []).map((user): Employee => {
+        // Handle employee_profiles which may be array or object from Supabase join
+        const rawProfile = user.employee_profiles;
+        const profile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
+
+        // Handle groups - filter out null values
+        const groups = (user.employee_group_memberships || [])
+          .map((m: { group: { id: string; name: string } | null }) => m.group)
+          .filter((g: { id: string; name: string } | null): g is { id: string; name: string } => g !== null);
+
+        return {
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role,
+          avatarUrl: user.avatar_url,
+          phone: user.phone,
+          createdAt: user.created_at,
+          groups,
+          profile: profile ? {
+            dateOfBirth: profile.date_of_birth,
+            hireDate: profile.hire_date,
+            emergencyContact: profile.emergency_contact,
+            notes: profile.notes,
+            importantDates: profile.important_dates || [],
+          } : null,
+        };
+      });
     },
   });
 }
@@ -83,6 +94,15 @@ export function useEmployee(id: string) {
 
       if (error) throw error;
 
+      // Handle employee_profiles which may be array or object from Supabase join
+      const rawProfile = user.employee_profiles;
+      const profile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
+
+      // Handle groups - filter out null values
+      const groups = (user.employee_group_memberships || [])
+        .map((m: { group: { id: string; name: string } | null }) => m.group)
+        .filter((g: { id: string; name: string } | null): g is { id: string; name: string } => g !== null);
+
       return {
         id: user.id,
         email: user.email,
@@ -91,13 +111,13 @@ export function useEmployee(id: string) {
         avatarUrl: user.avatar_url,
         phone: user.phone,
         createdAt: user.created_at,
-        groups: (user.employee_group_memberships || []).map((m: { group: { id: string; name: string } }) => m.group),
-        profile: user.employee_profiles ? {
-          dateOfBirth: user.employee_profiles.date_of_birth,
-          hireDate: user.employee_profiles.hire_date,
-          emergencyContact: user.employee_profiles.emergency_contact,
-          notes: user.employee_profiles.notes,
-          importantDates: user.employee_profiles.important_dates || [],
+        groups,
+        profile: profile ? {
+          dateOfBirth: profile.date_of_birth,
+          hireDate: profile.hire_date,
+          emergencyContact: profile.emergency_contact,
+          notes: profile.notes,
+          importantDates: profile.important_dates || [],
         } : null,
       } as Employee;
     },
