@@ -12,12 +12,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, CheckSquare, Clock, Calendar, Loader2, AlertTriangle, Package } from 'lucide-react';
+import { Users, CheckSquare, Clock, Calendar, Loader2, AlertTriangle, Package, Gift } from 'lucide-react';
 import { useTeamStats } from '@/hooks/use-reports';
 import { usePendingLeaveRequests, useCurrentlyOnLeave } from '@/hooks/use-leave';
 import { usePendingTasks, useOverdueTasks } from '@/hooks/use-tasks';
 import { useEmployees } from '@/hooks/use-tasks';
 import { usePendingSupplyRequests } from '@/hooks/use-supplies';
+import { useUpcomingImportantDates } from '@/hooks/use-employees';
 import { format, subDays } from 'date-fns';
 import Link from 'next/link';
 
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const { data: overdueTasks } = useOverdueTasks();
   const { data: employees } = useEmployees();
   const { data: pendingSupplyRequests, isLoading: suppliesLoading } = usePendingSupplyRequests();
+  const { data: upcomingImportantDates } = useUpcomingImportantDates(7);
 
   const isLoading = statsLoading || leaveLoading || suppliesLoading;
 
@@ -283,6 +285,56 @@ export default function DashboardPage() {
             ) : (
               <p className="text-muted-foreground text-sm">
                 {t('descriptions.noPendingRequests')}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Important Dates Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-pink-500" />
+              {t('dashboard.upcomingDates')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcomingImportantDates && upcomingImportantDates.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingImportantDates.slice(0, 5).map((date, index) => {
+                  // Calculate how many days until the date
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const [, month, day] = date.date.split('-').map(Number);
+                  let eventDate = new Date(today.getFullYear(), month - 1, day);
+                  if (eventDate < today) {
+                    eventDate = new Date(today.getFullYear() + 1, month - 1, day);
+                  }
+                  const diffDays = Math.ceil((eventDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                  return (
+                    <div key={`${date.employeeId}-${date.date}-${index}`} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center">
+                          <Gift className="h-4 w-4 text-pink-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{date.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {date.employeeName}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-pink-50 text-pink-700 border-pink-200">
+                        {diffDays === 0 ? t('common.today') : diffDays === 1 ? t('common.tomorrow') : `${diffDays} ${t('common.days')}`}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                {t('dashboard.noUpcomingDates')}
               </p>
             )}
           </CardContent>

@@ -40,7 +40,9 @@
     "viewAll": "View All"
   },
   "dashboard": {
-    "noOneOnLeave": "No one is currently on leave"
+    "noOneOnLeave": "No one is currently on leave",
+    "upcomingDates": "Upcoming Important Dates",
+    "noUpcomingDates": "No important dates in the next 7 days"
   },
   "auth": {
     "login": "Sign In",
@@ -67,8 +69,8 @@
     "calendar": "Calendar",
     "employees": "Employees",
     "vacations": "Vacations",
-    "leaveRequests": "Leave Requests",
-    "supplyRequests": "Supply Requests",
+    "leaveRequests": "Leave Management",
+    "supplyRequests": "Supply Management",
     "supplyRequestDetails": "Supply Request Details",
     "approve": "Approve",
     "reject": "Reject",
@@ -258,6 +260,7 @@
     "days": "Days",
     "showTasks": "Show Tasks",
     "showLeave": "Show Time Off",
+    "showImportantDates": "Show Important Dates",
     "googleCalendar": {
       "connect": "Connect Google Calendar",
       "connected": "Google Calendar Connected",
@@ -396,15 +399,18 @@
     "description": "Log sleep, food, and bathroom activities for the children",
     "newLog": "New Log Entry",
     "newLogDescription": "Select a child and category to create a new log",
+    "editLog": "Edit Log",
     "selectChild": "Select Child",
     "selectCategory": "Select Category",
     "descriptionOptional": "Description (optional)",
     "descriptionPlaceholder": "Add any notes...",
     "addLog": "Add Log",
+    "updateLog": "Update Log",
     "recentLogs": "Recent Logs",
     "recentLogsDescription": "Latest activity logs",
     "noLogs": "No logs yet",
     "logCreated": "Log created successfully",
+    "logUpdated": "Log updated successfully",
     "logDeleted": "Log deleted successfully",
     "deleteConfirmation": "Are you sure you want to delete this log entry?",
     "loggedBy": "Logged by",

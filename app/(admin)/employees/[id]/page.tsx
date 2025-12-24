@@ -42,7 +42,7 @@ import { useEmployeeGroups } from '@/hooks/use-tasks';
 import { useMyLeaveRequests } from '@/hooks/use-leave';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { format } from 'date-fns';
-import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift } from 'lucide-react';
 
 type EmployeeDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -71,7 +71,10 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
     emergencyContact: '',
     notes: '',
     groupIds: [] as string[],
+    importantDates: [] as { label: string; date: string }[],
   });
+  const [newDateLabel, setNewDateLabel] = useState('');
+  const [newDateValue, setNewDateValue] = useState('');
 
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -87,7 +90,10 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
         emergencyContact: employee.profile?.emergencyContact || '',
         notes: employee.profile?.notes || '',
         groupIds: employee.groups.map(g => g.id),
+        importantDates: employee.profile?.importantDates || [],
       });
+      setNewDateLabel('');
+      setNewDateValue('');
       setShowEditDialog(true);
     }
   };
@@ -103,9 +109,28 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
         hireDate: editForm.hireDate || undefined,
         emergencyContact: editForm.emergencyContact || undefined,
         notes: editForm.notes || undefined,
+        importantDates: editForm.importantDates,
       },
     });
     setShowEditDialog(false);
+  };
+
+  const addImportantDate = () => {
+    if (newDateLabel && newDateValue) {
+      setEditForm(prev => ({
+        ...prev,
+        importantDates: [...prev.importantDates, { label: newDateLabel, date: newDateValue }],
+      }));
+      setNewDateLabel('');
+      setNewDateValue('');
+    }
+  };
+
+  const removeImportantDate = (index: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      importantDates: prev.importantDates.filter((_, i) => i !== index),
+    }));
   };
 
   const handleDelete = async () => {
@@ -429,6 +454,69 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                 onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
                 rows={3}
               />
+            </div>
+
+            {/* Important Dates Section */}
+            <div className="grid gap-2">
+              <Label className="flex items-center gap-2">
+                <Gift className="h-4 w-4" />
+                {t('employees.importantDates')}
+              </Label>
+              <div className="space-y-2 p-3 border rounded-md">
+                {/* Existing dates */}
+                {editForm.importantDates.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {editForm.importantDates.map((date, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">{date.label}</span>
+                          <span className="text-sm text-muted-foreground">
+                            {format(new Date(date.date + 'T00:00:00'), 'MMM d')}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeImportantDate(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new date */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={t('profile.dateLabelPlaceholder')}
+                    value={newDateLabel}
+                    onChange={(e) => setNewDateLabel(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="date"
+                    value={newDateValue}
+                    onChange={(e) => setNewDateValue(e.target.value)}
+                    className="w-40"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={addImportantDate}
+                    disabled={!newDateLabel || !newDateValue}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Add birthdays, anniversaries, and other dates to track
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter>

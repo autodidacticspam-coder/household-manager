@@ -37,22 +37,41 @@ import {
   useCancelLeaveRequest,
 } from '@/hooks/use-leave';
 import { useEmployeesList } from '@/hooks/use-employees';
-import { format, eachDayOfInterval, parseISO } from 'date-fns';
+import { format, eachDayOfInterval } from 'date-fns';
 import { Calendar, CheckCircle, XCircle, Users, Clock, Plus, Sparkles, Loader2, X, Trash2, User } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
+// Helper to parse date string without timezone issues
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Helper to check if a leave request is a holiday
+function isHoliday(request: LeaveRequest): boolean {
+  return request.reason?.startsWith('Holiday:') || false;
+}
+
+// Helper to get leave type display label
+function getLeaveTypeLabel(request: LeaveRequest, t: (key: string) => string): string {
+  if (isHoliday(request)) {
+    return 'Holiday';
+  }
+  return request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick');
+}
+
 // Helper to get dates - uses selectedDates if available, otherwise falls back to range
 function getRequestDates(request: LeaveRequest): Date[] {
   if (request.selectedDates && request.selectedDates.length > 0) {
-    return request.selectedDates.map(d => parseISO(d));
+    return request.selectedDates.map(d => parseLocalDate(d));
   }
   // Fallback to range for older requests
   return eachDayOfInterval({
-    start: parseISO(request.startDate),
-    end: parseISO(request.endDate),
+    start: parseLocalDate(request.startDate),
+    end: parseLocalDate(request.endDate),
   });
 }
 
@@ -320,7 +339,7 @@ export default function LeaveRequestsPage() {
               <p className="font-medium">{(request.user as { fullName: string })?.fullName}</p>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">
-                  {request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                  {getLeaveTypeLabel(request, t)}
                 </Badge>
                 <Badge className={statusColors[request.status]}>
                   {t(`leave.status.${request.status}`)}
@@ -567,7 +586,7 @@ export default function LeaveRequestsPage() {
               <div className="p-4 bg-gray-50 rounded-lg space-y-2">
                 <p className="font-medium">{(actionRequest.request.user as { fullName: string })?.fullName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {actionRequest.request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')} •{' '}
+                  {getLeaveTypeLabel(actionRequest.request, t)} •{' '}
                   {actionRequest.request.totalDays} {t('common.days')}
                 </p>
                 <div className="flex flex-wrap gap-1">
@@ -637,7 +656,7 @@ export default function LeaveRequestsPage() {
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">{t('leave.leaveType')}</span>
                   <Badge variant="secondary">
-                    {selectedRequest.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                    {getLeaveTypeLabel(selectedRequest, t)}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
@@ -961,7 +980,7 @@ export default function LeaveRequestsPage() {
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary" className="text-xs">
-                      {request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                      {getLeaveTypeLabel(request, t)}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
                       {request.totalDays} {t('common.days')}
@@ -1023,7 +1042,7 @@ export default function LeaveRequestsPage() {
                   <p className="font-medium">{(request.user as { fullName: string })?.fullName}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary" className="text-xs">
-                      {request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                      {getLeaveTypeLabel(request, t)}
                     </Badge>
                     <Badge className="bg-blue-100 text-blue-700 text-xs">
                       Currently Out
@@ -1083,7 +1102,7 @@ export default function LeaveRequestsPage() {
                   <p className="font-medium">{(request.user as { fullName: string })?.fullName}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge variant="secondary" className="text-xs">
-                      {request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                      {getLeaveTypeLabel(request, t)}
                     </Badge>
                     <Badge className="bg-green-100 text-green-700 text-xs">
                       Upcoming
@@ -1145,7 +1164,7 @@ export default function LeaveRequestsPage() {
                   <p className="font-medium">{(deleteRequest.user as { fullName: string })?.fullName}</p>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="text-xs">
-                      {deleteRequest.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                      {getLeaveTypeLabel(deleteRequest, t)}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
                       {deleteRequest.totalDays} {t('common.days')}

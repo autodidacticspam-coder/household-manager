@@ -40,7 +40,9 @@
     "viewAll": "查看全部"
   },
   "dashboard": {
-    "noOneOnLeave": "目前没有人休假"
+    "noOneOnLeave": "目前没有人休假",
+    "upcomingDates": "即将到来的重要日期",
+    "noUpcomingDates": "未来7天没有重要日期"
   },
   "auth": {
     "login": "登录",
@@ -67,8 +69,8 @@
     "calendar": "日历",
     "employees": "员工",
     "vacations": "假期",
-    "leaveRequests": "请假申请",
-    "supplyRequests": "物资申请",
+    "leaveRequests": "请假管理",
+    "supplyRequests": "用品管理",
     "supplyRequestDetails": "物资申请详情",
     "approve": "批准",
     "reject": "拒绝",
@@ -258,6 +260,7 @@
     "days": "天",
     "showTasks": "显示任务",
     "showLeave": "显示休假",
+    "showImportantDates": "显示重要日期",
     "googleCalendar": {
       "connect": "连接谷歌日历",
       "connected": "谷歌日历已连接",
@@ -396,15 +399,18 @@
     "description": "记录孩子的睡眠、饮食和排便活动",
     "newLog": "新建记录",
     "newLogDescription": "选择孩子和类别来创建新记录",
+    "editLog": "编辑记录",
     "selectChild": "选择孩子",
     "selectCategory": "选择类别",
     "descriptionOptional": "描述（可选）",
     "descriptionPlaceholder": "添加备注...",
     "addLog": "添加记录",
+    "updateLog": "更新记录",
     "recentLogs": "最近记录",
     "recentLogsDescription": "最新活动记录",
     "noLogs": "暂无记录",
     "logCreated": "记录创建成功",
+    "logUpdated": "记录更新成功",
     "logDeleted": "记录删除成功",
     "deleteConfirmation": "您确定要删除此记录吗？",
     "loggedBy": "记录人",

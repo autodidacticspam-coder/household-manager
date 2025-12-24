@@ -11,8 +11,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Baby, Utensils, Moon, Trash2, ClipboardList, Calendar, User, Plus, ShieldX, ShowerHead } from 'lucide-react';
-import { useChildLogs, useCreateChildLog, useDeleteChildLog, useCanAccessChildLogs } from '@/hooks/use-child-logs';
+import { Loader2, Baby, Utensils, Moon, Trash2, ClipboardList, Calendar, User, Plus, ShieldX, ShowerHead, Pencil } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useChildLogs, useCreateChildLog, useUpdateChildLog, useDeleteChildLog, useCanAccessChildLogs } from '@/hooks/use-child-logs';
 import type { ChildName, ChildLogCategory, ChildLogWithUser } from '@/types';
 import {
   AlertDialog,
@@ -48,6 +56,15 @@ function formatTime12h(time: string): string {
   return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
 }
 
+// Convert 24-hour time to 12-hour input format (returns {time: "9:30", ampm: "PM"})
+function parse24To12(time24: string | null): { time: string; ampm: 'AM' | 'PM' } {
+  if (!time24) return { time: '', ampm: 'AM' };
+  const [hours, minutes] = time24.slice(0, 5).split(':').map(Number);
+  const ampm: 'AM' | 'PM' = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12;
+  return { time: `${hours12}:${minutes.toString().padStart(2, '0')}`, ampm };
+}
+
 export default function UnifiedLogPage() {
   const t = useTranslations();
 
@@ -61,14 +78,41 @@ export default function UnifiedLogPage() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
+  // Helper to get current time in 12-hour format
+  const getCurrentTime12h = () => {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  const getCurrentAmPm = (): 'AM' | 'PM' => {
+    return new Date().getHours() >= 12 ? 'PM' : 'AM';
+  };
+
   // Create form state
   const [formChild, setFormChild] = useState<ChildName | ''>('');
   const [formCategory, setFormCategory] = useState<ChildLogCategory | ''>('');
   const [logDate, setLogDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [logTime, setLogTime] = useState(format(new Date(), 'HH:mm'));
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [startTime, setStartTime] = useState(getCurrentTime12h);
+  const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>(getCurrentAmPm);
+  const [endTime, setEndTime] = useState(getCurrentTime12h);
+  const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>(getCurrentAmPm);
+  const [logTimeInput, setLogTimeInput] = useState(getCurrentTime12h);
+  const [logAmPm, setLogAmPm] = useState<'AM' | 'PM'>(getCurrentAmPm);
   const [description, setDescription] = useState('');
+
+  // Convert 12-hour to 24-hour format
+  const to24Hour = (time12: string, ampm: 'AM' | 'PM'): string => {
+    if (!time12) return '';
+    const [hourStr, minStr] = time12.split(':');
+    let hour = parseInt(hourStr) || 0;
+    const min = minStr || '00';
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return `${hour.toString().padStart(2, '0')}:${min.padStart(2, '0')}`;
+  };
 
   // Build filters based on selection
   const filters = {
@@ -80,7 +124,71 @@ export default function UnifiedLogPage() {
 
   const { data: logs, isLoading: logsLoading } = useChildLogs(activeTab !== 'create' ? filters : undefined);
   const createLog = useCreateChildLog();
+  const updateLog = useUpdateChildLog();
   const deleteLog = useDeleteChildLog();
+
+  // Edit state
+  const [editingLog, setEditingLog] = useState<ChildLogWithUser | null>(null);
+  const [editChild, setEditChild] = useState<ChildName | ''>('');
+  const [editCategory, setEditCategory] = useState<ChildLogCategory | ''>('');
+  const [editDate, setEditDate] = useState('');
+  const [editLogTime, setEditLogTime] = useState('');
+  const [editLogAmPm, setEditLogAmPm] = useState<'AM' | 'PM'>('AM');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editStartAmPm, setEditStartAmPm] = useState<'AM' | 'PM'>('PM');
+  const [editEndTime, setEditEndTime] = useState('');
+  const [editEndAmPm, setEditEndAmPm] = useState<'AM' | 'PM'>('AM');
+  const [editDescription, setEditDescription] = useState('');
+
+  // Open edit dialog with log data
+  const openEditDialog = (log: ChildLogWithUser) => {
+    setEditingLog(log);
+    setEditChild(log.child);
+    setEditCategory(log.category);
+    setEditDate(log.logDate);
+    setEditDescription(log.description || '');
+
+    if (log.category === 'sleep') {
+      const startParsed = parse24To12(log.startTime);
+      const endParsed = parse24To12(log.endTime);
+      setEditStartTime(startParsed.time);
+      setEditStartAmPm(startParsed.ampm);
+      setEditEndTime(endParsed.time);
+      setEditEndAmPm(endParsed.ampm);
+      setEditLogTime('');
+      setEditLogAmPm('AM');
+    } else {
+      const timeParsed = parse24To12(log.logTime);
+      setEditLogTime(timeParsed.time);
+      setEditLogAmPm(timeParsed.ampm);
+      setEditStartTime('');
+      setEditEndTime('');
+    }
+  };
+
+  // Handle edit submit
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLog || !editChild || !editCategory) return;
+
+    const startTime24 = to24Hour(editStartTime, editStartAmPm);
+    const endTime24 = to24Hour(editEndTime, editEndAmPm);
+    const logTime24 = to24Hour(editLogTime, editLogAmPm);
+    const effectiveLogTime = editCategory === 'sleep' && startTime24 ? startTime24 : logTime24;
+
+    await updateLog.mutateAsync({
+      id: editingLog.id,
+      child: editChild,
+      category: editCategory,
+      logDate: editDate,
+      logTime: effectiveLogTime,
+      startTime: editCategory === 'sleep' ? startTime24 || null : null,
+      endTime: editCategory === 'sleep' ? endTime24 || null : null,
+      description: editDescription || null,
+    });
+
+    setEditingLog(null);
+  };
 
   // Show loading while checking access
   if (accessLoading) {
@@ -108,25 +216,31 @@ export default function UnifiedLogPage() {
     e.preventDefault();
     if (!formChild || !formCategory) return;
 
-    const effectiveLogTime = formCategory === 'sleep' && startTime ? startTime : logTime;
+    const startTime24 = to24Hour(startTime, startAmPm);
+    const endTime24 = to24Hour(endTime, endAmPm);
+    const logTime24 = to24Hour(logTimeInput, logAmPm);
+    const effectiveLogTime = formCategory === 'sleep' && startTime24 ? startTime24 : logTime24;
 
     await createLog.mutateAsync({
       child: formChild,
       category: formCategory,
       logDate,
       logTime: effectiveLogTime,
-      startTime: formCategory === 'sleep' ? startTime || null : null,
-      endTime: formCategory === 'sleep' ? endTime || null : null,
+      startTime: formCategory === 'sleep' ? startTime24 || null : null,
+      endTime: formCategory === 'sleep' ? endTime24 || null : null,
       description: description || null,
     });
 
-    // Reset form
+    // Reset form with current time
     setFormChild('');
     setFormCategory('');
     setDescription('');
-    setLogTime(format(new Date(), 'HH:mm'));
-    setStartTime('');
-    setEndTime('');
+    setLogTimeInput(getCurrentTime12h());
+    setLogAmPm(getCurrentAmPm());
+    setStartTime(getCurrentTime12h());
+    setStartAmPm(getCurrentAmPm());
+    setEndTime(getCurrentTime12h());
+    setEndAmPm(getCurrentAmPm());
   };
 
   const getCategoryIcon = (category: ChildLogCategory) => {
@@ -192,30 +306,40 @@ export default function UnifiedLogPage() {
           )}
         </div>
       </div>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('childLogs.deleteConfirmation')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteLog.mutate(log.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t('common.delete')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <div className="flex gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-primary"
+          onClick={() => openEditDialog(log)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t('childLogs.deleteConfirmation')}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteLog.mutate(log.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {t('common.delete')}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </div>
   );
 
@@ -387,35 +511,140 @@ export default function UnifiedLogPage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="startTime">{t('childLogs.sleepStart')}</Label>
-                      <Input
-                        id="startTime"
-                        type="time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        required
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="startTime"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="9:30"
+                          value={startTime}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d:]/g, '');
+                            if (val.length === 2 && !val.includes(':') && startTime.length < val.length) {
+                              val = val + ':';
+                            }
+                            if (val.length <= 5) setStartTime(val);
+                          }}
+                          className="flex-1"
+                          required
+                        />
+                        <div className="flex rounded-md border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setStartAmPm('AM')}
+                            className={`px-3 py-2 text-sm font-medium transition-colors ${
+                              startAmPm === 'AM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStartAmPm('PM')}
+                            className={`px-3 py-2 text-sm font-medium transition-colors ${
+                              startAmPm === 'PM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="endTime">{t('childLogs.sleepEnd')}</Label>
-                      <Input
-                        id="endTime"
-                        type="time"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        required
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="endTime"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="7:00"
+                          value={endTime}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d:]/g, '');
+                            if (val.length === 2 && !val.includes(':') && endTime.length < val.length) {
+                              val = val + ':';
+                            }
+                            if (val.length <= 5) setEndTime(val);
+                          }}
+                          className="flex-1"
+                          required
+                        />
+                        <div className="flex rounded-md border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setEndAmPm('AM')}
+                            className={`px-3 py-2 text-sm font-medium transition-colors ${
+                              endAmPm === 'AM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEndAmPm('PM')}
+                            className={`px-3 py-2 text-sm font-medium transition-colors ${
+                              endAmPm === 'PM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <Label htmlFor="logTime">{t('common.time')}</Label>
-                    <Input
-                      id="logTime"
-                      type="time"
-                      value={logTime}
-                      onChange={(e) => setLogTime(e.target.value)}
-                      required
-                    />
+                    <div className="flex gap-2">
+                      <Input
+                        id="logTime"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="12:30"
+                        value={logTimeInput}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/[^\d:]/g, '');
+                          if (val.length === 2 && !val.includes(':') && logTimeInput.length < val.length) {
+                            val = val + ':';
+                          }
+                          if (val.length <= 5) setLogTimeInput(val);
+                        }}
+                        className="flex-1"
+                        required
+                      />
+                      <div className="flex rounded-md border overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setLogAmPm('AM')}
+                          className={`px-3 py-2 text-sm font-medium transition-colors ${
+                            logAmPm === 'AM'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background hover:bg-muted'
+                          }`}
+                        >
+                          AM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLogAmPm('PM')}
+                          className={`px-3 py-2 text-sm font-medium transition-colors ${
+                            logAmPm === 'PM'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background hover:bg-muted'
+                          }`}
+                        >
+                          PM
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -643,6 +872,253 @@ export default function UnifiedLogPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingLog} onOpenChange={(open) => !open && setEditingLog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('childLogs.editLog')}</DialogTitle>
+            <DialogDescription>
+              {t('childLogs.newLogDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            {/* Child Selection */}
+            <div className="space-y-2">
+              <Label>{t('childLogs.selectChild')}</Label>
+              <div className="flex gap-2">
+                {CHILDREN.map((child) => {
+                  const colors = CHILD_COLORS[child];
+                  return (
+                    <Button
+                      key={child}
+                      type="button"
+                      variant={editChild === child ? 'default' : 'outline'}
+                      onClick={() => setEditChild(child)}
+                      className={`flex-1 ${editChild !== child ? colors.bg + ' ' + colors.text + ' border-0 hover:opacity-80' : ''}`}
+                      size="sm"
+                    >
+                      {child}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Category Selection */}
+            <div className="space-y-2">
+              <Label>{t('childLogs.selectCategory')}</Label>
+              <div className="flex gap-2">
+                {CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  return (
+                    <Button
+                      key={cat.value}
+                      type="button"
+                      variant={editCategory === cat.value ? 'default' : 'outline'}
+                      onClick={() => setEditCategory(cat.value)}
+                      className={`flex-1 gap-1 ${editCategory !== cat.value ? cat.bgColor + ' ' + cat.color + ' border-0 hover:opacity-80' : ''}`}
+                      size="sm"
+                    >
+                      <Icon className="h-3 w-3" />
+                      <span className="hidden sm:inline">{t(`childLogs.categories.${cat.value}`)}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <Label htmlFor="editDate">{t('common.date')}</Label>
+              <Input
+                id="editDate"
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Time - different for sleep vs other */}
+            {editCategory === 'sleep' ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="editStartTime">{t('childLogs.sleepStart')}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="editStartTime"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="9:30"
+                      value={editStartTime}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/[^\d:]/g, '');
+                        if (val.length === 2 && !val.includes(':') && editStartTime.length < val.length) {
+                          val = val + ':';
+                        }
+                        if (val.length <= 5) setEditStartTime(val);
+                      }}
+                      className="flex-1"
+                      required
+                    />
+                    <div className="flex rounded-md border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setEditStartAmPm('AM')}
+                        className={`px-2 py-1 text-xs font-medium transition-colors ${
+                          editStartAmPm === 'AM'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-background hover:bg-muted'
+                        }`}
+                      >
+                        AM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditStartAmPm('PM')}
+                        className={`px-2 py-1 text-xs font-medium transition-colors ${
+                          editStartAmPm === 'PM'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-background hover:bg-muted'
+                        }`}
+                      >
+                        PM
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="editEndTime">{t('childLogs.sleepEnd')}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="editEndTime"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="7:00"
+                      value={editEndTime}
+                      onChange={(e) => {
+                        let val = e.target.value.replace(/[^\d:]/g, '');
+                        if (val.length === 2 && !val.includes(':') && editEndTime.length < val.length) {
+                          val = val + ':';
+                        }
+                        if (val.length <= 5) setEditEndTime(val);
+                      }}
+                      className="flex-1"
+                      required
+                    />
+                    <div className="flex rounded-md border overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setEditEndAmPm('AM')}
+                        className={`px-2 py-1 text-xs font-medium transition-colors ${
+                          editEndAmPm === 'AM'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-background hover:bg-muted'
+                        }`}
+                      >
+                        AM
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditEndAmPm('PM')}
+                        className={`px-2 py-1 text-xs font-medium transition-colors ${
+                          editEndAmPm === 'PM'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-background hover:bg-muted'
+                        }`}
+                      >
+                        PM
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="editLogTime">{t('common.time')}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="editLogTime"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="12:30"
+                    value={editLogTime}
+                    onChange={(e) => {
+                      let val = e.target.value.replace(/[^\d:]/g, '');
+                      if (val.length === 2 && !val.includes(':') && editLogTime.length < val.length) {
+                        val = val + ':';
+                      }
+                      if (val.length <= 5) setEditLogTime(val);
+                    }}
+                    className="flex-1"
+                    required
+                  />
+                  <div className="flex rounded-md border overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setEditLogAmPm('AM')}
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        editLogAmPm === 'AM'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditLogAmPm('PM')}
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        editLogAmPm === 'PM'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      PM
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="editDescription">{t('childLogs.descriptionOptional')}</Label>
+              <Textarea
+                id="editDescription"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder={t('childLogs.descriptionPlaceholder')}
+                rows={2}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingLog(null)}
+              >
+                {t('common.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                disabled={!editChild || !editCategory || updateLog.isPending}
+              >
+                {updateLog.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t('common.saving')}
+                  </>
+                ) : (
+                  t('childLogs.updateLog')
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

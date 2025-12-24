@@ -290,3 +290,90 @@ export function useDeleteEmployee() {
     },
   });
 }
+
+export type ImportantDateWithEmployee = {
+  label: string;
+  date: string;
+  employeeId: string;
+  employeeName: string;
+  employeeAvatarUrl: string | null;
+};
+
+export function useAllImportantDates() {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ['all-important-dates'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('employee_profiles')
+        .select(`
+          important_dates,
+          user:users!employee_profiles_user_id_fkey(id, full_name, avatar_url)
+        `)
+        .not('important_dates', 'is', null);
+
+      if (error) throw error;
+
+      const allDates: ImportantDateWithEmployee[] = [];
+
+      for (const profile of data || []) {
+        // Handle Supabase join - user may be an array or a single object
+        const rawUser = profile.user;
+        const user = Array.isArray(rawUser) ? rawUser[0] : rawUser as { id: string; full_name: string; avatar_url: string | null } | null;
+        const dates = profile.important_dates as { label: string; date: string }[] | null;
+
+        if (user && dates && Array.isArray(dates)) {
+          for (const d of dates) {
+            allDates.push({
+              label: d.label,
+              date: d.date,
+              employeeId: user.id,
+              employeeName: user.full_name,
+              employeeAvatarUrl: user.avatar_url,
+            });
+          }
+        }
+      }
+
+      return allDates;
+    },
+  });
+}
+
+export function useUpcomingImportantDates(days: number = 7) {
+  const { data: allDates, isLoading, error } = useAllImportantDates();
+
+  const upcomingDates = allDates?.filter((d) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Get this year's occurrence of the date
+    const [, month, day] = d.date.split('-').map(Number);
+    let eventDate = new Date(today.getFullYear(), month - 1, day);
+
+    // If the date has passed this year, check next year
+    if (eventDate < today) {
+      eventDate = new Date(today.getFullYear() + 1, month - 1, day);
+    }
+
+    const diffTime = eventDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return diffDays >= 0 && diffDays <= days;
+  }).sort((a, b) => {
+    const today = new Date();
+    const [, aMonth, aDay] = a.date.split('-').map(Number);
+    const [, bMonth, bDay] = b.date.split('-').map(Number);
+
+    let aDate = new Date(today.getFullYear(), aMonth - 1, aDay);
+    let bDate = new Date(today.getFullYear(), bMonth - 1, bDay);
+
+    if (aDate < today) aDate = new Date(today.getFullYear() + 1, aMonth - 1, aDay);
+    if (bDate < today) bDate = new Date(today.getFullYear() + 1, bMonth - 1, bDay);
+
+    return aDate.getTime() - bDate.getTime();
+  });
+
+  return { data: upcomingDates, isLoading, error };
+}

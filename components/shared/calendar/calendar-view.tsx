@@ -19,7 +19,7 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask } from '@/hooks/use-tasks';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift } from 'lucide-react';
 
 type CalendarViewProps = {
   userId?: string;
@@ -47,10 +47,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [showFood, setShowFood] = useState(true);
   const [showPoop, setShowPoop] = useState(true);
   const [showShower, setShowShower] = useState(true);
+  const [showImportantDates, setShowImportantDates] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{
     id: string;
     title: string;
-    type: 'task' | 'leave' | 'log';
+    type: 'task' | 'leave' | 'log' | 'important_date';
     start: Date;
     end: Date;
     extendedProps: Record<string, unknown>;
@@ -68,6 +69,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     showFood,
     showPoop,
     showShower,
+    showImportantDates: isEmployee ? false : showImportantDates,
     userId: isEmployee ? userId : undefined,
   });
 
@@ -131,11 +133,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     end: Date | null;
     extendedProps: Record<string, unknown>;
   } }) => {
-    let eventType: 'task' | 'leave' | 'log' = 'task';
+    let eventType: 'task' | 'leave' | 'log' | 'important_date' = 'task';
     if (info.event.id.startsWith('leave-')) {
       eventType = 'leave';
     } else if (info.event.id.startsWith('log-')) {
       eventType = 'log';
+    } else if (info.event.id.startsWith('important-')) {
+      eventType = 'important_date';
     }
     setSelectedEvent({
       id: info.event.id,
@@ -232,6 +236,19 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   {t('calendar.showLeave')}
                 </Label>
               </div>
+              {!isEmployee && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="show-important-dates"
+                    checked={showImportantDates}
+                    onCheckedChange={(checked) => setShowImportantDates(!!checked)}
+                  />
+                  <Label htmlFor="show-important-dates" className="flex items-center">
+                    <Gift className="h-4 w-4 mr-2 text-pink-500" />
+                    {t('calendar.showImportantDates')}
+                  </Label>
+                </div>
+              )}
               <div className="border-t pt-2 mt-2">
                 <p className="text-xs font-medium text-muted-foreground mb-2">{t('childLogs.title')}</p>
                 <div className="space-y-2">
@@ -341,6 +358,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   <span className="flex items-center">
                     <Baby className="h-4 w-4 mr-2 text-amber-500" />
                     {t('childLogs.title')}
+                  </span>
+                ) : selectedEvent.type === 'important_date' ? (
+                  <span className="flex items-center">
+                    <Gift className="h-4 w-4 mr-2 text-pink-500" />
+                    {t('employees.importantDates')}
                   </span>
                 ) : (
                   <span className="flex items-center">
@@ -455,6 +477,20 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                     {t('childLogs.loggedBy')}: {String(selectedEvent.extendedProps.loggedBy)}
                   </p>
                 )}
+              </div>
+            )}
+
+            {selectedEvent.type === 'important_date' && (
+              <div className="mt-3 space-y-2">
+                <Badge variant="secondary" className="bg-pink-100 text-pink-700">
+                  {String(selectedEvent.extendedProps.label)}
+                </Badge>
+                <p className="text-sm text-muted-foreground">
+                  {String(selectedEvent.extendedProps.employeeName)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Recurring annually
+                </p>
               </div>
             )}
           </CardContent>

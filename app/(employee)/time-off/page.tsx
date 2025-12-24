@@ -24,6 +24,12 @@ import { format } from 'date-fns';
 import { Plus, Calendar, X, Clock } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
 
+// Helper to parse date string without timezone issues
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 // Helper to format 24h time to 12h format
 const formatTime = (time: string | null) => {
   if (!time) return '';
@@ -74,9 +80,9 @@ export default function TimeOffPage() {
             </div>
             <div className="flex items-center text-sm text-muted-foreground mt-2">
               <Calendar className="h-4 w-4 mr-1" />
-              {format(new Date(request.startDate), 'MMM d, yyyy')}
+              {format(parseLocalDate(request.startDate), 'MMM d, yyyy')}
               {request.startDate !== request.endDate && (
-                <> - {format(new Date(request.endDate), 'MMM d, yyyy')}</>
+                <> - {format(parseLocalDate(request.endDate), 'MMM d, yyyy')}</>
               )}
             </div>
             <p className="text-sm text-muted-foreground">

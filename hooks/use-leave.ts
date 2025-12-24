@@ -31,7 +31,7 @@ export function useLeaveRequests(filters?: LeaveFilters) {
           user:users!leave_requests_user_id_fkey(id, full_name, avatar_url, email),
           reviewed_by_user:users!leave_requests_reviewed_by_fkey(id, full_name)
         `)
-        .order('created_at', { ascending: false });
+        .order('start_date', { ascending: true });
 
       if (filters?.status) {
         query = query.eq('status', filters.status);
@@ -66,7 +66,7 @@ export function useMyLeaveRequests(userId?: string) {
           reviewed_by_user:users!leave_requests_reviewed_by_fkey(id, full_name)
         `)
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('start_date', { ascending: true });
 
       if (error) throw error;
 
@@ -90,7 +90,7 @@ export function usePendingLeaveRequests() {
           reviewed_by_user:users!leave_requests_reviewed_by_fkey(id, full_name)
         `)
         .eq('status', 'pending')
-        .order('created_at', { ascending: true });
+        .order('start_date', { ascending: true });
 
       if (error) throw error;
 
@@ -286,6 +286,10 @@ export function useCancelLeaveRequest() {
 }
 
 function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
+  // Transform nested user object from snake_case to camelCase
+  const rawUser = row.user as { id: string; full_name: string; avatar_url: string | null; email: string } | null;
+  const rawReviewer = row.reviewed_by_user as { id: string; full_name: string } | null;
+
   return {
     id: row.id as string,
     userId: row.user_id as string,
@@ -304,7 +308,15 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
     reviewedAt: row.reviewed_at as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
-    user: row.user as { id: string; fullName: string; avatarUrl: string | null; email: string } | undefined,
-    reviewer: row.reviewed_by_user as { id: string; fullName: string } | undefined,
+    user: rawUser ? {
+      id: rawUser.id,
+      fullName: rawUser.full_name,
+      avatarUrl: rawUser.avatar_url,
+      email: rawUser.email,
+    } : undefined,
+    reviewer: rawReviewer ? {
+      id: rawReviewer.id,
+      fullName: rawReviewer.full_name,
+    } : undefined,
   };
 }

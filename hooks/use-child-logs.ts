@@ -123,6 +123,52 @@ export function useCreateChildLog() {
   });
 }
 
+export function useUpdateChildLog() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      child: ChildName;
+      category: ChildLogCategory;
+      logDate: string;
+      logTime: string;
+      startTime?: string | null;
+      endTime?: string | null;
+      description?: string | null;
+    }) => {
+      const { data, error } = await supabase
+        .from('child_logs')
+        .update({
+          child: input.child,
+          category: input.category,
+          log_date: input.logDate,
+          log_time: input.logTime,
+          start_time: input.startTime || null,
+          end_time: input.endTime || null,
+          description: input.description || null,
+        })
+        .eq('id', input.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['child-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['child-logs-recent'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('childLogs.logUpdated'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 export function useDeleteChildLog() {
   const queryClient = useQueryClient();
   const supabase = createClient();

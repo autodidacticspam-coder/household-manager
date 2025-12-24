@@ -40,7 +40,9 @@
     "viewAll": "Ver Todo"
   },
   "dashboard": {
-    "noOneOnLeave": "Nadie está de permiso actualmente"
+    "noOneOnLeave": "Nadie está de permiso actualmente",
+    "upcomingDates": "Próximas Fechas Importantes",
+    "noUpcomingDates": "No hay fechas importantes en los próximos 7 días"
   },
   "auth": {
     "login": "Iniciar Sesión",
@@ -67,8 +69,8 @@
     "calendar": "Calendario",
     "employees": "Empleados",
     "vacations": "Vacaciones",
-    "leaveRequests": "Solicitudes de Ausencia",
-    "supplyRequests": "Solicitudes de Suministros",
+    "leaveRequests": "Gestión de Licencias",
+    "supplyRequests": "Gestión de Suministros",
     "supplyRequestDetails": "Detalles de la Solicitud de Suministros",
     "approve": "Aprobar",
     "reject": "Rechazar",
@@ -258,6 +260,7 @@
     "days": "Días",
     "showTasks": "Mostrar Tareas",
     "showLeave": "Mostrar Tiempo Libre",
+    "showImportantDates": "Mostrar Fechas Importantes",
     "googleCalendar": {
       "connect": "Conectar Google Calendar",
       "connected": "Google Calendar Conectado",
@@ -396,15 +399,18 @@
     "description": "Registra sueño, comida y actividades de baño de los niños",
     "newLog": "Nueva Entrada",
     "newLogDescription": "Selecciona un niño y categoría para crear un nuevo registro",
+    "editLog": "Editar Registro",
     "selectChild": "Seleccionar Niño",
     "selectCategory": "Seleccionar Categoría",
     "descriptionOptional": "Descripción (opcional)",
     "descriptionPlaceholder": "Agregar notas...",
     "addLog": "Agregar Registro",
+    "updateLog": "Actualizar Registro",
     "recentLogs": "Registros Recientes",
     "recentLogsDescription": "Últimos registros de actividad",
     "noLogs": "Sin registros aún",
     "logCreated": "Registro creado exitosamente",
+    "logUpdated": "Registro actualizado exitosamente",
     "logDeleted": "Registro eliminado exitosamente",
     "deleteConfirmation": "¿Estás seguro de que deseas eliminar este registro?",
     "loggedBy": "Registrado por",

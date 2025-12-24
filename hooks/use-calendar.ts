@@ -14,6 +14,7 @@ export type CalendarFilters = {
   showFood?: boolean;
   showPoop?: boolean;
   showShower?: boolean;
+  showImportantDates?: boolean;
   userId?: string;
 };
 
@@ -214,6 +215,63 @@ export function useCalendarEvents(filters: CalendarFilters) {
               endTime: log.end_time,
             },
           });
+        }
+      }
+
+      // Fetch important dates (admin only, recurring yearly)
+      if (filters.showImportantDates !== false && !filters.userId) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('employee_profiles')
+          .select(`
+            important_dates,
+            user:users!employee_profiles_user_id_fkey(id, full_name)
+          `)
+          .not('important_dates', 'is', null);
+
+        if (profilesError) throw profilesError;
+
+        for (const profile of profiles || []) {
+          // Handle Supabase join - user may be an array or a single object
+          const rawUser = profile.user;
+          const user = Array.isArray(rawUser) ? rawUser[0] : rawUser as { id: string; full_name: string } | null;
+          const dates = profile.important_dates as { label: string; date: string }[] | null;
+
+          if (user && dates && Array.isArray(dates)) {
+            for (const d of dates) {
+              // Get month and day from the stored date
+              const [, month, day] = d.date.split('-').map(Number);
+
+              // Check if this date occurs within the filter range (for this year)
+              const rangeStartYear = rangeStart.getFullYear();
+              const rangeEndYear = rangeEnd.getFullYear();
+
+              // Check for occurrences in both the start and end year of the range
+              for (let year = rangeStartYear; year <= rangeEndYear; year++) {
+                const eventDate = new Date(year, month - 1, day);
+                const eventDateStr = format(eventDate, 'yyyy-MM-dd');
+
+                if ((isAfter(eventDate, rangeStart) || isEqual(eventDate, rangeStart)) &&
+                    (isBefore(eventDate, rangeEnd) || isEqual(eventDate, rangeEnd))) {
+                  events.push({
+                    id: `important-${user.id}-${d.date}-${year}`,
+                    type: 'important_date' as any,
+                    title: `🎂 ${d.label} (${user.full_name})`,
+                    start: eventDateStr,
+                    end: eventDateStr,
+                    allDay: true,
+                    color: '#ec4899', // pink
+                    resourceId: user.id,
+                    extendedProps: {
+                      label: d.label,
+                      employeeName: user.full_name,
+                      employeeId: user.id,
+                      originalDate: d.date,
+                    },
+                  });
+                }
+              }
+            }
+          }
         }
       }
 
