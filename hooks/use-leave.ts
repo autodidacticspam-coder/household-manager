@@ -181,6 +181,24 @@ export function useCurrentlyOnLeave() {
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
 
+      // First, find users who are currently on leave (today falls within their date range)
+      const { data: currentLeave, error: currentError } = await supabase
+        .from('leave_requests')
+        .select('user_id')
+        .eq('status', 'approved')
+        .lte('start_date', today)
+        .gte('end_date', today);
+
+      if (currentError) throw currentError;
+
+      // Get unique user IDs who are currently on leave
+      const userIds = [...new Set((currentLeave || []).map(l => l.user_id))];
+
+      if (userIds.length === 0) {
+        return [];
+      }
+
+      // Fetch ALL approved leave entries for these users (to show holidays too)
       const { data, error } = await supabase
         .from('leave_requests')
         .select(`
@@ -188,9 +206,8 @@ export function useCurrentlyOnLeave() {
           user:users!leave_requests_user_id_fkey(id, full_name, avatar_url, email)
         `)
         .eq('status', 'approved')
-        .lte('start_date', today)
-        .gte('end_date', today)
-        .order('end_date', { ascending: true });
+        .in('user_id', userIds)
+        .order('start_date', { ascending: true });
 
       if (error) throw error;
 
