@@ -45,24 +45,14 @@ CREATE POLICY "Users can create own supply requests"
 -- Admins can view all requests
 CREATE POLICY "Admins can view all supply requests"
     ON supply_requests FOR SELECT
-    USING (
-        EXISTS (
-            SELECT 1 FROM users
-            WHERE users.id = auth.uid()
-            AND users.role = 'admin'
-        )
-    );
+    TO authenticated
+    USING (is_admin());
 
 -- Admins can update any request
 CREATE POLICY "Admins can update supply requests"
     ON supply_requests FOR UPDATE
-    USING (
-        EXISTS (
-            SELECT 1 FROM users
-            WHERE users.id = auth.uid()
-            AND users.role = 'admin'
-        )
-    );
+    TO authenticated
+    USING (is_admin());
 
 -- Employees can delete their own pending requests
 CREATE POLICY "Users can delete own pending supply requests"

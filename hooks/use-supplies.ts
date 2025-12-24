@@ -16,6 +16,37 @@ type SupplyFilters = {
 };
 
 function transformSupplyRequest(row: Record<string, unknown>): SupplyRequest {
+  // Handle Supabase join which may return array or object with snake_case fields
+  const rawUser = row.user as unknown;
+  let user: { id: string; fullName: string; email: string; avatarUrl: string | null } | undefined;
+
+  if (rawUser) {
+    const userData = Array.isArray(rawUser) ? rawUser[0] : rawUser;
+    if (userData && typeof userData === 'object') {
+      const u = userData as { id: string; full_name: string; email: string; avatar_url: string | null };
+      user = {
+        id: u.id,
+        fullName: u.full_name,
+        email: u.email,
+        avatarUrl: u.avatar_url,
+      };
+    }
+  }
+
+  const rawReviewer = row.reviewed_by_user as unknown;
+  let reviewedByUser: { id: string; fullName: string } | undefined;
+
+  if (rawReviewer) {
+    const reviewerData = Array.isArray(rawReviewer) ? rawReviewer[0] : rawReviewer;
+    if (reviewerData && typeof reviewerData === 'object') {
+      const r = reviewerData as { id: string; full_name: string };
+      reviewedByUser = {
+        id: r.id,
+        fullName: r.full_name,
+      };
+    }
+  }
+
   return {
     id: row.id as string,
     userId: row.user_id as string,
@@ -28,8 +59,8 @@ function transformSupplyRequest(row: Record<string, unknown>): SupplyRequest {
     adminNotes: row.admin_notes as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
-    user: row.user as { id: string; fullName: string; email: string; avatarUrl: string | null } | undefined,
-    reviewedByUser: row.reviewed_by_user as { id: string; fullName: string } | undefined,
+    user,
+    reviewedByUser,
   };
 }
 
