@@ -19,10 +19,53 @@ import { usePendingTasks, useOverdueTasks } from '@/hooks/use-tasks';
 import { useEmployees } from '@/hooks/use-tasks';
 import { usePendingSupplyRequests } from '@/hooks/use-supplies';
 import { useUpcomingImportantDates } from '@/hooks/use-employees';
-import { format, subDays } from 'date-fns';
+import { format, subDays, eachDayOfInterval } from 'date-fns';
+import type { LeaveRequest } from '@/types';
 import Link from 'next/link';
 
 type DialogType = 'employees' | 'tasks' | 'leave' | 'onLeave' | 'supplies' | null;
+
+// Helper to parse date string without timezone issues
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Helper to get dates - uses selectedDates if available, otherwise falls back to range
+function getRequestDates(request: LeaveRequest): Date[] {
+  if (request.selectedDates && request.selectedDates.length > 0) {
+    return request.selectedDates.map(d => parseLocalDate(d));
+  }
+  // Fallback to range for older requests
+  return eachDayOfInterval({
+    start: parseLocalDate(request.startDate),
+    end: parseLocalDate(request.endDate),
+  });
+}
+
+// Helper to check if a leave request is a holiday
+function isHoliday(request: LeaveRequest): boolean {
+  return request.reason?.startsWith('Holiday:') || false;
+}
+
+// Helper to get leave type display label
+function getLeaveTypeLabel(request: LeaveRequest, t: (key: string) => string): string {
+  if (isHoliday(request)) {
+    return t('leave.holiday');
+  }
+  return request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick');
+}
+
+// Helper to get badge variant based on leave type
+function getLeaveTypeBadgeClass(request: LeaveRequest): string {
+  if (isHoliday(request)) {
+    return 'bg-amber-100 text-amber-700';
+  }
+  if (request.leaveType === 'pto') {
+    return '';  // default variant
+  }
+  return 'bg-green-100 text-green-700';  // sick
+}
 
 export default function DashboardPage() {
   const t = useTranslations();
@@ -216,24 +259,38 @@ export default function DashboardPage() {
             {currentlyOnLeave && currentlyOnLeave.length > 0 ? (
               <div className="space-y-4">
                 {currentlyOnLeave.slice(0, 5).map((leave) => (
-                  <div key={leave.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={leave.user?.avatarUrl || ''} />
-                        <AvatarFallback>
-                          {leave.user?.fullName?.charAt(0) || '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">{leave.user?.fullName}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t('common.until')} {format(new Date(leave.endDate), 'MMM d')}
-                        </p>
+                  <div key={leave.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={leave.user?.avatarUrl || ''} />
+                          <AvatarFallback>
+                            {leave.user?.fullName?.charAt(0) || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">{leave.user?.fullName}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {leave.totalDays} {t('common.days')}
+                          </p>
+                        </div>
                       </div>
+                      <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
+                        {getLeaveTypeLabel(leave, t)}
+                      </Badge>
                     </div>
-                    <Badge variant={leave.leaveType === 'pto' ? 'default' : 'secondary'}>
-                      {leave.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1 ml-11">
+                      {getRequestDates(leave).slice(0, 5).map((date, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs font-normal">
+                          {format(date, 'MMM d')}
+                        </Badge>
+                      ))}
+                      {getRequestDates(leave).length > 5 && (
+                        <Badge variant="outline" className="text-xs font-normal">
+                          +{getRequestDates(leave).length - 5} more
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -490,25 +547,31 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {currentlyOnLeave && currentlyOnLeave.length > 0 ? (
               currentlyOnLeave.map((leave) => (
-                <div key={leave.id} className="flex items-center justify-between p-3 rounded-lg border">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={leave.user?.avatarUrl || ''} />
-                      <AvatarFallback>{leave.user?.fullName?.charAt(0) || '?'}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{leave.user?.fullName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(leave.startDate), 'MMM d')} - {format(new Date(leave.endDate), 'MMM d')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {leave.totalDays} {t('common.days')}
-                      </p>
+                <div key={leave.id} className="p-3 rounded-lg border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={leave.user?.avatarUrl || ''} />
+                        <AvatarFallback>{leave.user?.fullName?.charAt(0) || '?'}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{leave.user?.fullName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {leave.totalDays} {t('common.days')}
+                        </p>
+                      </div>
                     </div>
+                    <Badge variant="secondary" className={getLeaveTypeBadgeClass(leave)}>
+                      {getLeaveTypeLabel(leave, t)}
+                    </Badge>
                   </div>
-                  <Badge variant={leave.leaveType === 'pto' ? 'default' : 'secondary'}>
-                    {leave.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
-                  </Badge>
+                  <div className="flex flex-wrap gap-1 ml-13">
+                    {getRequestDates(leave).map((date, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs font-normal">
+                        {format(date, 'EEE, MMM d')}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               ))
             ) : (

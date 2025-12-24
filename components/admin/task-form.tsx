@@ -29,7 +29,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, X, Plus, Users, User, Clock, CalendarClock } from 'lucide-react';
+import { Loader2, X, Plus, Users, User, CalendarClock } from 'lucide-react';
 import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput } from '@/lib/validators/task';
 import type { TaskWithRelations } from '@/types';
@@ -65,6 +65,36 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
   const [recurrenceType, setRecurrenceType] = useState<'preset' | 'custom'>('preset');
   const [customDays, setCustomDays] = useState<string[]>([]);
   const [weekInterval, setWeekInterval] = useState<number>(1);
+
+  // Time input state (12-hour format with AM/PM)
+  const parse24To12 = (time24: string | null | undefined): { time: string; ampm: 'AM' | 'PM' } => {
+    if (!time24) return { time: '', ampm: 'AM' };
+    const [hours, minutes] = time24.slice(0, 5).split(':').map(Number);
+    const ampm: 'AM' | 'PM' = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    return { time: `${hours12}:${minutes.toString().padStart(2, '0')}`, ampm };
+  };
+
+  const to24Hour = (time12: string, ampm: 'AM' | 'PM'): string => {
+    if (!time12) return '';
+    const [hourStr, minStr] = time12.split(':');
+    let hour = parseInt(hourStr) || 0;
+    const min = minStr || '00';
+    if (ampm === 'PM' && hour !== 12) hour += 12;
+    if (ampm === 'AM' && hour === 12) hour = 0;
+    return `${hour.toString().padStart(2, '0')}:${min.padStart(2, '0')}`;
+  };
+
+  const dueTimeInit = parse24To12(task?.dueTime);
+  const startTimeInit = parse24To12(task?.startTime);
+  const endTimeInit = parse24To12(task?.endTime);
+
+  const [dueTimeInput, setDueTimeInput] = useState(dueTimeInit.time);
+  const [dueTimeAmPm, setDueTimeAmPm] = useState<'AM' | 'PM'>(dueTimeInit.ampm);
+  const [startTimeInput, setStartTimeInput] = useState(startTimeInit.time);
+  const [startTimeAmPm, setStartTimeAmPm] = useState<'AM' | 'PM'>(startTimeInit.ampm);
+  const [endTimeInput, setEndTimeInput] = useState(endTimeInit.time);
+  const [endTimeAmPm, setEndTimeAmPm] = useState<'AM' | 'PM'>(endTimeInit.ampm);
 
   const DAYS_OF_WEEK = [
     { value: 'MO', label: 'Mon' },
@@ -193,9 +223,17 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
       }
     }
 
+    // Convert 12-hour times to 24-hour format
+    const dueTime24 = dueTimeInput ? to24Hour(dueTimeInput, dueTimeAmPm) : null;
+    const startTime24 = startTimeInput ? to24Hour(startTimeInput, startTimeAmPm) : null;
+    const endTime24 = endTimeInput ? to24Hour(endTimeInput, endTimeAmPm) : null;
+
     // Assignments are now optional - task can be created without assignments
     const submitData = {
       ...data,
+      dueTime: data.isActivity ? null : dueTime24,
+      startTime: data.isActivity ? startTime24 : null,
+      endTime: data.isActivity ? endTime24 : null,
       assignments: finalAssignments,
     };
 
@@ -401,60 +439,138 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
 
                   {form.watch('isActivity') ? (
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="startTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t('tasks.startTime')}</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="time"
-                                {...field}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="space-y-2">
+                        <Label>{t('tasks.startTime')}</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="9:00"
+                            value={startTimeInput}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/[^\d:]/g, '');
+                              if (val.length === 2 && !val.includes(':') && startTimeInput.length < val.length) {
+                                val = val + ':';
+                              }
+                              if (val.length <= 5) setStartTimeInput(val);
+                            }}
+                            className="flex-1"
+                          />
+                          <div className="flex rounded-md border overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setStartTimeAmPm('AM')}
+                              className={`px-3 py-2 text-sm font-medium transition-colors ${
+                                startTimeAmPm === 'AM'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-background hover:bg-muted'
+                              }`}
+                            >
+                              AM
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setStartTimeAmPm('PM')}
+                              className={`px-3 py-2 text-sm font-medium transition-colors ${
+                                startTimeAmPm === 'PM'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-background hover:bg-muted'
+                              }`}
+                            >
+                              PM
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name="endTime"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t('tasks.endTime')}</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="time"
-                                {...field}
-                                value={field.value || ''}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="space-y-2">
+                        <Label>{t('tasks.endTime')}</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="10:00"
+                            value={endTimeInput}
+                            onChange={(e) => {
+                              let val = e.target.value.replace(/[^\d:]/g, '');
+                              if (val.length === 2 && !val.includes(':') && endTimeInput.length < val.length) {
+                                val = val + ':';
+                              }
+                              if (val.length <= 5) setEndTimeInput(val);
+                            }}
+                            className="flex-1"
+                          />
+                          <div className="flex rounded-md border overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => setEndTimeAmPm('AM')}
+                              className={`px-3 py-2 text-sm font-medium transition-colors ${
+                                endTimeAmPm === 'AM'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-background hover:bg-muted'
+                              }`}
+                            >
+                              AM
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEndTimeAmPm('PM')}
+                              className={`px-3 py-2 text-sm font-medium transition-colors ${
+                                endTimeAmPm === 'PM'
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-background hover:bg-muted'
+                              }`}
+                            >
+                              PM
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <FormField
-                      control={form.control}
-                      name="dueTime"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('tasks.dueTime')}</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="time"
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="space-y-2">
+                      <Label>{t('tasks.dueTime')}</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="9:00"
+                          value={dueTimeInput}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d:]/g, '');
+                            if (val.length === 2 && !val.includes(':') && dueTimeInput.length < val.length) {
+                              val = val + ':';
+                            }
+                            if (val.length <= 5) setDueTimeInput(val);
+                          }}
+                          className="flex-1"
+                        />
+                        <div className="flex rounded-md border overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setDueTimeAmPm('AM')}
+                            className={`px-3 py-2 text-sm font-medium transition-colors ${
+                              dueTimeAmPm === 'AM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDueTimeAmPm('PM')}
+                            className={`px-3 py-2 text-sm font-medium transition-colors ${
+                              dueTimeAmPm === 'PM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
