@@ -254,6 +254,7 @@
     "month": "Mes",
     "week": "Semana",
     "day": "Día",
+    "days": "Días",
     "showTasks": "Mostrar Tareas",
     "showLeave": "Mostrar Tiempo Libre",
     "googleCalendar": {
@@ -411,7 +412,8 @@
     "categories": {
       "sleep": "Sueño",
       "food": "Comida",
-      "poop": "Pañal"
+      "poop": "Pañal",
+      "shower": "Baño"
     }
   },
   "menu": {

@@ -254,6 +254,7 @@
     "month": "月",
     "week": "周",
     "day": "日",
+    "days": "天",
     "showTasks": "显示任务",
     "showLeave": "显示休假",
     "googleCalendar": {
@@ -411,7 +412,8 @@
     "categories": {
       "sleep": "睡眠",
       "food": "饮食",
-      "poop": "排便"
+      "poop": "排便",
+      "shower": "洗澡"
     }
   },
   "menu": {

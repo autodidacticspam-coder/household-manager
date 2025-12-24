@@ -19,14 +19,14 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask } from '@/hooks/use-tasks';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead } from 'lucide-react';
 
 type CalendarViewProps = {
   userId?: string;
   isEmployee?: boolean;
 };
 
-type ViewType = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+type ViewType = 'dayGridMonth' | 'timeGridWeek' | 'timeGridTwoDay' | 'timeGridDay';
 
 export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) {
   const t = useTranslations();
@@ -38,6 +38,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [showSleep, setShowSleep] = useState(true);
   const [showFood, setShowFood] = useState(true);
   const [showPoop, setShowPoop] = useState(true);
+  const [showShower, setShowShower] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<{
     id: string;
     title: string;
@@ -58,6 +59,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     showSleep,
     showFood,
     showPoop,
+    showShower,
     userId: isEmployee ? userId : undefined,
   });
 
@@ -149,6 +151,14 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               {t('calendar.day')}
             </Button>
             <Button
+              variant={currentView === 'timeGridTwoDay' ? 'default' : 'ghost'}
+              size="sm"
+              className="rounded-none border-x"
+              onClick={() => handleViewChange('timeGridTwoDay')}
+            >
+              2 {t('calendar.days')}
+            </Button>
+            <Button
               variant={currentView === 'timeGridWeek' ? 'default' : 'ghost'}
               size="sm"
               className="rounded-none border-x"
@@ -233,6 +243,17 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                       {t('childLogs.categories.poop')}
                     </Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="show-shower"
+                      checked={showShower}
+                      onCheckedChange={(checked) => setShowShower(!!checked)}
+                    />
+                    <Label htmlFor="show-shower" className="flex items-center">
+                      <ShowerHead className="h-4 w-4 mr-2 text-cyan-500" />
+                      {t('childLogs.categories.shower')}
+                    </Label>
+                  </div>
                 </div>
               </div>
             </div>
@@ -249,6 +270,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
               initialView={currentView}
               headerToolbar={false}
+              views={{
+                timeGridTwoDay: {
+                  type: 'timeGrid',
+                  duration: { days: 2 },
+                  buttonText: '2 days',
+                },
+              }}
               events={events?.map((e) => ({
                 id: e.id,
                 title: e.title,

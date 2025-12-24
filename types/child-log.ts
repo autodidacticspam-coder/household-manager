@@ -1,5 +1,5 @@
 export type ChildName = 'Zoe' | 'Zara' | 'Zander';
-export type ChildLogCategory = 'sleep' | 'food' | 'poop';
+export type ChildLogCategory = 'sleep' | 'food' | 'poop' | 'shower';
 
 export interface ChildLog {
   id: string;

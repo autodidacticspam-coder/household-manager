@@ -13,6 +13,7 @@ export type CalendarFilters = {
   showSleep?: boolean;
   showFood?: boolean;
   showPoop?: boolean;
+  showShower?: boolean;
   userId?: string;
 };
 
@@ -151,12 +152,13 @@ export function useCalendarEvents(filters: CalendarFilters) {
       }
 
       // Fetch child logs
-      const showAnyLogs = filters.showSleep !== false || filters.showFood !== false || filters.showPoop !== false;
+      const showAnyLogs = filters.showSleep !== false || filters.showFood !== false || filters.showPoop !== false || filters.showShower !== false;
       if (showAnyLogs) {
         const categoryFilters: string[] = [];
         if (filters.showSleep !== false) categoryFilters.push('sleep');
         if (filters.showFood !== false) categoryFilters.push('food');
         if (filters.showPoop !== false) categoryFilters.push('poop');
+        if (filters.showShower !== false) categoryFilters.push('shower');
 
         const { data: childLogs, error: logsError } = await supabase
           .from('child_logs')
@@ -171,12 +173,14 @@ export function useCalendarEvents(filters: CalendarFilters) {
           sleep: '#6366f1', // indigo
           food: '#f97316', // orange
           poop: '#d97706', // amber
+          shower: '#06b6d4', // cyan
         };
 
         const logEmojis: Record<string, string> = {
           sleep: '💤',
           food: '🍽️',
           poop: '💩',
+          shower: '🚿',
         };
 
         for (const log of childLogs || []) {

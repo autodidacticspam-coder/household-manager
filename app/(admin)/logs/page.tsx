@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Baby, Utensils, Moon, Trash2, ClipboardList, Calendar, User, Plus, ShieldX } from 'lucide-react';
+import { Loader2, Baby, Utensils, Moon, Trash2, ClipboardList, Calendar, User, Plus, ShieldX, ShowerHead } from 'lucide-react';
 import { useChildLogs, useCreateChildLog, useDeleteChildLog, useCanAccessChildLogs } from '@/hooks/use-child-logs';
 import type { ChildName, ChildLogCategory, ChildLogWithUser } from '@/types';
 import {
@@ -31,6 +31,7 @@ const CATEGORIES: { value: ChildLogCategory; label: string; icon: typeof Baby; c
   { value: 'sleep', label: 'Sleep', icon: Moon, color: 'text-indigo-700', bgColor: 'bg-indigo-100' },
   { value: 'food', label: 'Food', icon: Utensils, color: 'text-orange-700', bgColor: 'bg-orange-100' },
   { value: 'poop', label: 'Poop', icon: Baby, color: 'text-amber-700', bgColor: 'bg-amber-100' },
+  { value: 'shower', label: 'Shower', icon: ShowerHead, color: 'text-cyan-700', bgColor: 'bg-cyan-100' },
 ];
 
 const CHILD_COLORS: Record<ChildName, { bg: string; text: string; ring: string }> = {

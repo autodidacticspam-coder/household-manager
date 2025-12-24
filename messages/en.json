@@ -254,6 +254,7 @@
     "month": "Month",
     "week": "Week",
     "day": "Day",
+    "days": "Days",
     "showTasks": "Show Tasks",
     "showLeave": "Show Time Off",
     "googleCalendar": {
@@ -411,7 +412,8 @@
     "categories": {
       "sleep": "Sleep",
       "food": "Food",
-      "poop": "Poop"
+      "poop": "Poop",
+      "shower": "Shower"
     }
   },
   "menu": {
