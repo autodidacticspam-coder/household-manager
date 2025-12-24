@@ -294,14 +294,20 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card
+          className={groupedCurrentlyOnLeave.length > 0 ? "cursor-pointer hover:shadow-md transition-shadow" : ""}
+          onClick={() => groupedCurrentlyOnLeave.length > 0 && setOpenDialog('onLeave')}
+        >
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>{t('reports.stats.onLeaveToday')}</CardTitle>
+            {groupedCurrentlyOnLeave.length > 0 && (
+              <span className="text-xs text-muted-foreground">Click for details</span>
+            )}
           </CardHeader>
           <CardContent>
             {groupedCurrentlyOnLeave.length > 0 ? (
               <div className="space-y-4">
-                {groupedCurrentlyOnLeave.slice(0, 5).map((group) => (
+                {groupedCurrentlyOnLeave.slice(0, 3).map((group) => (
                   <div key={group.userId} className="space-y-2">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -330,6 +336,11 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ))}
+                {groupedCurrentlyOnLeave.length > 3 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    +{groupedCurrentlyOnLeave.length - 3} more
+                  </p>
+                )}
               </div>
             ) : (
               <p className="text-muted-foreground text-sm">
