@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -16,13 +17,23 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask, useCompleteTaskInstance } from '@/hooks/use-tasks';
+import { useCompleteTask, useCompleteTaskInstance, useDeleteTask } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, subWeeks, addWeeks } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2 } from 'lucide-react';
 
 type CalendarViewProps = {
   userId?: string;
@@ -141,10 +152,20 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     userId: isEmployee ? userId : undefined,
   });
 
+  const router = useRouter();
   const completeTask = useCompleteTask();
   const completeTaskInstance = useCompleteTaskInstance();
+  const deleteTask = useDeleteTask();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
+
+  // Task delete confirmation state
+  const [deleteTaskDialog, setDeleteTaskDialog] = useState<{
+    open: boolean;
+    taskId: string;
+    isRecurring: boolean;
+    title: string;
+  } | null>(null);
 
   // Schedule editing state
   const [editingSchedule, setEditingSchedule] = useState(false);
@@ -200,6 +221,37 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     }
     setSelectedEvent(null);
     refetch();
+  };
+
+  // Extract task ID from event ID (format: task-{uuid} or task-{uuid}-{date})
+  const extractTaskId = (eventId: string): string => {
+    const withoutPrefix = eventId.replace('task-', '');
+    return withoutPrefix.slice(0, 36);
+  };
+
+  const handleEditTask = (eventId: string) => {
+    const taskId = extractTaskId(eventId);
+    setSelectedEvent(null);
+    router.push(`/tasks/${taskId}/edit`);
+  };
+
+  const handleDeleteTask = async () => {
+    if (!deleteTaskDialog) return;
+
+    await deleteTask.mutateAsync(deleteTaskDialog.taskId);
+    setDeleteTaskDialog(null);
+    setSelectedEvent(null);
+    refetch();
+  };
+
+  const openDeleteTaskDialog = (eventId: string, isRecurring: boolean, title: string) => {
+    const taskId = extractTaskId(eventId);
+    setDeleteTaskDialog({
+      open: true,
+      taskId,
+      isRecurring,
+      title,
+    });
   };
 
   const handlePrev = () => {
@@ -568,6 +620,34 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                     {t('tasks.markComplete')}
                   </Button>
                 )}
+
+                {/* Edit and Delete Buttons (Admin only) */}
+                {!isEmployee && (
+                  <div className="flex gap-2 mt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleEditTask(selectedEvent.id)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t('common.edit')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-destructive hover:text-destructive"
+                      onClick={() => openDeleteTaskDialog(
+                        selectedEvent.id,
+                        !!selectedEvent.extendedProps.isRecurring,
+                        selectedEvent.title
+                      )}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -817,6 +897,40 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Task Confirmation Dialog */}
+      <AlertDialog open={!!deleteTaskDialog?.open} onOpenChange={(open) => !open && setDeleteTaskDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('tasks.deleteTask')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTaskDialog?.isRecurring ? (
+                <>
+                  {t('tasks.deleteRecurringConfirmation', { title: deleteTaskDialog?.title })}
+                  <p className="mt-2 text-sm font-medium">
+                    {t('tasks.deleteRecurringNote')}
+                  </p>
+                </>
+              ) : (
+                t('tasks.deleteConfirmation')
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTask}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTask.isPending}
+            >
+              {deleteTask.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <style jsx global>{`
         .calendar-wrapper .fc {
