@@ -202,8 +202,14 @@ export function LogsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {format(parseLocalDate(log.logDate), 'EEE, MMM d')} at {formatTime12h(log.logTime)}
-                  {log.category === 'sleep' && log.startTime && log.endTime && (
-                    <span className="ml-2">({formatTime12h(log.startTime)} - {formatTime12h(log.endTime)})</span>
+                  {log.category === 'sleep' && (
+                    log.startTime && log.endTime ? (
+                      <span className="ml-2">({formatTime12h(log.startTime)} - {formatTime12h(log.endTime)})</span>
+                    ) : log.startTime && !log.endTime ? (
+                      <span className="ml-2">(Put to bed {formatTime12h(log.startTime)})</span>
+                    ) : log.endTime && !log.startTime ? (
+                      <span className="ml-2">(Woke up {formatTime12h(log.endTime)})</span>
+                    ) : null
                   )}
                 </div>
                 {log.description && (

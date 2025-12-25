@@ -445,6 +445,8 @@
     "loggedBy": "Logged by",
     "sleepStart": "Sleep Start",
     "sleepEnd": "Sleep End",
+    "putToBed": "Put to bed",
+    "wokeUp": "Woke up",
     "categories": {
       "sleep": "Sleep",
       "food": "Food",

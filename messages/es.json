@@ -445,6 +445,8 @@
     "loggedBy": "Registrado por",
     "sleepStart": "Inicio del Sueño",
     "sleepEnd": "Fin del Sueño",
+    "putToBed": "Acostado a las",
+    "wokeUp": "Despertó a las",
     "categories": {
       "sleep": "Sueño",
       "food": "Comida",

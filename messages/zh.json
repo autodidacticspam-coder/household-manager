@@ -445,6 +445,8 @@
     "loggedBy": "记录人",
     "sleepStart": "入睡时间",
     "sleepEnd": "醒来时间",
+    "putToBed": "入睡于",
+    "wokeUp": "醒来于",
     "categories": {
       "sleep": "睡眠",
       "food": "饮食",

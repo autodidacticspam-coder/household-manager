@@ -278,8 +278,16 @@ export default function UnifiedLogPage() {
             <span className="font-medium">{t(`childLogs.categories.${log.category}`)}</span>
           </div>
           <div className="text-sm text-muted-foreground mt-1">
-            {log.category === 'sleep' && log.startTime && log.endTime ? (
-              <span>{formatTime12h(log.startTime)} - {formatTime12h(log.endTime)}</span>
+            {log.category === 'sleep' ? (
+              log.startTime && log.endTime ? (
+                <span>{formatTime12h(log.startTime)} - {formatTime12h(log.endTime)}</span>
+              ) : log.startTime && !log.endTime ? (
+                <span>{t('childLogs.putToBed')} {formatTime12h(log.startTime)}</span>
+              ) : log.endTime && !log.startTime ? (
+                <span>{t('childLogs.wokeUp')} {formatTime12h(log.endTime)}</span>
+              ) : (
+                <span>{formatTime12h(log.logTime)}</span>
+              )
             ) : (
               <span>{formatTime12h(log.logTime)}</span>
             )}
@@ -520,7 +528,6 @@ export default function UnifiedLogPage() {
                             if (val.length <= 5) setStartTime(val);
                           }}
                           className="flex-1"
-                          required
                         />
                         <div className="flex rounded-md border overflow-hidden">
                           <button
@@ -565,7 +572,6 @@ export default function UnifiedLogPage() {
                             if (val.length <= 5) setEndTime(val);
                           }}
                           className="flex-1"
-                          required
                         />
                         <div className="flex rounded-md border overflow-hidden">
                           <button
@@ -954,7 +960,6 @@ export default function UnifiedLogPage() {
                         if (val.length <= 5) setEditStartTime(val);
                       }}
                       className="flex-1"
-                      required
                     />
                     <div className="flex rounded-md border overflow-hidden">
                       <button
@@ -999,7 +1004,6 @@ export default function UnifiedLogPage() {
                         if (val.length <= 5) setEditEndTime(val);
                       }}
                       className="flex-1"
-                      required
                     />
                     <div className="flex rounded-md border overflow-hidden">
                       <button
