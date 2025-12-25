@@ -284,8 +284,36 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   }) => {
     const eventId = info.event.id;
     const newStart = info.event.start;
+    const newEnd = info.event.end;
 
-    if (!newStart || !eventId.startsWith('task-')) {
+    if (!newStart) {
+      info.revert();
+      return;
+    }
+
+    // Handle schedule events
+    if (eventId.startsWith('schedule-')) {
+      const scheduleId = info.event.extendedProps.scheduleId as string;
+      const scheduleDate = info.event.extendedProps.scheduleDate as string;
+      const newStartTime = format(newStart, 'HH:mm:ss');
+      const newEndTime = newEnd ? format(newEnd, 'HH:mm:ss') : format(newStart, 'HH:mm:ss');
+
+      try {
+        await upsertOverride.mutateAsync({
+          scheduleId,
+          overrideDate: scheduleDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+        });
+        refetch();
+      } catch {
+        info.revert();
+      }
+      return;
+    }
+
+    // Handle task events
+    if (!eventId.startsWith('task-')) {
       info.revert();
       return;
     }
@@ -300,8 +328,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     try {
       if (isRecurring && instanceDate) {
         // For recurring tasks, create a time override for this specific instance
-        if (isActivity && info.event.end) {
-          const newEndTime = format(info.event.end, 'HH:mm:ss');
+        if (isActivity && newEnd) {
+          const newEndTime = format(newEnd, 'HH:mm:ss');
           await overrideTaskInstanceTime.mutateAsync({
             taskId,
             instanceDate,
@@ -318,8 +346,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
         }
       } else {
         // For regular tasks, update the due date/time directly
-        if (isActivity && info.event.end) {
-          const newEndTime = format(info.event.end, 'HH:mm:ss');
+        if (isActivity && newEnd) {
+          const newEndTime = format(newEnd, 'HH:mm:ss');
           await updateTaskDateTime.mutateAsync({
             taskId,
             dueDate: newDate,
