@@ -192,18 +192,23 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setEditingSchedule(true);
   };
 
-  // Set initial view based on screen size on mount and sync with calendar
+  // Track if user manually changed the view (don't auto-switch after manual selection)
+  const userChangedView = useRef(false);
+
+  // Set initial view based on screen size on mount only
   useEffect(() => {
+    // Only auto-switch on resize if user hasn't manually changed the view
     const handleResize = () => {
-      const newView = window.innerWidth < 768 ? 'timeGridTwoDay' : 'timeGridWeek';
-      if (newView !== currentView) {
-        setCurrentView(newView);
-        calendarRef.current?.getApi().changeView(newView);
+      if (userChangedView.current) return;
+
+      const isMobile = window.innerWidth < 768;
+      const defaultView = isMobile ? 'timeGridTwoDay' : 'timeGridWeek';
+
+      if (defaultView !== currentView) {
+        setCurrentView(defaultView);
+        calendarRef.current?.getApi().changeView(defaultView);
       }
     };
-
-    // Set initial view on mount
-    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -385,6 +390,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   };
 
   const handleViewChange = (view: ViewType) => {
+    userChangedView.current = true; // User manually changed view, don't auto-switch
     setCurrentView(view);
     calendarRef.current?.getApi().changeView(view);
   };
