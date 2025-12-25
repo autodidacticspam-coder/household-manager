@@ -298,7 +298,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                       <div>
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary">
-                            {request.leaveType === 'pto' ? 'PTO' : 'Sick'}
+                            {request.leaveType === 'pto' ? 'PTO' : request.leaveType === 'holiday' ? 'Holiday' : 'Sick'}
                           </Badge>
                           <Badge variant={
                             request.status === 'approved' ? 'default' :
