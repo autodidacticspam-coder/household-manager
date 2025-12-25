@@ -148,7 +148,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     showPoop,
     showShower,
     showImportantDates: isEmployee ? false : showImportantDates,
-    showSchedules: isEmployee ? false : showSchedules,
+    showSchedules: isEmployee ? true : showSchedules,
     userId: isEmployee ? userId : undefined,
   });
 
