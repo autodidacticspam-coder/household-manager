@@ -31,6 +31,29 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(year, month - 1, day);
 };
 
+// Helper to check if a leave request is a holiday
+function isHoliday(request: LeaveRequest): boolean {
+  return request.leaveType === 'holiday' || request.reason?.startsWith('Holiday:') || false;
+}
+
+// Helper to get leave type display label
+function getLeaveTypeLabel(request: LeaveRequest, t: (key: string) => string): string {
+  if (isHoliday(request)) {
+    return t('leave.holiday');
+  }
+  return request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick');
+}
+
+// Helper to get badge class based on leave type
+function getLeaveTypeBadgeClass(request: LeaveRequest): string {
+  if (isHoliday(request)) {
+    return 'bg-amber-100 text-amber-700';
+  }
+  if (request.leaveType === 'pto') {
+    return '';  // default variant
+  }
+  return 'bg-green-100 text-green-700';  // sick
+}
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -64,8 +87,8 @@ export default function TimeOffPage() {
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">
-                {request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+              <Badge variant="secondary" className={getLeaveTypeBadgeClass(request)}>
+                {getLeaveTypeLabel(request, t)}
               </Badge>
               <Badge className={statusColors[request.status]}>
                 {t(`leave.status.${request.status}`)}

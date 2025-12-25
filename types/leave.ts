@@ -1,4 +1,4 @@
-export type LeaveType = 'pto' | 'sick';
+export type LeaveType = 'pto' | 'sick' | 'holiday';
 export type LeaveStatus = 'pending' | 'approved' | 'denied';
 
 export interface LeaveRequest {

@@ -230,6 +230,16 @@
     "employeeUpdated": "Employee updated successfully",
     "noEmployees": "No employees found",
     "unknownUser": "Unknown User",
+    "workSchedule": "Work Schedule",
+    "noSchedule": "No work schedule set",
+    "addShift": "Add Shift",
+    "deleteShift": "Delete Shift",
+    "deleteShiftConfirm": "Are you sure you want to remove this shift from the schedule?",
+    "editScheduleInstance": "Edit Schedule",
+    "cancelShiftForDay": "Cancel Shift for This Day",
+    "restoreOriginal": "Restore Original",
+    "modifiedSchedule": "Modified",
+    "originalSchedule": "Original Schedule",
     "roles": {
       "admin": "Administrator",
       "employee": "Employee"
@@ -278,6 +288,7 @@
     "showTasks": "Show Tasks",
     "showLeave": "Show Time Off",
     "showImportantDates": "Show Important Dates",
+    "showSchedules": "Show Work Schedules",
     "googleCalendar": {
       "connect": "Connect Google Calendar",
       "connected": "Google Calendar Connected",

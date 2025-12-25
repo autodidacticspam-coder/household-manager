@@ -230,6 +230,16 @@
     "employeeUpdated": "员工更新成功",
     "noEmployees": "未找到员工",
     "unknownUser": "未知用户",
+    "workSchedule": "工作时间表",
+    "noSchedule": "未设置工作时间表",
+    "addShift": "添加班次",
+    "deleteShift": "删除班次",
+    "deleteShiftConfirm": "确定要从时间表中删除此班次吗？",
+    "editScheduleInstance": "编辑排班",
+    "cancelShiftForDay": "取消当天班次",
+    "restoreOriginal": "恢复原始",
+    "modifiedSchedule": "已修改",
+    "originalSchedule": "原始排班",
     "roles": {
       "admin": "管理员",
       "employee": "员工"
@@ -278,6 +288,7 @@
     "showTasks": "显示任务",
     "showLeave": "显示休假",
     "showImportantDates": "显示重要日期",
+    "showSchedules": "显示工作时间表",
     "googleCalendar": {
       "connect": "连接谷歌日历",
       "connected": "谷歌日历已连接",

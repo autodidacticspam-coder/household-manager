@@ -15,6 +15,7 @@ export type CalendarFilters = {
   showPoop?: boolean;
   showShower?: boolean;
   showImportantDates?: boolean;
+  showSchedules?: boolean;
   userId?: string;
 };
 
@@ -148,9 +149,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
         const { data: leaves, error } = await q;
         if (error) throw error;
         for (const l of leaves || []) {
-          // Check if this is a holiday (reason starts with "Holiday:")
-          const isHoliday = l.reason?.startsWith('Holiday:') || false;
-          const holidayName = isHoliday ? l.reason.replace('Holiday: ', '') : null;
+          // Check if this is a holiday (by leave_type or reason)
+          const isHoliday = l.leave_type === 'holiday' || l.reason?.startsWith('Holiday:') || false;
+          const holidayName = isHoliday && l.reason ? l.reason.replace('Holiday: ', '') : null;
 
           // Determine display type and color
           let displayType: string;
@@ -356,6 +357,131 @@ export function useCalendarEvents(filters: CalendarFilters) {
                 }
               }
             }
+          }
+        }
+      }
+
+      // Fetch work schedules (recurring weekly)
+      if (filters.showSchedules !== false) {
+        let scheduleQuery = supabase
+          .from('employee_schedules')
+          .select(`
+            *,
+            user:users!employee_schedules_user_id_fkey(id, full_name, avatar_url)
+          `)
+          .eq('is_active', true);
+
+        if (filters.userId) {
+          scheduleQuery = scheduleQuery.eq('user_id', filters.userId);
+        }
+
+        const { data: schedules, error: schedulesError } = await scheduleQuery;
+
+        if (schedulesError) throw schedulesError;
+
+        // Fetch schedule overrides for the date range
+        const { data: overrides, error: overridesError } = await supabase
+          .from('schedule_overrides')
+          .select('*')
+          .gte('override_date', filters.startDate)
+          .lte('override_date', filters.endDate);
+
+        if (overridesError) throw overridesError;
+
+        // Create a map of overrides by schedule_id and date for quick lookup
+        const overrideMap = new Map<string, { start_time: string | null; end_time: string | null; is_cancelled: boolean; notes: string | null }>();
+        for (const override of overrides || []) {
+          const key = `${override.schedule_id}-${override.override_date}`;
+          overrideMap.set(key, {
+            start_time: override.start_time,
+            end_time: override.end_time,
+            is_cancelled: override.is_cancelled,
+            notes: override.notes,
+          });
+        }
+
+        // Fetch approved leave requests to exclude schedule on days off
+        const { data: approvedLeaves } = await supabase
+          .from('leave_requests')
+          .select('user_id, start_date, end_date, selected_dates')
+          .eq('status', 'approved')
+          .or(`start_date.lte.${filters.endDate},end_date.gte.${filters.startDate}`);
+
+        // Create a Set of "userId-date" for days with approved leave
+        const leaveDaysSet = new Set<string>();
+        for (const leave of approvedLeaves || []) {
+          // Use selected_dates if available, otherwise generate from range
+          if (leave.selected_dates && Array.isArray(leave.selected_dates)) {
+            for (const dateStr of leave.selected_dates) {
+              leaveDaysSet.add(`${leave.user_id}-${dateStr}`);
+            }
+          } else {
+            // Generate dates from start_date to end_date
+            let leaveDate = parseISO(leave.start_date);
+            const leaveEnd = parseISO(leave.end_date);
+            while (isBefore(leaveDate, leaveEnd) || isEqual(leaveDate, leaveEnd)) {
+              leaveDaysSet.add(`${leave.user_id}-${format(leaveDate, 'yyyy-MM-dd')}`);
+              leaveDate = addDays(leaveDate, 1);
+            }
+          }
+        }
+
+        // Generate schedule events for each day in the range
+        for (const schedule of schedules || []) {
+          const user = schedule.user as { id: string; full_name: string; avatar_url: string | null } | null;
+          if (!user) continue;
+
+          // Iterate through each day in the range
+          let currentDate = new Date(rangeStart);
+          while (isBefore(currentDate, rangeEnd) || isEqual(currentDate, rangeEnd)) {
+            // Check if the current day matches the schedule's day of week
+            if (getDay(currentDate) === schedule.day_of_week) {
+              const dateStr = format(currentDate, 'yyyy-MM-dd');
+
+              // Skip if employee has approved leave for this day
+              if (leaveDaysSet.has(`${schedule.user_id}-${dateStr}`)) {
+                currentDate = addDays(currentDate, 1);
+                continue;
+              }
+
+              const overrideKey = `${schedule.id}-${dateStr}`;
+              const override = overrideMap.get(overrideKey);
+
+              // Skip cancelled schedules
+              if (override?.is_cancelled) {
+                currentDate = addDays(currentDate, 1);
+                continue;
+              }
+
+              // Use override times if available, otherwise use regular schedule
+              const startTime = override?.start_time || schedule.start_time;
+              const endTime = override?.end_time || schedule.end_time;
+              const hasOverride = !!override;
+
+              events.push({
+                id: `schedule-${schedule.id}-${dateStr}`,
+                type: 'schedule' as any,
+                title: `${user.full_name}`,
+                start: `${dateStr}T${startTime}`,
+                end: `${dateStr}T${endTime}`,
+                allDay: false,
+                color: hasOverride ? '#f59e0b' : '#8b5cf6', // amber if modified, violet for regular
+                resourceId: schedule.id,
+                extendedProps: {
+                  scheduleId: schedule.id,
+                  scheduleDate: dateStr,
+                  userId: schedule.user_id,
+                  userName: user.full_name,
+                  avatarUrl: user.avatar_url,
+                  dayOfWeek: schedule.day_of_week,
+                  originalStartTime: schedule.start_time,
+                  originalEndTime: schedule.end_time,
+                  hasOverride,
+                  overrideNotes: override?.notes,
+                },
+              });
+            }
+            currentDate = addDays(currentDate, 1);
           }
         }
       }

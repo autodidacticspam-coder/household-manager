@@ -52,7 +52,7 @@ function parseLocalDate(dateStr: string): Date {
 
 // Helper to check if a leave request is a holiday
 function isHoliday(request: LeaveRequest): boolean {
-  return request.reason?.startsWith('Holiday:') || false;
+  return request.leaveType === 'holiday' || request.reason?.startsWith('Holiday:') || false;
 }
 
 // Helper to get leave type display label
@@ -318,7 +318,7 @@ export default function LeaveRequestsPage() {
       const insertData = selectedEmployeesForHolidays.flatMap(employeeId =>
         holidayDates.map(holiday => ({
           user_id: employeeId,
-          leave_type: 'pto' as const,
+          leave_type: 'holiday' as const,
           status: 'approved' as const,
           start_date: format(holiday.date, 'yyyy-MM-dd'),
           end_date: format(holiday.date, 'yyyy-MM-dd'),

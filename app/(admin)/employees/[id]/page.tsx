@@ -43,6 +43,7 @@ import { useMyLeaveRequests } from '@/hooks/use-leave';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { format } from 'date-fns';
 import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift } from 'lucide-react';
+import { ScheduleEditor } from '@/components/admin/schedule-editor';
 
 type EmployeeDetailPageProps = {
   params: Promise<{ id: string }>;
@@ -322,6 +323,9 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
               )}
             </CardContent>
           </Card>
+
+          {/* Work Schedule Editor */}
+          <ScheduleEditor userId={id} userName={employee.fullName || ''} />
         </div>
 
         <div className="space-y-6">

@@ -230,6 +230,16 @@
     "employeeUpdated": "Empleado actualizado exitosamente",
     "noEmployees": "No se encontraron empleados",
     "unknownUser": "Usuario Desconocido",
+    "workSchedule": "Horario de Trabajo",
+    "noSchedule": "Sin horario de trabajo establecido",
+    "addShift": "Agregar Turno",
+    "deleteShift": "Eliminar Turno",
+    "deleteShiftConfirm": "¿Estás seguro de que deseas eliminar este turno del horario?",
+    "editScheduleInstance": "Editar Horario",
+    "cancelShiftForDay": "Cancelar Turno para Este Día",
+    "restoreOriginal": "Restaurar Original",
+    "modifiedSchedule": "Modificado",
+    "originalSchedule": "Horario Original",
     "roles": {
       "admin": "Administrador",
       "employee": "Empleado"
@@ -278,6 +288,7 @@
     "showTasks": "Mostrar Tareas",
     "showLeave": "Mostrar Tiempo Libre",
     "showImportantDates": "Mostrar Fechas Importantes",
+    "showSchedules": "Mostrar Horarios de Trabajo",
     "googleCalendar": {
       "connect": "Conectar Google Calendar",
       "connected": "Google Calendar Conectado",

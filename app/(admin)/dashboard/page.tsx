@@ -44,7 +44,7 @@ function getRequestDates(request: LeaveRequest): Date[] {
 
 // Helper to check if a leave request is a holiday
 function isHoliday(request: LeaveRequest): boolean {
-  return request.reason?.startsWith('Holiday:') || false;
+  return request.leaveType === 'holiday' || request.reason?.startsWith('Holiday:') || false;
 }
 
 // Helper to get leave type display label
@@ -351,8 +351,8 @@ export default function DashboardPage() {
                       </p>
                     </div>
                   </div>
-                  <Badge variant={request.leaveType === 'pto' ? 'default' : 'secondary'}>
-                    {request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick')}
+                  <Badge variant="secondary" className={getLeaveTypeBadgeClass(request)}>
+                    {getLeaveTypeLabel(request, t)}
                   </Badge>
                 </div>
               ))
