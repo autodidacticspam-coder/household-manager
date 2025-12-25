@@ -3,6 +3,9 @@
     "appName": "家庭管理系统",
     "loading": "加载中...",
     "save": "保存",
+    "add": "添加",
+    "select": "选择",
+    "new": "新建",
     "saving": "保存中...",
     "saveChanges": "保存更改",
     "cancel": "取消",
@@ -102,7 +105,14 @@
     "createTask": "创建任务",
     "editTask": "编辑任务",
     "taskTitle": "任务标题",
+    "titlePlaceholder": "输入任务标题",
     "description": "描述",
+    "defaultTime": "默认时间",
+    "user": "用户",
+    "group": "组",
+    "all": "全部",
+    "selectUser": "选择用户",
+    "selectGroup": "选择组",
     "category": "类别",
     "priority": "优先级",
     "dueDate": "截止日期",
@@ -133,6 +143,12 @@
       "all": "所有员工",
       "allAdmins": "所有管理员"
     },
+    "selectMultiple": "批量选择",
+    "selectEmployees": "选择员工",
+    "addSelected": "添加选中",
+    "alreadyAssigned": "该用户已分配到此任务",
+    "assignedSuccess": "用户分配成功",
+    "quickAssign": "快速分配",
     "recurrence": {
       "daily": "每天",
       "weekly": "每周",
@@ -459,5 +475,23 @@
       "dinner": "输入晚餐内容...",
       "snacks": "输入零食内容..."
     }
+  },
+  "templates": {
+    "title": "任务模板",
+    "name": "模板名称",
+    "namePlaceholder": "例如：每日厨房清洁",
+    "create": "创建模板",
+    "edit": "编辑模板",
+    "delete": "删除模板",
+    "use": "使用模板",
+    "quickCreate": "快速创建",
+    "created": "模板已创建",
+    "updated": "模板已更新",
+    "deleted": "模板已删除",
+    "noTemplates": "暂无模板",
+    "createFirst": "创建您的第一个模板，节省重复任务的时间",
+    "saveAsTemplate": "保存为模板",
+    "confirmDelete": "确定要删除此模板吗？",
+    "usingTemplate": "使用模板：{name}"
   }
 }

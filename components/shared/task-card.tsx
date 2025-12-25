@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, startOfDay, isBefore } from 'date-fns';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -13,8 +14,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, User, Repeat, FileText, Undo2 } from 'lucide-react';
+import { formatTime12h } from '@/lib/format-time';
+import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, User, Repeat, FileText, Undo2, UserPlus, Loader2 } from 'lucide-react';
+import { useEmployees, useQuickAssign } from '@/hooks/use-tasks';
 import type { TaskWithRelations } from '@/types';
 
 type TaskCardProps = {
@@ -56,8 +64,22 @@ export function TaskCard({
   isEmployee = false,
 }: TaskCardProps) {
   const t = useTranslations();
+  const { data: employees } = useEmployees();
+  const quickAssign = useQuickAssign();
+  const [quickAssignOpen, setQuickAssignOpen] = useState(false);
 
   const StatusIcon = statusIcons[task.status];
+
+  const handleQuickAssign = async (userId: string) => {
+    await quickAssign.mutateAsync({ taskId: task.id, userId });
+    setQuickAssignOpen(false);
+  };
+
+  // Filter out already assigned users
+  const assignedUserIds = task.assignments
+    ?.filter(a => a.targetType === 'user' && a.targetUserId)
+    .map(a => a.targetUserId) || [];
+  const availableEmployees = employees?.filter(e => !assignedUserIds.includes(e.id)) || [];
 
   // Check if task is overdue
   // For recurring tasks, don't show as overdue if due date is from a previous day
@@ -171,38 +193,76 @@ export function TaskCard({
                 )
               )
             ) : (
-              // Dropdown menu for admins
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {task.status !== 'completed' && onComplete && (
-                    <DropdownMenuItem onClick={() => onComplete(task.id)}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {t('tasks.markComplete')}
-                    </DropdownMenuItem>
-                  )}
-                  {onEdit && (
-                    <DropdownMenuItem onClick={() => onEdit(task.id)}>
-                      {t('common.edit')}
-                    </DropdownMenuItem>
-                  )}
-                  {onDelete && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(task.id)}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        {t('common.delete')}
+              // Dropdown menu and quick assign for admins
+              <div className="flex items-center gap-1">
+                {availableEmployees.length > 0 && (
+                  <Popover open={quickAssignOpen} onOpenChange={setQuickAssignOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" title={t('tasks.quickAssign')}>
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-0" align="end">
+                      <div className="p-2 border-b">
+                        <p className="text-sm font-medium">{t('tasks.quickAssign')}</p>
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {availableEmployees.map((employee) => (
+                          <button
+                            key={employee.id}
+                            className="flex items-center gap-2 w-full p-2 hover:bg-muted text-left"
+                            onClick={() => handleQuickAssign(employee.id)}
+                            disabled={quickAssign.isPending}
+                          >
+                            {quickAssign.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Avatar className="h-6 w-6">
+                                <AvatarImage src={employee.avatar_url || undefined} />
+                                <AvatarFallback className="text-xs">
+                                  {employee.full_name?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            <span className="text-sm truncate">{employee.full_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {task.status !== 'completed' && onComplete && (
+                      <DropdownMenuItem onClick={() => onComplete(task.id)}>
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        {t('tasks.markComplete')}
                       </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    )}
+                    {onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(task.id)}>
+                        {t('common.edit')}
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => onDelete(task.id)}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          {t('common.delete')}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             )
           )}
         </div>
@@ -225,7 +285,7 @@ export function TaskCard({
               {format(new Date(task.dueDate), 'EEE, MMM d')}
               {task.dueTime && !task.isAllDay && (
                 <span className="ml-1">
-                  at {task.dueTime.slice(0, 5)}
+                  at {formatTime12h(task.dueTime)}
                 </span>
               )}
             </div>

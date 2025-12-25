@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { formatTime12h } from '@/lib/format-time';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
@@ -30,14 +31,6 @@ const parseLocalDate = (dateStr: string): Date => {
   return new Date(year, month - 1, day);
 };
 
-// Helper to format 24h time to 12h format
-const formatTime = (time: string | null) => {
-  if (!time) return '';
-  const [hours, minutes] = time.split(':').map(Number);
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const hours12 = hours % 12 || 12;
-  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-};
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-700',
@@ -93,7 +86,7 @@ export default function TimeOffPage() {
                   {request.startTime && request.endTime && (
                     <span className="flex items-center gap-1 mt-1">
                       <Clock className="h-3 w-3" />
-                      {formatTime(request.startTime)} - {formatTime(request.endTime)}
+                      {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
                     </span>
                   )}
                 </>

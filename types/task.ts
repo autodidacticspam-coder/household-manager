@@ -103,3 +103,30 @@ export interface RecurrencePattern {
   until?: string;
   count?: number;
 }
+
+export interface TemplateAssignment {
+  targetType: AssignmentTargetType;
+  targetUserId: string | null;
+  targetGroupId: string | null;
+}
+
+export interface TaskTemplate {
+  id: string;
+  name: string;
+  title: string;
+  description: string | null;
+  categoryId: string | null;
+  priority: TaskPriority;
+  isAllDay: boolean;
+  defaultTime: string | null;
+  isActivity: boolean;
+  startTime: string | null;
+  endTime: string | null;
+  isRecurring: boolean;
+  recurrenceRule: string | null;
+  defaultAssignments: TemplateAssignment[];
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  category?: TaskCategory | null;
+}

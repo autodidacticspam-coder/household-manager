@@ -170,12 +170,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
             ? `${(l.user as any)?.full_name || 'Employee'} - ${holidayName}`
             : `${(l.user as any)?.full_name || 'Employee'} - ${displayType}`;
 
-          events.push({
-            id: 'leave-' + l.id,
-            type: 'leave',
+          const baseEventProps = {
+            type: 'leave' as const,
             title,
-            start: l.start_date,
-            end: l.end_date,
             allDay: true,
             color,
             resourceId: l.id,
@@ -187,7 +184,56 @@ export function useCalendarEvents(filters: CalendarFilters) {
               isHoliday,
               holidayName,
             }
-          });
+          };
+
+          // Use selected_dates if available for accurate display of non-contiguous dates
+          if (l.selected_dates && Array.isArray(l.selected_dates) && l.selected_dates.length > 0) {
+            // Group consecutive dates into ranges for cleaner display
+            const sortedDates = [...l.selected_dates].sort();
+            let rangeStart = sortedDates[0];
+            let rangeEnd = sortedDates[0];
+
+            for (let i = 1; i <= sortedDates.length; i++) {
+              const currentDate = sortedDates[i];
+              const prevDate = sortedDates[i - 1];
+
+              // Check if current date is consecutive (next day after previous)
+              const isConsecutive = currentDate &&
+                format(addDays(parseISO(prevDate), 1), 'yyyy-MM-dd') === currentDate;
+
+              if (isConsecutive) {
+                rangeEnd = currentDate;
+              } else {
+                // End of a range, create event
+                // FullCalendar treats end date as exclusive, so add 1 day
+                const endDatePlusOne = format(addDays(parseISO(rangeEnd), 1), 'yyyy-MM-dd');
+                events.push({
+                  id: `leave-${l.id}-${rangeStart}`,
+                  ...baseEventProps,
+                  start: rangeStart,
+                  end: endDatePlusOne,
+                });
+
+                // Start new range if there are more dates
+                if (currentDate) {
+                  rangeStart = currentDate;
+                  rangeEnd = currentDate;
+                }
+              }
+            }
+          } else {
+            // Fallback to start_date/end_date range
+            // FullCalendar treats end date as exclusive for all-day events
+            // So we need to add 1 day to include the actual end date
+            const endDatePlusOne = format(addDays(parseISO(l.end_date), 1), 'yyyy-MM-dd');
+
+            events.push({
+              id: 'leave-' + l.id,
+              ...baseEventProps,
+              start: l.start_date,
+              end: endDatePlusOne,
+            });
+          }
         }
       }
 

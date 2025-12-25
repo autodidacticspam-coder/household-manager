@@ -3,6 +3,9 @@
     "appName": "Household Manager",
     "loading": "Loading...",
     "save": "Save",
+    "add": "Add",
+    "select": "Select",
+    "new": "New",
     "saving": "Saving...",
     "saveChanges": "Save Changes",
     "cancel": "Cancel",
@@ -102,7 +105,14 @@
     "createTask": "Create Task",
     "editTask": "Edit Task",
     "taskTitle": "Task Title",
+    "titlePlaceholder": "Enter task title",
     "description": "Description",
+    "defaultTime": "Default Time",
+    "user": "User",
+    "group": "Group",
+    "all": "All",
+    "selectUser": "Select user",
+    "selectGroup": "Select group",
     "category": "Category",
     "priority": "Priority",
     "dueDate": "Due Date",
@@ -133,6 +143,12 @@
       "all": "All Employees",
       "allAdmins": "All Admins"
     },
+    "selectMultiple": "Select Multiple",
+    "selectEmployees": "Select Employees",
+    "addSelected": "Add Selected",
+    "alreadyAssigned": "User is already assigned to this task",
+    "assignedSuccess": "User assigned successfully",
+    "quickAssign": "Quick Assign",
     "recurrence": {
       "daily": "Daily",
       "weekly": "Weekly",
@@ -459,5 +475,23 @@
       "dinner": "Enter dinner items...",
       "snacks": "Enter snacks..."
     }
+  },
+  "templates": {
+    "title": "Task Templates",
+    "name": "Template Name",
+    "namePlaceholder": "e.g., Daily Kitchen Clean",
+    "create": "Create Template",
+    "edit": "Edit Template",
+    "delete": "Delete Template",
+    "use": "Use Template",
+    "quickCreate": "Quick Create",
+    "created": "Template created",
+    "updated": "Template updated",
+    "deleted": "Template deleted",
+    "noTemplates": "No templates yet",
+    "createFirst": "Create your first template to save time on recurring tasks",
+    "saveAsTemplate": "Save as Template",
+    "confirmDelete": "Are you sure you want to delete this template?",
+    "usingTemplate": "Using template: {name}"
   }
 }

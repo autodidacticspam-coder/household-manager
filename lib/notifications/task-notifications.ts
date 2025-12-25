@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { sendBulkSms } from '@/lib/twilio/sms-service';
+import { formatTime12h } from '@/lib/format-time';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -145,7 +146,7 @@ export async function sendTaskAssignedNotification(task: TaskInfo): Promise<void
     });
 
     if (task.dueTime) {
-      message += ` - Due: ${formattedDate} at ${formatTime(task.dueTime)}`;
+      message += ` - Due: ${formattedDate} at ${formatTime12h(task.dueTime)}`;
     } else {
       message += ` - Due: ${formattedDate}`;
     }
@@ -171,7 +172,7 @@ export async function sendTaskDueReminderNotification(task: TaskInfo): Promise<v
   let message = `[REMINDER] ${priorityLabel} priority task due soon: ${task.title}`;
 
   if (task.dueTime) {
-    message += ` - Due at ${formatTime(task.dueTime)}`;
+    message += ` - Due at ${formatTime12h(task.dueTime)}`;
   }
 
   const result = await sendBulkSms(
@@ -183,14 +184,6 @@ export async function sendTaskDueReminderNotification(task: TaskInfo): Promise<v
   console.log(`Reminder sent: ${result.sent} sent, ${result.failed} failed`);
 }
 
-function formatTime(time: string): string {
-  // Convert 24h time (HH:MM:SS) to 12h format
-  const [hours, minutes] = time.split(':');
-  const hour = parseInt(hours, 10);
-  const ampm = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minutes} ${ampm}`;
-}
 
 export async function getUpcomingHighPriorityTasks(minutesBefore: number = 15): Promise<TaskInfo[]> {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);

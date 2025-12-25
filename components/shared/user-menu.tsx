@@ -36,7 +36,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+        <Button variant="ghost" className="relative h-12 w-12 rounded-full p-0">
           <Avatar className="h-10 w-10">
             <AvatarImage src={user.avatarUrl || undefined} alt={user.fullName} />
             <AvatarFallback>{initials}</AvatarFallback>
@@ -53,13 +53,13 @@ export function UserMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem asChild className="min-h-[44px] py-3">
           <Link href={isAdmin ? '/settings' : '/profile'} className="cursor-pointer">
             <User className="mr-2 h-4 w-4" />
             {t('nav.profile')}
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
+        <DropdownMenuItem asChild className="min-h-[44px] py-3">
           <Link href="/settings" className="cursor-pointer">
             <Settings className="mr-2 h-4 w-4" />
             {t('nav.settings')}
@@ -67,7 +67,7 @@ export function UserMenu() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="cursor-pointer text-red-600 focus:text-red-600"
+          className="cursor-pointer text-red-600 focus:text-red-600 min-h-[44px] py-3"
           onClick={handleLogout}
         >
           <LogOut className="mr-2 h-4 w-4" />

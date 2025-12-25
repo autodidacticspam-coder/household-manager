@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, subDays, startOfMonth } from 'date-fns';
+import { formatTime12h } from '@/lib/format-time';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,13 +49,6 @@ const CHILD_COLORS: Record<ChildName, { bg: string; text: string; ring: string }
   'Zander': { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-500' },
 };
 
-// Convert 24-hour time to 12-hour AM/PM format
-function formatTime12h(time: string): string {
-  const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
-  const ampm = hours >= 12 ? 'PM' : 'AM';
-  const hours12 = hours % 12 || 12;
-  return `${hours12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-}
 
 // Convert 24-hour time to 12-hour input format (returns {time: "9:30", ampm: "PM"})
 function parse24To12(time24: string | null): { time: string; ampm: 'AM' | 'PM' } {

@@ -101,7 +101,7 @@ export function MobileSidebar() {
   // Show loading state in menu button while auth loads
   if (isLoading) {
     return (
-      <Button variant="ghost" size="icon" className="lg:hidden" disabled>
+      <Button variant="ghost" size="icon" className="lg:hidden min-w-[48px] min-h-[48px]" disabled>
         <Menu className="h-6 w-6 animate-pulse" />
         <span className="sr-only">Loading menu</span>
       </Button>
@@ -111,12 +111,12 @@ export function MobileSidebar() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden">
+        <Button variant="ghost" size="icon" className="lg:hidden min-w-[48px] min-h-[48px]">
           <Menu className="h-6 w-6" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-64 p-0">
+      <SheetContent side="left" className="w-72 p-0">
         <div className="flex flex-col h-full">
           <div className="flex items-center h-16 px-6 border-b border-gray-200">
             <Link
@@ -143,10 +143,10 @@ export function MobileSidebar() {
                   href={item.href}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                    'flex items-center px-4 py-3 min-h-[48px] text-base font-medium rounded-lg transition-colors active:scale-[0.98]',
                     isActive
                       ? 'bg-primary text-white'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200'
                   )}
                 >
                   {item.icon}

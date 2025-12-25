@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
+import { TaskTemplates } from '@/components/admin/task-templates';
+import { TemplateFormDialog } from '@/components/admin/template-form-dialog';
 import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask } from '@/hooks/use-tasks';
 import {
   AlertDialog,
@@ -25,7 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import type { TaskTemplate } from '@/types';
 
 export default function TasksPage() {
   const t = useTranslations();
@@ -36,6 +39,9 @@ export default function TasksPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null);
 
   const { data: categories } = useTaskCategories();
   const { data: tasks, isLoading } = useTasks({
@@ -63,6 +69,26 @@ export default function TasksPage() {
     }
   };
 
+  const handleUseTemplate = (template: TaskTemplate) => {
+    // Navigate to new task page with template ID
+    router.push(`/tasks/new?template=${template.id}`);
+  };
+
+  const handleCreateTemplate = () => {
+    setEditingTemplate(null);
+    setTemplateDialogOpen(true);
+  };
+
+  const handleEditTemplate = (template: TaskTemplate) => {
+    setEditingTemplate(template);
+    setTemplateDialogOpen(true);
+  };
+
+  const handleCloseTemplateDialog = () => {
+    setTemplateDialogOpen(false);
+    setEditingTemplate(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -72,11 +98,26 @@ export default function TasksPage() {
             {t('descriptions.tasks')}
           </p>
         </div>
-        <Button onClick={() => router.push('/tasks/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t('tasks.createTask')}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowTemplates(!showTemplates)}>
+            <FileText className="h-4 w-4 mr-2" />
+            {t('templates.title')}
+            {showTemplates ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+          </Button>
+          <Button onClick={() => router.push('/tasks/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            {t('tasks.createTask')}
+          </Button>
+        </div>
       </div>
+
+      {showTemplates && (
+        <TaskTemplates
+          onUseTemplate={handleUseTemplate}
+          onCreateTemplate={handleCreateTemplate}
+          onEditTemplate={handleEditTemplate}
+        />
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -182,6 +223,12 @@ export default function TasksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TemplateFormDialog
+        open={templateDialogOpen}
+        onClose={handleCloseTemplateDialog}
+        template={editingTemplate}
+      />
     </div>
   );
 }

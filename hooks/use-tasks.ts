@@ -424,3 +424,46 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
     }),
   };
 }
+
+export function useQuickAssign() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({ taskId, userId }: { taskId: string; userId: string }) => {
+      // Check if assignment already exists
+      const { data: existing } = await supabase
+        .from('task_assignments')
+        .select('id')
+        .eq('task_id', taskId)
+        .eq('target_user_id', userId)
+        .single();
+
+      if (existing) {
+        throw new Error(t('tasks.alreadyAssigned'));
+      }
+
+      // Add the assignment
+      const { data, error } = await supabase
+        .from('task_assignments')
+        .insert({
+          task_id: taskId,
+          target_type: 'user',
+          target_user_id: userId,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success(t('tasks.assignedSuccess'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}

@@ -29,17 +29,23 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, X, Plus, Users, User, CalendarClock } from 'lucide-react';
+import { Loader2, X, Plus, Users, User, CalendarClock, UserPlus } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput } from '@/lib/validators/task';
-import type { TaskWithRelations } from '@/types';
+import type { TaskWithRelations, TaskTemplate } from '@/types';
 
 type TaskFormProps = {
   task?: TaskWithRelations;
+  template?: TaskTemplate;
   onSuccess?: () => void;
 };
 
-export function TaskForm({ task, onSuccess }: TaskFormProps) {
+export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
   const t = useTranslations();
   const router = useRouter();
 
@@ -50,16 +56,31 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
 
-  const [assignments, setAssignments] = useState<TaskAssignmentInput[]>(
-    task?.assignments?.map((a) => ({
-      targetType: a.targetType,
-      targetUserId: a.targetUserId,
-      targetGroupId: a.targetGroupId,
-    })) || []
-  );
+  // Initialize assignments from task or template
+  const getInitialAssignments = (): TaskAssignmentInput[] => {
+    if (task?.assignments) {
+      return task.assignments.map((a) => ({
+        targetType: a.targetType,
+        targetUserId: a.targetUserId,
+        targetGroupId: a.targetGroupId,
+      }));
+    }
+    if (template?.defaultAssignments) {
+      return template.defaultAssignments.map((a) => ({
+        targetType: a.targetType,
+        targetUserId: a.targetUserId || undefined,
+        targetGroupId: a.targetGroupId || undefined,
+      }));
+    }
+    return [];
+  };
+
+  const [assignments, setAssignments] = useState<TaskAssignmentInput[]>(getInitialAssignments());
 
   const [newAssignmentType, setNewAssignmentType] = useState<'user' | 'group' | 'all' | 'all_admins'>('user');
   const [newAssignmentTarget, setNewAssignmentTarget] = useState<string>('');
+  const [multiSelectOpen, setMultiSelectOpen] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
   // Custom recurrence state
   const [recurrenceType, setRecurrenceType] = useState<'preset' | 'custom'>('preset');
@@ -85,9 +106,10 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
     return `${hour.toString().padStart(2, '0')}:${min.padStart(2, '0')}`;
   };
 
-  const dueTimeInit = parse24To12(task?.dueTime);
-  const startTimeInit = parse24To12(task?.startTime);
-  const endTimeInit = parse24To12(task?.endTime);
+  // Get time from task or template
+  const dueTimeInit = parse24To12(task?.dueTime || template?.defaultTime);
+  const startTimeInit = parse24To12(task?.startTime || template?.startTime);
+  const endTimeInit = parse24To12(task?.endTime || template?.endTime);
 
   const [dueTimeInput, setDueTimeInput] = useState(dueTimeInit.time);
   const [dueTimeAmPm, setDueTimeAmPm] = useState<'AM' | 'PM'>(dueTimeInit.ampm);
@@ -123,18 +145,18 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
   const form = useForm<CreateTaskInput>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: {
-      title: task?.title || '',
-      description: task?.description || '',
-      categoryId: task?.categoryId || undefined,
-      priority: task?.priority || 'medium',
+      title: task?.title || template?.title || '',
+      description: task?.description || template?.description || '',
+      categoryId: task?.categoryId || template?.categoryId || undefined,
+      priority: task?.priority || template?.priority || 'medium',
       dueDate: task?.dueDate || today,
-      dueTime: task?.dueTime || undefined,
-      isAllDay: task?.isAllDay ?? false,
-      isActivity: task?.isActivity ?? false,
-      startTime: task?.startTime || undefined,
-      endTime: task?.endTime || undefined,
-      isRecurring: task?.isRecurring ?? false,
-      recurrenceRule: task?.recurrenceRule || undefined,
+      dueTime: task?.dueTime || template?.defaultTime || undefined,
+      isAllDay: task?.isAllDay ?? template?.isAllDay ?? false,
+      isActivity: task?.isActivity ?? template?.isActivity ?? false,
+      startTime: task?.startTime || template?.startTime || undefined,
+      endTime: task?.endTime || template?.endTime || undefined,
+      isRecurring: task?.isRecurring ?? template?.isRecurring ?? false,
+      recurrenceRule: task?.recurrenceRule || template?.recurrenceRule || undefined,
       syncToCalendar: task?.syncToCalendar ?? false,
       assignments: assignments,
     },
@@ -178,6 +200,29 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
 
   const handleRemoveAssignment = (index: number) => {
     setAssignments(assignments.filter((_, i) => i !== index));
+  };
+
+  const handleToggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleAddSelectedUsers = () => {
+    const newAssignments: TaskAssignmentInput[] = selectedUsers
+      .filter(userId => !assignments.some(a => a.targetType === 'user' && a.targetUserId === userId))
+      .map(userId => ({
+        targetType: 'user' as const,
+        targetUserId: userId,
+      }));
+
+    if (newAssignments.length > 0) {
+      setAssignments([...assignments, ...newAssignments]);
+    }
+    setSelectedUsers([]);
+    setMultiSelectOpen(false);
   };
 
   const getAssignmentLabel = (assignment: TaskAssignmentInput) => {
@@ -833,6 +878,66 @@ export function TaskForm({ task, onSuccess }: TaskFormProps) {
                 <Plus className="h-4 w-4 mr-1" />
                 Add
               </Button>
+
+              <Popover open={multiSelectOpen} onOpenChange={setMultiSelectOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline">
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    {t('tasks.selectMultiple')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <div className="p-3 border-b">
+                    <p className="font-medium text-sm">{t('tasks.selectEmployees')}</p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {employees?.map((employee) => {
+                      const isAlreadyAssigned = assignments.some(
+                        a => a.targetType === 'user' && a.targetUserId === employee.id
+                      );
+                      const isSelected = selectedUsers.includes(employee.id);
+                      return (
+                        <div
+                          key={employee.id}
+                          className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted ${
+                            isAlreadyAssigned ? 'opacity-50' : ''
+                          }`}
+                          onClick={() => !isAlreadyAssigned && handleToggleUserSelection(employee.id)}
+                        >
+                          <Checkbox
+                            checked={isSelected || isAlreadyAssigned}
+                            disabled={isAlreadyAssigned}
+                            onCheckedChange={() => !isAlreadyAssigned && handleToggleUserSelection(employee.id)}
+                          />
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={employee.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {employee.full_name?.[0] || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm flex-1">{employee.full_name}</span>
+                          {isAlreadyAssigned && (
+                            <Badge variant="secondary" className="text-xs">Added</Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="p-3 border-t flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedUsers.length} selected
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddSelectedUsers}
+                      disabled={selectedUsers.length === 0}
+                    >
+                      {t('tasks.addSelected')}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardContent>
         </Card>
