@@ -21,7 +21,7 @@ import { useCompleteTask, useCompleteTaskInstance } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, subWeeks, addWeeks } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase } from 'lucide-react';
 
 type CalendarViewProps = {
@@ -115,8 +115,17 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     extendedProps: Record<string, unknown>;
   } | null>(null);
 
-  const startDate = format(startOfMonth(currentDate), 'yyyy-MM-dd');
-  const endDate = format(endOfMonth(currentDate), 'yyyy-MM-dd');
+  // Track the visible date range from FullCalendar
+  const [visibleRange, setVisibleRange] = useState<{ start: Date; end: Date } | null>(null);
+
+  // Use visible range if available, otherwise fall back to current month
+  // Add buffer of 1 week on each side to ensure smooth navigation
+  const startDate = visibleRange
+    ? format(subWeeks(visibleRange.start, 1), 'yyyy-MM-dd')
+    : format(startOfMonth(currentDate), 'yyyy-MM-dd');
+  const endDate = visibleRange
+    ? format(addWeeks(visibleRange.end, 1), 'yyyy-MM-dd')
+    : format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
   const { data: events, isLoading, refetch } = useCalendarEvents({
     startDate,
@@ -194,21 +203,18 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   };
 
   const handlePrev = () => {
-    const newDate = subMonths(currentDate, 1);
-    setCurrentDate(newDate);
     calendarRef.current?.getApi().prev();
+    // datesSet callback will update currentDate and visibleRange
   };
 
   const handleNext = () => {
-    const newDate = addMonths(currentDate, 1);
-    setCurrentDate(newDate);
     calendarRef.current?.getApi().next();
+    // datesSet callback will update currentDate and visibleRange
   };
 
   const handleToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
     calendarRef.current?.getApi().today();
+    // datesSet callback will update currentDate and visibleRange
   };
 
   const handleViewChange = (view: ViewType) => {
@@ -435,6 +441,12 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 extendedProps: e.extendedProps,
               })) || []}
               eventClick={handleEventClick}
+              datesSet={(dateInfo) => {
+                // Update visible range when calendar navigates
+                setVisibleRange({ start: dateInfo.start, end: dateInfo.end });
+                // Update currentDate to match the view's current position
+                setCurrentDate(dateInfo.view.currentStart);
+              }}
               height="auto"
               dayMaxEvents={3}
               eventDisplay="block"
