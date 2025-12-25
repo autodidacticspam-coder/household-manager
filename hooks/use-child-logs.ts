@@ -65,7 +65,8 @@ export function useRecentChildLogs(limit: number = 10) {
           *,
           logged_by_user:users!child_logs_logged_by_fkey(id, full_name, avatar_url)
         `)
-        .order('created_at', { ascending: false })
+        .order('log_date', { ascending: false })
+        .order('log_time', { ascending: false })
         .limit(limit);
 
       if (error) throw error;
