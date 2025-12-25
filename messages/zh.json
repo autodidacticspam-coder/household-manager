@@ -165,6 +165,7 @@
     "taskUpdated": "任务更新成功",
     "taskDeleted": "任务删除成功",
     "taskCompleted": "任务已标记完成",
+    "taskUncompleted": "任务已标记未完成",
     "deleteConfirmation": "您确定要删除此任务吗？此操作无法撤销。"
   },
   "leave": {

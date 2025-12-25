@@ -17,7 +17,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask } from '@/hooks/use-tasks';
+import { useCompleteTask, useCompleteTaskInstance } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
@@ -133,6 +133,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   });
 
   const completeTask = useCompleteTask();
+  const completeTaskInstance = useCompleteTaskInstance();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
 
@@ -174,13 +175,20 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     return () => window.removeEventListener('resize', handleResize);
   }, [currentView]);
 
-  const handleCompleteTask = async (eventId: string) => {
+  const handleCompleteTask = async (eventId: string, isRecurring: boolean, instanceDate?: string) => {
     // Extract the actual task ID from the event ID
     // Format: task-{uuid} or task-{uuid}-{date} for recurring tasks
     const withoutPrefix = eventId.replace('task-', '');
     // UUID is 36 characters (including dashes)
     const actualTaskId = withoutPrefix.slice(0, 36);
-    await completeTask.mutateAsync(actualTaskId);
+
+    if (isRecurring && instanceDate) {
+      // For recurring tasks, complete the specific instance
+      await completeTaskInstance.mutateAsync({ taskId: actualTaskId, completionDate: instanceDate });
+    } else {
+      // For non-recurring tasks, complete the entire task
+      await completeTask.mutateAsync(actualTaskId);
+    }
     setSelectedEvent(null);
     refetch();
   };
@@ -533,10 +541,14 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   <Button
                     size="sm"
                     className="w-full mt-2"
-                    onClick={() => handleCompleteTask(selectedEvent.id)}
-                    disabled={completeTask.isPending}
+                    onClick={() => handleCompleteTask(
+                      selectedEvent.id,
+                      !!selectedEvent.extendedProps.isRecurring,
+                      selectedEvent.extendedProps.instanceDate as string | undefined
+                    )}
+                    disabled={completeTask.isPending || completeTaskInstance.isPending}
                   >
-                    {completeTask.isPending ? (
+                    {(completeTask.isPending || completeTaskInstance.isPending) ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <CheckCircle className="h-4 w-4 mr-2" />

@@ -370,3 +370,65 @@ export async function updateTaskStatus(taskId: string, status: 'pending' | 'in_p
 
   return { success: true };
 }
+
+// Complete a specific instance of a recurring task
+export async function completeTaskInstance(taskId: string, completionDate: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const supabaseAdmin = getAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Not authenticated' };
+  }
+
+  // Insert completion record (upsert in case of re-completion)
+  const { error } = await supabaseAdmin
+    .from('task_completions')
+    .upsert({
+      task_id: taskId,
+      completion_date: completionDate,
+      completed_by: user.id,
+      completed_at: new Date().toISOString(),
+    }, {
+      onConflict: 'task_id,completion_date',
+    });
+
+  if (error) {
+    console.error('Task instance completion error:', error);
+    return { error: 'Failed to complete task instance' };
+  }
+
+  revalidatePath('/tasks');
+  revalidatePath('/my-tasks');
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}
+
+// Uncomplete a specific instance of a recurring task
+export async function uncompleteTaskInstance(taskId: string, completionDate: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const supabaseAdmin = getAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Not authenticated' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('task_completions')
+    .delete()
+    .eq('task_id', taskId)
+    .eq('completion_date', completionDate);
+
+  if (error) {
+    console.error('Task instance uncomplete error:', error);
+    return { error: 'Failed to uncomplete task instance' };
+  }
+
+  revalidatePath('/tasks');
+  revalidatePath('/my-tasks');
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}

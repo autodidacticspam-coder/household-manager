@@ -165,6 +165,7 @@
     "taskUpdated": "Tarea actualizada exitosamente",
     "taskDeleted": "Tarea eliminada exitosamente",
     "taskCompleted": "Tarea marcada como completada",
+    "taskUncompleted": "Tarea marcada como incompleta",
     "deleteConfirmation": "¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer."
   },
   "leave": {

@@ -109,6 +109,21 @@ export function useCalendarEvents(filters: CalendarFilters) {
         if (regularError) throw regularError;
         const { data: recurringTasks, error: recurringError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name))').eq('is_recurring', true).lte('due_date', filters.endDate);
         if (recurringError) throw recurringError;
+
+        // Fetch task completions for the date range
+        const { data: taskCompletions, error: completionsError } = await supabase
+          .from('task_completions')
+          .select('task_id, completion_date')
+          .gte('completion_date', filters.startDate)
+          .lte('completion_date', filters.endDate);
+        if (completionsError) throw completionsError;
+
+        // Create a Set for fast lookup of completed task instances
+        const completedInstancesSet = new Set<string>();
+        for (const completion of taskCompletions || []) {
+          completedInstancesSet.add(`${completion.task_id}-${completion.completion_date}`);
+        }
+
         for (const task of [...(regularTasks || []), ...(recurringTasks || [])]) {
           if (!task.due_date) continue;
           if (filters.userId && !task.assignments.some((a: { target_type: string; target_user_id: string }) => a.target_type === 'all' || (a.target_type === 'user' && a.target_user_id === filters.userId))) continue;
@@ -135,7 +150,10 @@ export function useCalendarEvents(filters: CalendarFilters) {
           if (task.is_recurring && task.recurrence_rule) {
             for (const o of expandRecurringTask(task, rangeStart, rangeEnd)) {
               const times = getEventTimes(o.date);
-              events.push({ id: 'task-' + o.instanceId, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isRecurring: true, isActivity: task.is_activity, assignees } });
+              // Check if this specific instance has been completed
+              const instanceKey = `${task.id}-${o.date}`;
+              const instanceStatus = completedInstancesSet.has(instanceKey) ? 'completed' : 'pending';
+              events.push({ id: 'task-' + o.instanceId, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: instanceStatus, priority: task.priority, category: task.category?.name, isRecurring: true, isActivity: task.is_activity, assignees, instanceDate: o.date } });
             }
           } else {
             const times = getEventTimes(task.due_date);

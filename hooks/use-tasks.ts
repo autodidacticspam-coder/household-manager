@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { TaskWithRelations } from '@/types';
-import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus } from '@/app/(admin)/tasks/actions';
+import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance } from '@/app/(admin)/tasks/actions';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
@@ -461,6 +461,52 @@ export function useQuickAssign() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       toast.success(t('tasks.assignedSuccess'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Complete a specific instance of a recurring task
+export function useCompleteTaskInstance() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({ taskId, completionDate }: { taskId: string; completionDate: string }) => {
+      const result = await completeTaskInstance(taskId, completionDate);
+      if (result.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('tasks.taskCompleted'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Uncomplete a specific instance of a recurring task
+export function useUncompleteTaskInstance() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({ taskId, completionDate }: { taskId: string; completionDate: string }) => {
+      const result = await uncompleteTaskInstance(taskId, completionDate);
+      if (result.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('tasks.taskUncompleted'));
     },
     onError: (error: Error) => {
       toast.error(error.message);
