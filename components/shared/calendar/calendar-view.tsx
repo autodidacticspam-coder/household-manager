@@ -389,6 +389,36 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     calendarRef.current?.getApi().changeView(view);
   };
 
+  // Touch swipe support for mobile navigation
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX.current;
+    const deltaY = touchEndY - touchStartY.current;
+
+    // Only trigger if horizontal swipe is significant and greater than vertical
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX > 0) {
+        handlePrev();
+      } else {
+        handleNext();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
   const handleEventClick = (info: { event: {
     id: string;
     title: string;
@@ -437,33 +467,37 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border">
             <Button
+              type="button"
               variant={currentView === 'timeGridDay' ? 'default' : 'ghost'}
               size="sm"
-              className="rounded-r-none"
+              className="rounded-r-none text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => handleViewChange('timeGridDay')}
             >
               {t('calendar.day')}
             </Button>
             <Button
+              type="button"
               variant={currentView === 'timeGridTwoDay' ? 'default' : 'ghost'}
               size="sm"
-              className="rounded-none border-x"
+              className="rounded-none border-x text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => handleViewChange('timeGridTwoDay')}
             >
-              2 {t('calendar.days')}
+              2D
             </Button>
             <Button
+              type="button"
               variant={currentView === 'timeGridWeek' ? 'default' : 'ghost'}
               size="sm"
-              className="rounded-none border-x"
+              className="rounded-none border-x text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => handleViewChange('timeGridWeek')}
             >
               {t('calendar.week')}
             </Button>
             <Button
+              type="button"
               variant={currentView === 'dayGridMonth' ? 'default' : 'ghost'}
               size="sm"
-              className="rounded-l-none"
+              className="rounded-l-none text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => handleViewChange('dayGridMonth')}
             >
               {t('calendar.month')}
@@ -584,7 +618,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
       <Card>
         <CardContent className="p-0 sm:p-4">
-          <div className={`calendar-wrapper ${isLoading ? 'opacity-50' : ''}`}>
+          <div
+            className={`calendar-wrapper ${isLoading ? 'opacity-50' : ''}`}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+          >
             <FullCalendar
               ref={calendarRef}
               plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
@@ -634,7 +672,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
       {/* Event Detail Popover */}
       {selectedEvent && (
-        <Card className="fixed bottom-4 right-4 w-80 shadow-lg z-50">
+        <Card className="fixed bottom-20 right-4 left-4 sm:left-auto sm:w-80 shadow-lg z-50 max-h-[70vh] overflow-y-auto">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm font-medium">
@@ -906,79 +944,84 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   </>
                 ) : (
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={editStartTime}
-                        onChange={(e) => {
-                          let val = e.target.value.replace(/[^\d:]/g, '');
-                          if (val.length === 2 && !val.includes(':')) val = val + ':';
-                          if (val.length <= 5) setEditStartTime(val);
-                        }}
-                        placeholder="9:00"
-                        className="w-20"
-                      />
-                      <div className="flex rounded-lg border-2 overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setEditStartAmPm('AM')}
-                          className={`px-2 py-1.5 text-xs font-semibold transition-colors ${
-                            editStartAmPm === 'AM'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-background hover:bg-muted'
-                          }`}
-                        >
-                          AM
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditStartAmPm('PM')}
-                          className={`px-2 py-1.5 text-xs font-semibold transition-colors ${
-                            editStartAmPm === 'PM'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-background hover:bg-muted'
-                          }`}
-                        >
-                          PM
-                        </button>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground w-12">Start:</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={editStartTime}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d:]/g, '');
+                            if (val.length === 2 && !val.includes(':')) val = val + ':';
+                            if (val.length <= 5) setEditStartTime(val);
+                          }}
+                          placeholder="9:00"
+                          className="w-20"
+                        />
+                        <div className="flex rounded-lg border-2 overflow-hidden flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setEditStartAmPm('AM')}
+                            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                              editStartAmPm === 'AM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditStartAmPm('PM')}
+                            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                              editStartAmPm === 'PM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-muted-foreground">to</span>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={editEndTime}
-                        onChange={(e) => {
-                          let val = e.target.value.replace(/[^\d:]/g, '');
-                          if (val.length === 2 && !val.includes(':')) val = val + ':';
-                          if (val.length <= 5) setEditEndTime(val);
-                        }}
-                        placeholder="5:00"
-                        className="w-20"
-                      />
-                      <div className="flex rounded-lg border-2 overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() => setEditEndAmPm('AM')}
-                          className={`px-2 py-1.5 text-xs font-semibold transition-colors ${
-                            editEndAmPm === 'AM'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-background hover:bg-muted'
-                          }`}
-                        >
-                          AM
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditEndAmPm('PM')}
-                          className={`px-2 py-1.5 text-xs font-semibold transition-colors ${
-                            editEndAmPm === 'PM'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-background hover:bg-muted'
-                          }`}
-                        >
-                          PM
-                        </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground w-12">End:</span>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={editEndTime}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/[^\d:]/g, '');
+                            if (val.length === 2 && !val.includes(':')) val = val + ':';
+                            if (val.length <= 5) setEditEndTime(val);
+                          }}
+                          placeholder="5:00"
+                          className="w-20"
+                        />
+                        <div className="flex rounded-lg border-2 overflow-hidden flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setEditEndAmPm('AM')}
+                            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                              editEndAmPm === 'AM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            AM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditEndAmPm('PM')}
+                            className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                              editEndAmPm === 'PM'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-background hover:bg-muted'
+                            }`}
+                          >
+                            PM
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-2">
