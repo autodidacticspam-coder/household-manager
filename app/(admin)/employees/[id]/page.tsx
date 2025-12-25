@@ -41,7 +41,25 @@ import { useEmployee, useUpdateEmployee, useDeleteEmployee } from '@/hooks/use-e
 import { useEmployeeGroups } from '@/hooks/use-tasks';
 import { useMyLeaveRequests } from '@/hooks/use-leave';
 import { useMyTasks } from '@/hooks/use-tasks';
-import { format } from 'date-fns';
+import { format, eachDayOfInterval, parseISO } from 'date-fns';
+import type { LeaveRequest } from '@/types/leave';
+
+// Parse date string as local date (not UTC) to avoid timezone issues
+function parseLocalDate(dateStr: string): Date {
+  return parseISO(dateStr + 'T12:00:00');
+}
+
+// Helper to get dates - uses selectedDates if available, otherwise falls back to range
+function getRequestDates(request: LeaveRequest): Date[] {
+  if (request.selectedDates && request.selectedDates.length > 0) {
+    return request.selectedDates.map(d => parseLocalDate(d));
+  }
+  // Fallback to range for older requests
+  return eachDayOfInterval({
+    start: parseLocalDate(request.startDate),
+    end: parseLocalDate(request.endDate),
+  });
+}
 import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift } from 'lucide-react';
 import { ScheduleEditor } from '@/components/admin/schedule-editor';
 
@@ -294,8 +312,8 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
               {leaveRequests && leaveRequests.length > 0 ? (
                 <div className="space-y-3">
                   {leaveRequests.slice(0, 5).map((request) => (
-                    <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
+                    <div key={request.id} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary">
                             {request.leaveType === 'pto' ? 'PTO' : request.leaveType === 'holiday' ? 'Holiday' : 'Sick'}
@@ -308,11 +326,15 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                             {request.status}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {format(new Date(request.startDate), 'MMM d')} - {format(new Date(request.endDate), 'MMM d, yyyy')}
-                        </p>
+                        <span className="text-sm font-medium">{request.totalDays} {request.totalDays === 1 ? 'day' : 'days'}</span>
                       </div>
-                      <span className="text-sm font-medium">{request.totalDays} days</span>
+                      <div className="flex flex-wrap gap-1">
+                        {getRequestDates(request).map((date, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs font-normal">
+                            {format(date, 'EEE, MMM d')}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
