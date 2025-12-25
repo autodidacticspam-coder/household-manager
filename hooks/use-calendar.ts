@@ -465,7 +465,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                 start: `${dateStr}T${startTime}`,
                 end: `${dateStr}T${endTime}`,
                 allDay: false,
-                color: hasOverride ? '#f59e0b' : '#8b5cf6', // amber if modified, violet for regular
+                color: '#8b5cf6', // violet for all schedules
                 resourceId: schedule.id,
                 extendedProps: {
                   scheduleId: schedule.id,
