@@ -124,10 +124,42 @@ export function useCalendarEvents(filters: CalendarFilters) {
           .lte('completion_date', filters.endDate);
         if (completionsError) throw completionsError;
 
+        // Fetch task skipped instances for the date range
+        const { data: skippedInstances, error: skippedError } = await supabase
+          .from('task_skipped_instances')
+          .select('task_id, skipped_date')
+          .gte('skipped_date', filters.startDate)
+          .lte('skipped_date', filters.endDate);
+        if (skippedError) console.error('Error fetching skipped instances:', skippedError);
+
+        // Fetch task instance time overrides for the date range
+        const { data: instanceOverrides, error: overridesError } = await supabase
+          .from('task_instance_overrides')
+          .select('task_id, instance_date, override_time, override_start_time, override_end_time')
+          .gte('instance_date', filters.startDate)
+          .lte('instance_date', filters.endDate);
+        if (overridesError) console.error('Error fetching instance overrides:', overridesError);
+
         // Create a Set for fast lookup of completed task instances
         const completedInstancesSet = new Set<string>();
         for (const completion of taskCompletions || []) {
           completedInstancesSet.add(`${completion.task_id}-${completion.completion_date}`);
+        }
+
+        // Create a Set for fast lookup of skipped task instances
+        const skippedInstancesSet = new Set<string>();
+        for (const skip of skippedInstances || []) {
+          skippedInstancesSet.add(`${skip.task_id}-${skip.skipped_date}`);
+        }
+
+        // Create a Map for time overrides
+        const timeOverridesMap = new Map<string, { overrideTime: string | null; overrideStartTime: string | null; overrideEndTime: string | null }>();
+        for (const override of instanceOverrides || []) {
+          timeOverridesMap.set(`${override.task_id}-${override.instance_date}`, {
+            overrideTime: override.override_time,
+            overrideStartTime: override.override_start_time,
+            overrideEndTime: override.override_end_time,
+          });
         }
 
         for (const task of [...(regularTasks || []), ...(recurringTasks || [])]) {
@@ -155,11 +187,57 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
           if (task.is_recurring && task.recurrence_rule) {
             for (const o of expandRecurringTask(task, rangeStart, rangeEnd)) {
-              const times = getEventTimes(o.date);
-              // Check if this specific instance has been completed
               const instanceKey = `${task.id}-${o.date}`;
+
+              // Skip this instance if it was skipped
+              if (skippedInstancesSet.has(instanceKey)) {
+                continue;
+              }
+
+              // Check for time override
+              const timeOverride = timeOverridesMap.get(instanceKey);
+              let times = getEventTimes(o.date);
+
+              // Apply time override if exists
+              if (timeOverride) {
+                if (task.is_activity && timeOverride.overrideStartTime && timeOverride.overrideEndTime) {
+                  times = {
+                    start: o.date + 'T' + timeOverride.overrideStartTime,
+                    end: o.date + 'T' + timeOverride.overrideEndTime
+                  };
+                } else if (timeOverride.overrideTime) {
+                  times = {
+                    start: o.date + 'T' + timeOverride.overrideTime,
+                    end: o.date + 'T' + timeOverride.overrideTime
+                  };
+                }
+              }
+
+              // Check if this specific instance has been completed
               const instanceStatus = completedInstancesSet.has(instanceKey) ? 'completed' : 'pending';
-              events.push({ id: 'task-' + o.instanceId, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: instanceStatus, priority: task.priority, category: task.category?.name, isRecurring: true, isActivity: task.is_activity, assignees, instanceDate: o.date } });
+              events.push({
+                id: 'task-' + o.instanceId,
+                type: 'task',
+                title: task.title,
+                start: times.start,
+                end: times.end,
+                allDay: task.is_all_day,
+                color: task.category?.color || '#6366f1',
+                resourceId: task.id,
+                extendedProps: {
+                  status: instanceStatus,
+                  priority: task.priority,
+                  category: task.category?.name,
+                  isRecurring: true,
+                  isActivity: task.is_activity,
+                  assignees,
+                  instanceDate: o.date,
+                  hasTimeOverride: !!timeOverride,
+                  originalDueTime: task.due_time,
+                  originalStartTime: task.start_time,
+                  originalEndTime: task.end_time,
+                }
+              });
             }
           } else {
             const times = getEventTimes(task.due_date);

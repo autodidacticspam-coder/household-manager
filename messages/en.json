@@ -169,7 +169,12 @@
     "deleteTask": "Delete Task",
     "deleteConfirmation": "Are you sure you want to delete this task? This action cannot be undone.",
     "deleteRecurringConfirmation": "Are you sure you want to delete \"{title}\"? This is a recurring task.",
-    "deleteRecurringNote": "Deleting this task will remove all future occurrences."
+    "deleteRecurringNote": "Deleting this task will remove all future occurrences.",
+    "chooseDeleteOption": "Choose how you want to handle this recurring task:",
+    "skipThisOccurrence": "Skip This Occurrence",
+    "deleteAllOccurrences": "Delete All Occurrences",
+    "instanceSkipped": "This occurrence has been skipped",
+    "taskMoved": "Task moved successfully"
   },
   "leave": {
     "title": "Leave Management",

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { TaskWithRelations } from '@/types';
-import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance } from '@/app/(admin)/tasks/actions';
+import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance, skipTaskInstance, updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
@@ -507,6 +507,96 @@ export function useUncompleteTaskInstance() {
       queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('tasks.taskUncompleted'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Skip a specific instance of a recurring task
+export function useSkipTaskInstance() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({ taskId, skipDate }: { taskId: string; skipDate: string }) => {
+      const result = await skipTaskInstance(taskId, skipDate);
+      if (result.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('tasks.instanceSkipped'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Update task date/time (for drag and drop of regular tasks)
+export function useUpdateTaskDateTime() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      dueDate,
+      dueTime,
+      startTime,
+      endTime,
+    }: {
+      taskId: string;
+      dueDate: string;
+      dueTime: string | null;
+      startTime?: string | null;
+      endTime?: string | null;
+    }) => {
+      const result = await updateTaskDateTime(taskId, dueDate, dueTime, startTime, endTime);
+      if (result.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('tasks.taskMoved'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Override time for a specific instance of a recurring task (for drag and drop)
+export function useOverrideTaskInstanceTime() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      instanceDate,
+      overrideTime,
+      overrideStartTime,
+      overrideEndTime,
+    }: {
+      taskId: string;
+      instanceDate: string;
+      overrideTime: string | null;
+      overrideStartTime?: string | null;
+      overrideEndTime?: string | null;
+    }) => {
+      const result = await overrideTaskInstanceTime(taskId, instanceDate, overrideTime, overrideStartTime, overrideEndTime);
+      if (result.error) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('tasks.taskMoved'));
     },
     onError: (error: Error) => {
       toast.error(error.message);

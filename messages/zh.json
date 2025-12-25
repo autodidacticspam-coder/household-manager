@@ -169,7 +169,12 @@
     "deleteTask": "删除任务",
     "deleteConfirmation": "您确定要删除此任务吗？此操作无法撤销。",
     "deleteRecurringConfirmation": "您确定要删除「{title}」吗？这是一个重复任务。",
-    "deleteRecurringNote": "删除此任务将删除所有未来的重复项。"
+    "deleteRecurringNote": "删除此任务将删除所有未来的重复项。",
+    "chooseDeleteOption": "选择如何处理此重复任务：",
+    "skipThisOccurrence": "跳过此次",
+    "deleteAllOccurrences": "删除所有重复项",
+    "instanceSkipped": "此次任务已跳过",
+    "taskMoved": "任务移动成功"
   },
   "leave": {
     "title": "请假管理",

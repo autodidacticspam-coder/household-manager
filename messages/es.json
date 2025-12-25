@@ -169,7 +169,12 @@
     "deleteTask": "Eliminar Tarea",
     "deleteConfirmation": "¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.",
     "deleteRecurringConfirmation": "¿Estás seguro de que deseas eliminar \"{title}\"? Esta es una tarea recurrente.",
-    "deleteRecurringNote": "Eliminar esta tarea eliminará todas las ocurrencias futuras."
+    "deleteRecurringNote": "Eliminar esta tarea eliminará todas las ocurrencias futuras.",
+    "chooseDeleteOption": "Elige cómo quieres manejar esta tarea recurrente:",
+    "skipThisOccurrence": "Omitir Esta Ocurrencia",
+    "deleteAllOccurrences": "Eliminar Todas las Ocurrencias",
+    "instanceSkipped": "Esta ocurrencia ha sido omitida",
+    "taskMoved": "Tarea movida exitosamente"
   },
   "leave": {
     "title": "Gestión de Ausencias",

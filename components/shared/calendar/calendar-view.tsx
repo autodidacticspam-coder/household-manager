@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask, useCompleteTaskInstance, useDeleteTask } from '@/hooks/use-tasks';
+import { useCompleteTask, useCompleteTaskInstance, useDeleteTask, useSkipTaskInstance, useUpdateTaskDateTime, useOverrideTaskInstanceTime } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
@@ -156,6 +156,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const completeTask = useCompleteTask();
   const completeTaskInstance = useCompleteTaskInstance();
   const deleteTask = useDeleteTask();
+  const skipTaskInstance = useSkipTaskInstance();
+  const updateTaskDateTime = useUpdateTaskDateTime();
+  const overrideTaskInstanceTime = useOverrideTaskInstanceTime();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
 
@@ -165,6 +168,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     taskId: string;
     isRecurring: boolean;
     title: string;
+    instanceDate?: string;
   } | null>(null);
 
   // Schedule editing state
@@ -244,14 +248,97 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     refetch();
   };
 
-  const openDeleteTaskDialog = (eventId: string, isRecurring: boolean, title: string) => {
+  const openDeleteTaskDialog = (eventId: string, isRecurring: boolean, title: string, instanceDate?: string) => {
     const taskId = extractTaskId(eventId);
     setDeleteTaskDialog({
       open: true,
       taskId,
       isRecurring,
       title,
+      instanceDate,
     });
+  };
+
+  // Skip a single occurrence of a recurring task
+  const handleSkipInstance = async () => {
+    if (!deleteTaskDialog || !deleteTaskDialog.instanceDate) return;
+
+    await skipTaskInstance.mutateAsync({
+      taskId: deleteTaskDialog.taskId,
+      skipDate: deleteTaskDialog.instanceDate,
+    });
+    setDeleteTaskDialog(null);
+    setSelectedEvent(null);
+    refetch();
+  };
+
+  // Handle drag and drop for calendar events
+  const handleEventDrop = async (info: {
+    event: {
+      id: string;
+      start: Date | null;
+      end: Date | null;
+      extendedProps: Record<string, unknown>;
+    };
+    revert: () => void;
+  }) => {
+    const eventId = info.event.id;
+    const newStart = info.event.start;
+
+    if (!newStart || !eventId.startsWith('task-')) {
+      info.revert();
+      return;
+    }
+
+    const taskId = extractTaskId(eventId);
+    const newDate = format(newStart, 'yyyy-MM-dd');
+    const newTime = format(newStart, 'HH:mm:ss');
+    const isRecurring = !!info.event.extendedProps.isRecurring;
+    const instanceDate = info.event.extendedProps.instanceDate as string | undefined;
+    const isActivity = !!info.event.extendedProps.isActivity;
+
+    try {
+      if (isRecurring && instanceDate) {
+        // For recurring tasks, create a time override for this specific instance
+        if (isActivity && info.event.end) {
+          const newEndTime = format(info.event.end, 'HH:mm:ss');
+          await overrideTaskInstanceTime.mutateAsync({
+            taskId,
+            instanceDate,
+            overrideTime: null,
+            overrideStartTime: newTime,
+            overrideEndTime: newEndTime,
+          });
+        } else {
+          await overrideTaskInstanceTime.mutateAsync({
+            taskId,
+            instanceDate,
+            overrideTime: newTime,
+          });
+        }
+      } else {
+        // For regular tasks, update the due date/time directly
+        if (isActivity && info.event.end) {
+          const newEndTime = format(info.event.end, 'HH:mm:ss');
+          await updateTaskDateTime.mutateAsync({
+            taskId,
+            dueDate: newDate,
+            dueTime: newTime,
+            startTime: newTime,
+            endTime: newEndTime,
+          });
+        } else {
+          await updateTaskDateTime.mutateAsync({
+            taskId,
+            dueDate: newDate,
+            dueTime: newTime,
+          });
+        }
+      }
+      refetch();
+    } catch {
+      info.revert();
+    }
   };
 
   const handlePrev = () => {
@@ -499,6 +586,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 // Update currentDate to match the view's current position
                 setCurrentDate(dateInfo.view.currentStart);
               }}
+              editable={!isEmployee}
+              eventDrop={handleEventDrop}
+              eventStartEditable={!isEmployee}
+              eventDurationEditable={false}
+              droppable={false}
               height="auto"
               dayMaxEvents={3}
               eventDisplay="block"
@@ -640,7 +732,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                       onClick={() => openDeleteTaskDialog(
                         selectedEvent.id,
                         !!selectedEvent.extendedProps.isRecurring,
-                        selectedEvent.title
+                        selectedEvent.title,
+                        selectedEvent.extendedProps.instanceDate as string | undefined
                       )}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
@@ -907,8 +1000,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               {deleteTaskDialog?.isRecurring ? (
                 <>
                   {t('tasks.deleteRecurringConfirmation', { title: deleteTaskDialog?.title })}
-                  <p className="mt-2 text-sm font-medium">
-                    {t('tasks.deleteRecurringNote')}
+                  <p className="mt-2 text-sm">
+                    {t('tasks.chooseDeleteOption')}
                   </p>
                 </>
               ) : (
@@ -916,8 +1009,20 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className={deleteTaskDialog?.isRecurring ? 'flex-col sm:flex-row gap-2' : ''}>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            {deleteTaskDialog?.isRecurring && deleteTaskDialog?.instanceDate && (
+              <Button
+                variant="outline"
+                onClick={handleSkipInstance}
+                disabled={skipTaskInstance.isPending}
+              >
+                {skipTaskInstance.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                {t('tasks.skipThisOccurrence')}
+              </Button>
+            )}
             <AlertDialogAction
               onClick={handleDeleteTask}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -926,7 +1031,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               {deleteTask.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
-              {t('common.delete')}
+              {deleteTaskDialog?.isRecurring ? t('tasks.deleteAllOccurrences') : t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

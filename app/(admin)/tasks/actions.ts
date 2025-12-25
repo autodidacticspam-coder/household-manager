@@ -432,3 +432,153 @@ export async function uncompleteTaskInstance(taskId: string, completionDate: str
 
   return { success: true };
 }
+
+// Skip a specific instance of a recurring task
+export async function skipTaskInstance(taskId: string, skipDate: string): Promise<ActionState> {
+  const supabase = await createClient();
+  const supabaseAdmin = getAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Not authenticated' };
+  }
+
+  // Check if user is admin
+  const { data: userData } = await supabaseAdmin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (userData?.role !== 'admin') {
+    return { error: 'Only admins can skip task instances' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('task_skipped_instances')
+    .upsert({
+      task_id: taskId,
+      skipped_date: skipDate,
+      skipped_by: user.id,
+      skipped_at: new Date().toISOString(),
+    }, {
+      onConflict: 'task_id,skipped_date',
+    });
+
+  if (error) {
+    console.error('Task instance skip error:', error);
+    return { error: 'Failed to skip task instance' };
+  }
+
+  revalidatePath('/tasks');
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}
+
+// Update task date/time (for drag and drop of regular tasks)
+export async function updateTaskDateTime(
+  taskId: string,
+  dueDate: string,
+  dueTime: string | null,
+  startTime?: string | null,
+  endTime?: string | null
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const supabaseAdmin = getAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Not authenticated' };
+  }
+
+  // Check if user is admin
+  const { data: userData } = await supabaseAdmin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (userData?.role !== 'admin') {
+    return { error: 'Only admins can move tasks' };
+  }
+
+  const updateData: Record<string, unknown> = {
+    due_date: dueDate,
+    due_time: dueTime,
+  };
+
+  if (startTime !== undefined) {
+    updateData.start_time = startTime;
+  }
+  if (endTime !== undefined) {
+    updateData.end_time = endTime;
+  }
+
+  const { error } = await supabaseAdmin
+    .from('tasks')
+    .update(updateData)
+    .eq('id', taskId);
+
+  if (error) {
+    console.error('Task date/time update error:', error);
+    return { error: 'Failed to update task date/time' };
+  }
+
+  revalidatePath('/tasks');
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}
+
+// Override time for a specific instance of a recurring task (for drag and drop)
+export async function overrideTaskInstanceTime(
+  taskId: string,
+  instanceDate: string,
+  overrideTime: string | null,
+  overrideStartTime?: string | null,
+  overrideEndTime?: string | null
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const supabaseAdmin = getAdminClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Not authenticated' };
+  }
+
+  // Check if user is admin
+  const { data: userData } = await supabaseAdmin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (userData?.role !== 'admin') {
+    return { error: 'Only admins can override task instance times' };
+  }
+
+  const { error } = await supabaseAdmin
+    .from('task_instance_overrides')
+    .upsert({
+      task_id: taskId,
+      instance_date: instanceDate,
+      override_time: overrideTime,
+      override_start_time: overrideStartTime || null,
+      override_end_time: overrideEndTime || null,
+      created_by: user.id,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'task_id,instance_date',
+    });
+
+  if (error) {
+    console.error('Task instance override error:', error);
+    return { error: 'Failed to override task instance time' };
+  }
+
+  revalidatePath('/tasks');
+  revalidatePath('/dashboard');
+
+  return { success: true };
+}
