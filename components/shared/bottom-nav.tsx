@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { useCanAccessChildLogs } from '@/hooks/use-child-logs';
+import { useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -13,6 +14,8 @@ import {
   UtensilsCrossed,
   User,
   ClipboardList,
+  Star,
+  Package,
 } from 'lucide-react';
 
 type NavItem = {
@@ -34,6 +37,14 @@ const employeeBaseNavItems: NavItem[] = [
   { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-6 w-6" /> },
 ];
 
+// Chef-specific nav items: Tasks, Menu, Food Ratings, Supplies
+const chefNavItems: NavItem[] = [
+  { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-6 w-6" /> },
+  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-6 w-6" /> },
+  { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-6 w-6" /> },
+  { href: '/supply-requests', labelKey: 'nav.supplies', icon: <Package className="h-6 w-6" /> },
+];
+
 const logNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-6 w-6" /> };
 const profileNavItem: NavItem = { href: '/profile', labelKey: 'nav.profile', icon: <User className="h-6 w-6" /> };
 
@@ -42,6 +53,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { isAdmin, isLoading } = useAuth();
   const { data: canAccessLogs } = useCanAccessChildLogs();
+  const { data: isChef } = useCanAccessFoodRatings();
 
   if (isLoading) {
     return (
@@ -66,7 +78,8 @@ export function BottomNav() {
     canAccessLogs ? logNavItem : profileNavItem,
   ];
 
-  const navItems = isAdmin ? adminNavItems : employeeNavItems;
+  // Use chef-specific nav for chef users (non-admin)
+  const navItems = isAdmin ? adminNavItems : (isChef && !isAdmin) ? chefNavItems : employeeNavItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden">
