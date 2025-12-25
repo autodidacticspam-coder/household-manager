@@ -57,17 +57,17 @@ export function BottomNav() {
 
   if (isLoading) {
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg shadow-black/5 lg:hidden">
         <div className="flex justify-around items-center h-16">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="flex flex-col items-center justify-center w-16 h-14">
-              <div className="h-6 w-6 bg-gray-200 rounded animate-pulse" />
-              <div className="h-2 w-8 bg-gray-200 rounded mt-1 animate-pulse" />
+              <div className="h-6 w-6 bg-muted rounded-lg animate-pulse" />
+              <div className="h-2 w-8 bg-muted rounded mt-1 animate-pulse" />
             </div>
           ))}
         </div>
         {/* Safe area spacing for iOS */}
-        <div className="h-[env(safe-area-inset-bottom)]" />
+        <div className="h-[env(safe-area-inset-bottom)] bg-background/95" />
       </nav>
     );
   }
@@ -82,7 +82,7 @@ export function BottomNav() {
   const navItems = isAdmin ? adminNavItems : (isChef && !isAdmin) ? chefNavItems : employeeNavItems;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 lg:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg shadow-black/5 lg:hidden">
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -92,21 +92,21 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-col items-center justify-center min-w-[64px] min-h-[48px] px-3 py-2 rounded-lg transition-colors',
+                'flex flex-col items-center justify-center min-w-[64px] min-h-[48px] px-3 py-2 rounded-xl transition-all duration-200',
                 isActive
-                  ? 'text-primary'
-                  : 'text-gray-500 hover:text-gray-900 active:bg-gray-100'
+                  ? 'text-primary bg-primary/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent active:bg-accent/80'
               )}
             >
               <span className={cn(
-                'transition-transform',
+                'transition-transform duration-200',
                 isActive && 'scale-110'
               )}>
                 {item.icon}
               </span>
               <span className={cn(
-                'text-xs mt-1 font-medium',
-                isActive ? 'text-primary' : 'text-gray-500'
+                'text-xs mt-1 font-semibold',
+                isActive ? 'text-primary' : 'text-muted-foreground'
               )}>
                 {t(item.labelKey)}
               </span>
@@ -115,7 +115,7 @@ export function BottomNav() {
         })}
       </div>
       {/* Safe area spacing for iOS devices with home indicator */}
-      <div className="h-[env(safe-area-inset-bottom)] bg-white" />
+      <div className="h-[env(safe-area-inset-bottom)] bg-background/95" />
     </nav>
   );
 }
