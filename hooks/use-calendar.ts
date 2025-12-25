@@ -5,6 +5,12 @@ import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
 import { addDays, addWeeks, addMonths, parseISO, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
 
+// Parse date string as local date (not UTC) to avoid timezone issues
+function parseLocalDate(dateStr: string): Date {
+  // Append T12:00:00 to parse as noon local time, avoiding day boundary issues
+  return parseISO(dateStr + 'T12:00:00');
+}
+
 export type CalendarFilters = {
   startDate: string;
   endDate: string;
@@ -25,7 +31,7 @@ function expandRecurringTask(
   rangeEnd: Date
 ): { date: string; instanceId: string }[] {
   const occurrences: { date: string; instanceId: string }[] = [];
-  const taskStartDate = parseISO(task.due_date);
+  const taskStartDate = parseLocalDate(task.due_date);
   const rule = task.recurrence_rule;
   const freqMatch = rule.match(/FREQ=(\w+)/);
   const byDayMatch = rule.match(/BYDAY=([A-Z,]+)/);
@@ -102,8 +108,8 @@ export function useCalendarEvents(filters: CalendarFilters) {
     queryKey: ['calendar-events', filters],
     queryFn: async () => {
       const events: CalendarEvent[] = [];
-      const rangeStart = parseISO(filters.startDate);
-      const rangeEnd = parseISO(filters.endDate);
+      const rangeStart = parseLocalDate(filters.startDate);
+      const rangeEnd = parseLocalDate(filters.endDate);
       if (filters.showTasks !== false) {
         const { data: regularTasks, error: regularError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name))').eq('is_recurring', false).gte('due_date', filters.startDate).lte('due_date', filters.endDate);
         if (regularError) throw regularError;
@@ -218,14 +224,14 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
               // Check if current date is consecutive (next day after previous)
               const isConsecutive = currentDate &&
-                format(addDays(parseISO(prevDate), 1), 'yyyy-MM-dd') === currentDate;
+                format(addDays(parseLocalDate(prevDate), 1), 'yyyy-MM-dd') === currentDate;
 
               if (isConsecutive) {
                 rangeEnd = currentDate;
               } else {
                 // End of a range, create event
                 // FullCalendar treats end date as exclusive, so add 1 day
-                const endDatePlusOne = format(addDays(parseISO(rangeEnd), 1), 'yyyy-MM-dd');
+                const endDatePlusOne = format(addDays(parseLocalDate(rangeEnd), 1), 'yyyy-MM-dd');
                 events.push({
                   id: `leave-${l.id}-${rangeStart}`,
                   ...baseEventProps,
@@ -244,7 +250,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
             // Fallback to start_date/end_date range
             // FullCalendar treats end date as exclusive for all-day events
             // So we need to add 1 day to include the actual end date
-            const endDatePlusOne = format(addDays(parseISO(l.end_date), 1), 'yyyy-MM-dd');
+            const endDatePlusOne = format(addDays(parseLocalDate(l.end_date), 1), 'yyyy-MM-dd');
 
             events.push({
               id: 'leave-' + l.id,
@@ -435,8 +441,8 @@ export function useCalendarEvents(filters: CalendarFilters) {
             }
           } else {
             // Generate dates from start_date to end_date
-            let leaveDate = parseISO(leave.start_date);
-            const leaveEnd = parseISO(leave.end_date);
+            let leaveDate = parseLocalDate(leave.start_date);
+            const leaveEnd = parseLocalDate(leave.end_date);
             while (isBefore(leaveDate, leaveEnd) || isEqual(leaveDate, leaveEnd)) {
               leaveDaysSet.add(`${leave.user_id}-${format(leaveDate, 'yyyy-MM-dd')}`);
               leaveDate = addDays(leaveDate, 1);
