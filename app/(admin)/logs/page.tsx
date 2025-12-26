@@ -101,7 +101,7 @@ export default function UnifiedLogPage() {
   const to24Hour = (time12: string, ampm: 'AM' | 'PM'): string => {
     if (!time12) return '';
     const [hourStr, minStr] = time12.split(':');
-    let hour = parseInt(hourStr) || 0;
+    let hour = parseInt(hourStr, 10) || 0;
     const min = minStr || '00';
     if (ampm === 'PM' && hour !== 12) hour += 12;
     if (ampm === 'AM' && hour === 12) hour = 0;

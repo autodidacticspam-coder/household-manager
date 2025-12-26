@@ -38,7 +38,7 @@ function expandRecurringTask(
   const intervalMatch = rule.match(/INTERVAL=(\d+)/);
   if (!freqMatch) return occurrences;
   const freq = freqMatch[1];
-  const interval = intervalMatch ? parseInt(intervalMatch[1]) : 1;
+  const interval = intervalMatch ? parseInt(intervalMatch[1], 10) : 1;
   const byDays = byDayMatch ? byDayMatch[1].split(',') : null;
   const dayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const allowedDays = byDays ? byDays.map(d => dayMap[d]) : null;
