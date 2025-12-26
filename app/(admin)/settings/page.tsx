@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -16,6 +18,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function SettingsPage() {
   const t = useTranslations();
   const { user, isLoading, updateUser, isUpdating } = useUser();
+
+  // Log redirect preference
+  const [redirectAfterLog, setRedirectAfterLog] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('logs-redirect-after-entry');
+    if (stored !== null) {
+      setRedirectAfterLog(stored === 'true');
+    }
+  }, []);
+
+  const handleRedirectToggle = (checked: boolean) => {
+    setRedirectAfterLog(checked);
+    localStorage.setItem('logs-redirect-after-entry', String(checked));
+  };
 
   const handleLocaleChange = async (locale: 'en' | 'es' | 'zh') => {
     // First, set the locale cookie via API
@@ -84,6 +101,30 @@ export default function SettingsPage() {
                 <SelectItem value="zh">中文</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('settings.childLogs')}</CardTitle>
+          <CardDescription>
+            {t('settings.childLogsDescription')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="redirect-after-log">{t('settings.redirectAfterLog')}</Label>
+              <p className="text-sm text-muted-foreground">
+                {t('settings.redirectAfterLogDescription')}
+              </p>
+            </div>
+            <Switch
+              id="redirect-after-log"
+              checked={redirectAfterLog}
+              onCheckedChange={handleRedirectToggle}
+            />
           </div>
         </CardContent>
       </Card>

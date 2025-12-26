@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { formatTime12h } from '@/lib/format-time';
@@ -71,6 +71,16 @@ export default function UnifiedLogPage() {
   const [selectedCategory, setSelectedCategory] = useState<ChildLogCategory | null>(null);
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  // Redirect after log preference
+  const [redirectAfterLog, setRedirectAfterLog] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('logs-redirect-after-entry');
+    if (stored === 'true') {
+      setRedirectAfterLog(true);
+    }
+  }, []);
 
   // Helper to get current time in 12-hour format
   const getCurrentTime12h = () => {
@@ -235,6 +245,11 @@ export default function UnifiedLogPage() {
     setStartAmPm(getCurrentAmPm());
     setEndTime(getCurrentTime12h());
     setEndAmPm(getCurrentAmPm());
+
+    // Redirect to all logs tab if setting is enabled
+    if (redirectAfterLog) {
+      setActiveTab('all');
+    }
   };
 
   const getCategoryIcon = (category: ChildLogCategory) => {

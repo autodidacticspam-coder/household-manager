@@ -384,7 +384,11 @@
     "saved": "Configuración guardada exitosamente",
     "description": "Administra la configuración y preferencias de la aplicación",
     "languageDescription": "Selecciona tu idioma preferido para la aplicación",
-    "notificationsDescription": "Las notificaciones SMS están habilitadas por defecto. Contacta a tu administrador para cambiar la configuración de notificaciones."
+    "notificationsDescription": "Las notificaciones SMS están habilitadas por defecto. Contacta a tu administrador para cambiar la configuración de notificaciones.",
+    "childLogs": "Registros de Niños",
+    "childLogsDescription": "Configura el comportamiento del registro de niños",
+    "redirectAfterLog": "Ir a Todos los Registros después de crear",
+    "redirectAfterLogDescription": "Cambiar automáticamente a la pestaña Todos los Registros después de crear un nuevo registro"
   },
   "descriptions": {
     "employees": "Administra tu personal del hogar y sus perfiles",

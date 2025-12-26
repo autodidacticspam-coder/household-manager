@@ -384,7 +384,11 @@
     "saved": "Settings saved successfully",
     "description": "Manage your application settings and preferences",
     "languageDescription": "Select your preferred language for the application",
-    "notificationsDescription": "SMS notifications are enabled by default. Contact your administrator to change notification settings."
+    "notificationsDescription": "SMS notifications are enabled by default. Contact your administrator to change notification settings.",
+    "childLogs": "Child Logs",
+    "childLogsDescription": "Configure child log entry behavior",
+    "redirectAfterLog": "Go to All Logs after entry",
+    "redirectAfterLogDescription": "Automatically switch to the All Logs tab after creating a new log entry"
   },
   "descriptions": {
     "employees": "Manage your household staff and their profiles",

@@ -384,7 +384,11 @@
     "saved": "设置保存成功",
     "description": "管理您的应用设置和偏好",
     "languageDescription": "选择您首选的应用语言",
-    "notificationsDescription": "默认启用短信通知。如需更改通知设置，请联系管理员。"
+    "notificationsDescription": "默认启用短信通知。如需更改通知设置，请联系管理员。",
+    "childLogs": "儿童日志",
+    "childLogsDescription": "配置儿童日志行为",
+    "redirectAfterLog": "创建后跳转到所有日志",
+    "redirectAfterLogDescription": "创建新日志后自动切换到所有日志标签"
   },
   "descriptions": {
     "employees": "管理您的家政人员及其资料",
