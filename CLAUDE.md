@@ -4,6 +4,7 @@
 - Ask for clarification if needed, then start building without asking for permission
 - User's request is acceptance of all changes
 - Auto-deploy to production after completing changes
+- For mobile/remote work: User can use claude.ai/code with GitHub integration
 
 ## Tech Stack
 - Next.js 16 with Turbopack
