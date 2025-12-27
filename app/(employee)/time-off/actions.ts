@@ -260,6 +260,28 @@ export async function cancelLeaveRequest(requestId: string): Promise<ActionState
     return { error: 'Only pending leave requests can be cancelled' };
   }
 
+  // If the request was approved, restore the leave balance
+  if (request.status === 'approved') {
+    const requestYear = new Date(request.start_date).getFullYear();
+    const { data: balance } = await supabase
+      .from('leave_balances')
+      .select('*')
+      .eq('user_id', request.user_id)
+      .eq('year', requestYear)
+      .single();
+
+    if (balance) {
+      const updateField = request.leave_type === 'pto' ? 'pto_used' : 'sick_used';
+      const currentUsed = parseFloat(balance[updateField]);
+      const newUsed = Math.max(0, currentUsed - parseFloat(request.total_days));
+
+      await supabase
+        .from('leave_balances')
+        .update({ [updateField]: newUsed })
+        .eq('id', balance.id);
+    }
+  }
+
   // Delete the request
   const { error: deleteError } = await supabase
     .from('leave_requests')
