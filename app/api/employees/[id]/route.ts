@@ -78,7 +78,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     await adminClient
       .from('task_assignments')
       .delete()
-      .eq('user_id', id);
+      .eq('target_user_id', id);
 
     // 6. Delete supply requests
     await adminClient
@@ -90,7 +90,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     await adminClient
       .from('child_logs')
       .delete()
-      .eq('created_by', id);
+      .eq('logged_by', id);
 
     // 8. Delete user record
     const { error: userDeleteError } = await adminClient
