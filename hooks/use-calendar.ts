@@ -110,6 +110,25 @@ export function useCalendarEvents(filters: CalendarFilters) {
       const events: CalendarEvent[] = [];
       const rangeStart = parseLocalDate(filters.startDate);
       const rangeEnd = parseLocalDate(filters.endDate);
+
+      // If filtering by user, get their group memberships and role
+      let userGroupIds: string[] = [];
+      let isUserAdmin = false;
+      if (filters.userId) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', filters.userId)
+          .single();
+        isUserAdmin = userData?.role === 'admin';
+
+        const { data: userGroups } = await supabase
+          .from('employee_group_memberships')
+          .select('group_id')
+          .eq('user_id', filters.userId);
+        userGroupIds = (userGroups || []).map(g => g.group_id);
+      }
+
       if (filters.showTasks !== false) {
         const { data: regularTasks, error: regularError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name))').eq('is_recurring', false).gte('due_date', filters.startDate).lte('due_date', filters.endDate);
         if (regularError) throw regularError;
@@ -164,7 +183,13 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
         for (const task of [...(regularTasks || []), ...(recurringTasks || [])]) {
           if (!task.due_date) continue;
-          if (filters.userId && !task.assignments.some((a: { target_type: string; target_user_id: string }) => a.target_type === 'all' || (a.target_type === 'user' && a.target_user_id === filters.userId))) continue;
+          if (filters.userId && !task.assignments.some((a: { target_type: string; target_user_id: string; target_group_id: string }) => {
+          if (a.target_type === 'all') return true;
+          if (a.target_type === 'all_admins' && isUserAdmin) return true;
+          if (a.target_type === 'user' && a.target_user_id === filters.userId) return true;
+          if (a.target_type === 'group' && userGroupIds.includes(a.target_group_id)) return true;
+          return false;
+        })) continue;
           const assignees = formatAssignees(task.assignments);
 
           // Calculate start and end times based on activity mode

@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useChildLogs, useCreateChildLog, useUpdateChildLog, useDeleteChildLog, useCanAccessChildLogs } from '@/hooks/use-child-logs';
+import { useCurrentWeekMenu } from '@/hooks/use-menu';
 import type { ChildName, ChildLogCategory, ChildLogWithUser } from '@/types';
 import {
   AlertDialog,
@@ -75,11 +76,35 @@ export default function UnifiedLogPage() {
   // Redirect after log preference
   const [redirectAfterLog, setRedirectAfterLog] = useState(false);
 
+  // Time prepopulate preferences (default to true)
+  const [prepopulateSettings, setPrepopulateSettings] = useState<Record<ChildLogCategory, boolean>>({
+    sleep: true,
+    food: true,
+    poop: true,
+    shower: true,
+  });
+
   useEffect(() => {
     const stored = localStorage.getItem('logs-redirect-after-entry');
     if (stored === 'true') {
       setRedirectAfterLog(true);
     }
+
+    // Load prepopulate settings
+    const settings: Record<ChildLogCategory, boolean> = {
+      sleep: true,
+      food: true,
+      poop: true,
+      shower: true,
+    };
+    const categories: ChildLogCategory[] = ['sleep', 'food', 'poop', 'shower'];
+    categories.forEach(cat => {
+      const val = localStorage.getItem(`logs-prepopulate-${cat}-time`);
+      if (val !== null) {
+        settings[cat] = val === 'true';
+      }
+    });
+    setPrepopulateSettings(settings);
   }, []);
 
   // Helper to get current time in 12-hour format
@@ -99,13 +124,45 @@ export default function UnifiedLogPage() {
   const [formChild, setFormChild] = useState<ChildName | ''>('');
   const [formCategory, setFormCategory] = useState<ChildLogCategory | ''>('');
   const [logDate, setLogDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [startTime, setStartTime] = useState(getCurrentTime12h);
-  const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>(getCurrentAmPm);
-  const [endTime, setEndTime] = useState(getCurrentTime12h);
-  const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>(getCurrentAmPm);
-  const [logTimeInput, setLogTimeInput] = useState(getCurrentTime12h);
-  const [logAmPm, setLogAmPm] = useState<'AM' | 'PM'>(getCurrentAmPm);
+  const [startTime, setStartTime] = useState('');
+  const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('AM');
+  const [endTime, setEndTime] = useState('');
+  const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>('AM');
+  const [logTimeInput, setLogTimeInput] = useState('');
+  const [logAmPm, setLogAmPm] = useState<'AM' | 'PM'>('AM');
   const [description, setDescription] = useState('');
+
+  // Handler for category selection that respects prepopulate settings
+  const handleCategorySelect = (category: ChildLogCategory) => {
+    setFormCategory(category);
+
+    if (prepopulateSettings[category]) {
+      // Prepopulate with current time
+      const currentTime = getCurrentTime12h();
+      const currentAmPm = getCurrentAmPm();
+
+      if (category === 'sleep') {
+        setStartTime(currentTime);
+        setStartAmPm(currentAmPm);
+        setEndTime(currentTime);
+        setEndAmPm(currentAmPm);
+      } else {
+        setLogTimeInput(currentTime);
+        setLogAmPm(currentAmPm);
+      }
+    } else {
+      // Leave time blank
+      if (category === 'sleep') {
+        setStartTime('');
+        setStartAmPm('AM');
+        setEndTime('');
+        setEndAmPm('AM');
+      } else {
+        setLogTimeInput('');
+        setLogAmPm('AM');
+      }
+    }
+  };
 
   // Convert 12-hour to 24-hour format
   const to24Hour = (time12: string, ampm: 'AM' | 'PM'): string => {
@@ -130,6 +187,106 @@ export default function UnifiedLogPage() {
   const createLog = useCreateChildLog();
   const updateLog = useUpdateChildLog();
   const deleteLog = useDeleteChildLog();
+
+  // Get current week's menu for food suggestions
+  const { data: weeklyMenu } = useCurrentWeekMenu();
+
+  // Words to filter out from menu suggestions
+  const FILTERED_WORDS = ['zara', 'zander', 'adults', 'kids', 'none', 'this day', 'prepped', 'adult'];
+
+  // Check if a string should be filtered out
+  const shouldFilterItem = (text: string): boolean => {
+    const lower = text.toLowerCase().trim();
+
+    // Filter if contains any filtered words
+    if (FILTERED_WORDS.some(word => lower.includes(word))) {
+      return true;
+    }
+
+    // Filter if it's just a number or starts with a number followed by space (like "5 Adults")
+    if (/^\d+\s/.test(text) || /^\d+$/.test(text)) {
+      return true;
+    }
+
+    // Filter if too short (less than 3 characters)
+    if (lower.length < 3) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Parse menu items from a meal string (split by newlines first, then commas)
+  const parseMenuItems = (mealStr: string): string[] => {
+    if (!mealStr || !mealStr.trim()) return [];
+
+    // First split by newlines to get each line
+    const lines = mealStr.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+
+    const items: string[] = [];
+    for (const line of lines) {
+      // Check if line should be filtered - skip entire line
+      if (shouldFilterItem(line)) {
+        continue;
+      }
+
+      // If line has commas, split further; otherwise use the whole line
+      if (line.includes(',')) {
+        const subItems = line.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        for (const subItem of subItems) {
+          // Double check each sub-item
+          if (!shouldFilterItem(subItem)) {
+            items.push(subItem);
+          }
+        }
+      } else {
+        items.push(line);
+      }
+    }
+
+    return items;
+  };
+
+  // Get sorted menu suggestions for food logs
+  const getMenuSuggestions = () => {
+    if (!weeklyMenu?.meals || !Array.isArray(weeklyMenu.meals)) return [];
+
+    const items: string[] = [];
+
+    // Process all days in the meals array
+    for (const dayMeals of weeklyMenu.meals) {
+      if (!dayMeals) continue;
+
+      // Process all meal types
+      for (const meal of ['breakfast', 'lunch', 'dinner', 'snacks'] as const) {
+        const mealContent = dayMeals[meal];
+        if (!mealContent) continue;
+
+        const parsedItems = parseMenuItems(mealContent);
+        for (const item of parsedItems) {
+          // Avoid duplicates (case-insensitive)
+          if (!items.some(existing => existing.toLowerCase() === item.toLowerCase())) {
+            items.push(item);
+          }
+        }
+      }
+    }
+
+    // Sort alphabetically
+    items.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+    return items;
+  };
+
+  // Add menu item to description
+  const addMenuItemToDescription = (item: string) => {
+    setDescription(prev => {
+      if (!prev.trim()) return item;
+      // Check if item is already in description
+      if (prev.toLowerCase().includes(item.toLowerCase())) return prev;
+      return `${prev}, ${item}`;
+    });
+  };
 
   // Edit state
   const [editingLog, setEditingLog] = useState<ChildLogWithUser | null>(null);
@@ -235,16 +392,16 @@ export default function UnifiedLogPage() {
       description: description || null,
     });
 
-    // Reset form with current time
+    // Reset form (time will be populated when category is selected next)
     setFormChild('');
     setFormCategory('');
     setDescription('');
-    setLogTimeInput(getCurrentTime12h());
-    setLogAmPm(getCurrentAmPm());
-    setStartTime(getCurrentTime12h());
-    setStartAmPm(getCurrentAmPm());
-    setEndTime(getCurrentTime12h());
-    setEndAmPm(getCurrentAmPm());
+    setLogTimeInput('');
+    setLogAmPm('AM');
+    setStartTime('');
+    setStartAmPm('AM');
+    setEndTime('');
+    setEndAmPm('AM');
 
     // Redirect to all logs tab if setting is enabled
     if (redirectAfterLog) {
@@ -500,7 +657,7 @@ export default function UnifiedLogPage() {
                           key={cat.value}
                           type="button"
                           variant={formCategory === cat.value ? 'default' : 'outline'}
-                          onClick={() => setFormCategory(cat.value)}
+                          onClick={() => handleCategorySelect(cat.value)}
                           className={`flex-1 gap-2 ${formCategory !== cat.value ? cat.bgColor + ' ' + cat.color + ' border-0 hover:opacity-80' : ''}`}
                         >
                           <Icon className="h-4 w-4" />
@@ -673,6 +830,30 @@ export default function UnifiedLogPage() {
                     placeholder={t('childLogs.descriptionPlaceholder')}
                     rows={3}
                   />
+
+                  {/* Menu suggestions for food logs */}
+                  {formCategory === 'food' && (() => {
+                    const suggestions = getMenuSuggestions();
+                    if (suggestions.length === 0) return null;
+
+                    return (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-xs text-muted-foreground">{t('childLogs.menuSuggestions')}</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestions.map((item, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => addMenuItemToDescription(item)}
+                              className="px-2 py-1 text-xs rounded-md bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <Button

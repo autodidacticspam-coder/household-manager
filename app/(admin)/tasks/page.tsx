@@ -16,7 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
 import { TaskTemplates } from '@/components/admin/task-templates';
 import { TemplateFormDialog } from '@/components/admin/template-form-dialog';
-import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask } from '@/hooks/use-tasks';
+import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask, useCompleteTaskInstance } from '@/hooks/use-tasks';
+import { format } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,9 +54,20 @@ export default function TasksPage() {
 
   const deleteTask = useDeleteTask();
   const completeTask = useCompleteTask();
+  const completeTaskInstance = useCompleteTaskInstance();
+
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const handleComplete = async (id: string) => {
-    await completeTask.mutateAsync(id);
+    // Find the task to check if it's recurring
+    const task = tasks?.find(t => t.id === id);
+    if (task?.isRecurring) {
+      // For recurring tasks, complete just today's instance
+      await completeTaskInstance.mutateAsync({ taskId: id, completionDate: today });
+    } else {
+      // For regular tasks, mark the whole task as completed
+      await completeTask.mutateAsync(id);
+    }
   };
 
   const handleEdit = (id: string) => {

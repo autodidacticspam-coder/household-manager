@@ -41,6 +41,7 @@ import { useEmployee, useUpdateEmployee, useDeleteEmployee } from '@/hooks/use-e
 import { useEmployeeGroups } from '@/hooks/use-tasks';
 import { useMyLeaveRequests } from '@/hooks/use-leave';
 import { useMyTasks } from '@/hooks/use-tasks';
+import { changeUserPassword } from '../actions';
 import { format, eachDayOfInterval, parseISO } from 'date-fns';
 import type { LeaveRequest } from '@/types/leave';
 
@@ -60,7 +61,7 @@ function getRequestDates(request: LeaveRequest): Date[] {
     end: parseLocalDate(request.endDate),
   });
 }
-import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift, Key } from 'lucide-react';
 import { ScheduleEditor } from '@/components/admin/schedule-editor';
 
 type EmployeeDetailPageProps = {
@@ -97,6 +98,12 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
 
   // Delete dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  // Password dialog state
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const handleOpenEditDialog = () => {
     if (employee) {
@@ -157,6 +164,27 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
     router.push('/employees');
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      setPasswordError(t('employees.passwordTooShort'));
+      return;
+    }
+
+    setIsChangingPassword(true);
+    setPasswordError('');
+
+    const result = await changeUserPassword({ userId: id, newPassword });
+
+    setIsChangingPassword(false);
+
+    if (result.error) {
+      setPasswordError(result.error);
+    } else {
+      setShowPasswordDialog(false);
+      setNewPassword('');
+    }
+  };
+
   const toggleGroup = (groupId: string) => {
     setEditForm(prev => ({
       ...prev,
@@ -202,6 +230,10 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => { setShowPasswordDialog(true); setNewPassword(''); setPasswordError(''); }}>
+            <Key className="h-4 w-4 mr-2" />
+            {t('employees.changePassword')}
+          </Button>
           <Button variant="outline" onClick={handleOpenEditDialog}>
             <Edit2 className="h-4 w-4 mr-2" />
             {t('common.edit')}
@@ -578,6 +610,42 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Password Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('employees.changePassword')}</DialogTitle>
+            <DialogDescription>
+              {t('employees.changePasswordDescription', { name: employee.fullName })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="newPassword">{t('employees.newPassword')}</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder={t('employees.newPasswordPlaceholder')}
+              />
+              {passwordError && (
+                <p className="text-sm text-destructive">{passwordError}</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button onClick={handleChangePassword} disabled={isChangingPassword || !newPassword}>
+              {isChangingPassword && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('employees.changePassword')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

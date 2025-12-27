@@ -22,16 +22,45 @@ export default function SettingsPage() {
   // Log redirect preference
   const [redirectAfterLog, setRedirectAfterLog] = useState(false);
 
+  // Time prepopulate preferences (default to true)
+  const [prepopulateSleepTime, setPrepopulateSleepTime] = useState(true);
+  const [prepopulateFoodTime, setPrepopulateFoodTime] = useState(true);
+  const [prepopulatePoopTime, setPrepopulatePoopTime] = useState(true);
+  const [prepopulateShowerTime, setPrepopulateShowerTime] = useState(true);
+
   useEffect(() => {
     const stored = localStorage.getItem('logs-redirect-after-entry');
     if (stored !== null) {
       setRedirectAfterLog(stored === 'true');
     }
+
+    // Load time prepopulate settings (default to true if not set)
+    const sleepTime = localStorage.getItem('logs-prepopulate-sleep-time');
+    if (sleepTime !== null) setPrepopulateSleepTime(sleepTime === 'true');
+
+    const foodTime = localStorage.getItem('logs-prepopulate-food-time');
+    if (foodTime !== null) setPrepopulateFoodTime(foodTime === 'true');
+
+    const poopTime = localStorage.getItem('logs-prepopulate-poop-time');
+    if (poopTime !== null) setPrepopulatePoopTime(poopTime === 'true');
+
+    const showerTime = localStorage.getItem('logs-prepopulate-shower-time');
+    if (showerTime !== null) setPrepopulateShowerTime(showerTime === 'true');
   }, []);
 
   const handleRedirectToggle = (checked: boolean) => {
     setRedirectAfterLog(checked);
     localStorage.setItem('logs-redirect-after-entry', String(checked));
+  };
+
+  const handlePrepopulateToggle = (category: 'sleep' | 'food' | 'poop' | 'shower', checked: boolean) => {
+    localStorage.setItem(`logs-prepopulate-${category}-time`, String(checked));
+    switch (category) {
+      case 'sleep': setPrepopulateSleepTime(checked); break;
+      case 'food': setPrepopulateFoodTime(checked); break;
+      case 'poop': setPrepopulatePoopTime(checked); break;
+      case 'shower': setPrepopulateShowerTime(checked); break;
+    }
   };
 
   const handleLocaleChange = async (locale: 'en' | 'es' | 'zh') => {
@@ -112,7 +141,7 @@ export default function SettingsPage() {
             {t('settings.childLogsDescription')}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="redirect-after-log">{t('settings.redirectAfterLog')}</Label>
@@ -125,6 +154,67 @@ export default function SettingsPage() {
               checked={redirectAfterLog}
               onCheckedChange={handleRedirectToggle}
             />
+          </div>
+
+          <div className="border-t pt-6">
+            <h4 className="text-sm font-medium mb-4">{t('settings.prepopulateTime')}</h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="prepopulate-sleep">{t('settings.prepopulateSleep')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.prepopulateSleepDescription')}
+                  </p>
+                </div>
+                <Switch
+                  id="prepopulate-sleep"
+                  checked={prepopulateSleepTime}
+                  onCheckedChange={(checked) => handlePrepopulateToggle('sleep', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="prepopulate-food">{t('settings.prepopulateFood')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.prepopulateFoodDescription')}
+                  </p>
+                </div>
+                <Switch
+                  id="prepopulate-food"
+                  checked={prepopulateFoodTime}
+                  onCheckedChange={(checked) => handlePrepopulateToggle('food', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="prepopulate-poop">{t('settings.prepopulatePoop')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.prepopulatePoopDescription')}
+                  </p>
+                </div>
+                <Switch
+                  id="prepopulate-poop"
+                  checked={prepopulatePoopTime}
+                  onCheckedChange={(checked) => handlePrepopulateToggle('poop', checked)}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="prepopulate-shower">{t('settings.prepopulateShower')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.prepopulateShowerDescription')}
+                  </p>
+                </div>
+                <Switch
+                  id="prepopulate-shower"
+                  checked={prepopulateShowerTime}
+                  onCheckedChange={(checked) => handlePrepopulateToggle('shower', checked)}
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
-import { useMyTasks, useCompleteTask, useUpdateTaskStatus } from '@/hooks/use-tasks';
+import { useMyTasks, useCompleteTask, useUpdateTaskStatus, useCompleteTaskInstance, useUncompleteTaskInstance } from '@/hooks/use-tasks';
+import { format } from 'date-fns';
 import { CheckSquare, Clock, Loader2 } from 'lucide-react';
 
 export default function MyTasksPage() {
@@ -17,18 +18,38 @@ export default function MyTasksPage() {
 
   const { data: tasks, isLoading } = useMyTasks(user?.id);
   const completeTask = useCompleteTask();
+  const completeTaskInstance = useCompleteTaskInstance();
+  const uncompleteTaskInstance = useUncompleteTaskInstance();
   const updateTaskStatus = useUpdateTaskStatus();
+
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const pendingTasks = tasks?.filter((task) => task.status === 'pending') || [];
   const inProgressTasks = tasks?.filter((task) => task.status === 'in_progress') || [];
   const completedTasks = tasks?.filter((task) => task.status === 'completed') || [];
 
   const handleComplete = async (id: string) => {
-    await completeTask.mutateAsync(id);
+    // Find the task to check if it's recurring
+    const task = tasks?.find(t => t.id === id);
+    if (task?.isRecurring) {
+      // For recurring tasks, complete just today's instance
+      await completeTaskInstance.mutateAsync({ taskId: id, completionDate: today });
+    } else {
+      // For regular tasks, mark the whole task as completed
+      await completeTask.mutateAsync(id);
+    }
   };
 
   const handleUndo = async (id: string) => {
-    await updateTaskStatus.mutateAsync({ id, status: 'pending' });
+    // Find the task to check if it's recurring
+    const task = tasks?.find(t => t.id === id);
+    if (task?.isRecurring) {
+      // For recurring tasks, uncomplete today's instance
+      await uncompleteTaskInstance.mutateAsync({ taskId: id, completionDate: today });
+    } else {
+      // For regular tasks, reset the status
+      await updateTaskStatus.mutateAsync({ id, status: 'pending' });
+    }
   };
 
   const handleStartTask = async (id: string) => {

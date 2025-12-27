@@ -7,6 +7,7 @@ import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus, com
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
+import { parseISO, isBefore, isAfter, isEqual, getDay, addDays, addWeeks, addMonths, format } from 'date-fns';
 
 type SupportedLocale = 'en' | 'es' | 'zh';
 
@@ -17,6 +18,79 @@ type TaskFilters = {
   search?: string;
 };
 
+// Parse date string as local date (not UTC) to avoid timezone issues
+function parseLocalDate(dateStr: string): Date {
+  return parseISO(dateStr + 'T12:00:00');
+}
+
+// Check if a recurring task is due on a specific date
+function isRecurringTaskDueOnDate(
+  task: { due_date: string | null; recurrence_rule: string | null },
+  targetDate: string
+): boolean {
+  if (!task.due_date || !task.recurrence_rule) return false;
+
+  const taskStartDate = parseLocalDate(task.due_date);
+  const target = parseLocalDate(targetDate);
+  const rule = task.recurrence_rule;
+
+  // Task can't be due before its start date
+  if (isBefore(target, taskStartDate)) return false;
+
+  const freqMatch = rule.match(/FREQ=(\w+)/);
+  const byDayMatch = rule.match(/BYDAY=([A-Z,]+)/);
+  const intervalMatch = rule.match(/INTERVAL=(\d+)/);
+
+  if (!freqMatch) return false;
+
+  const freq = freqMatch[1];
+  const interval = intervalMatch ? parseInt(intervalMatch[1], 10) : 1;
+  const byDays = byDayMatch ? byDayMatch[1].split(',') : null;
+  const dayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+  const allowedDays = byDays ? byDays.map(d => dayMap[d]) : null;
+
+  if (freq === 'DAILY') {
+    // Check if target is on the correct interval from start
+    const daysDiff = Math.round((target.getTime() - taskStartDate.getTime()) / 86400000);
+    return daysDiff >= 0 && daysDiff % interval === 0;
+  }
+
+  if (freq === 'WEEKLY') {
+    if (allowedDays) {
+      // Check if target day of week is in allowed days
+      const targetDayOfWeek = getDay(target);
+      if (!allowedDays.includes(targetDayOfWeek)) return false;
+
+      // Check interval - we need to be in the correct week
+      const weeksDiff = Math.round((target.getTime() - taskStartDate.getTime()) / 604800000);
+      // For weekly with BYDAY, interval applies to weeks
+      return weeksDiff >= 0 && weeksDiff % interval === 0;
+    } else {
+      // Simple weekly - same day of week as start
+      const daysDiff = Math.round((target.getTime() - taskStartDate.getTime()) / 86400000);
+      return daysDiff >= 0 && daysDiff % (7 * interval) === 0;
+    }
+  }
+
+  if (freq === 'MONTHLY') {
+    // Check if same day of month and correct interval
+    if (target.getDate() !== taskStartDate.getDate()) return false;
+    const monthsDiff = (target.getFullYear() - taskStartDate.getFullYear()) * 12 +
+                       (target.getMonth() - taskStartDate.getMonth());
+    return monthsDiff >= 0 && monthsDiff % interval === 0;
+  }
+
+  if (freq === 'YEARLY') {
+    // Check if same month and day, and correct interval
+    if (target.getMonth() !== taskStartDate.getMonth() ||
+        target.getDate() !== taskStartDate.getDate()) return false;
+    const yearsDiff = target.getFullYear() - taskStartDate.getFullYear();
+    return yearsDiff >= 0 && yearsDiff % interval === 0;
+  }
+
+  return false;
+}
+
 export function useTasks(filters?: TaskFilters) {
   const supabase = createClient();
   const locale = useLocale() as SupportedLocale;
@@ -24,6 +98,9 @@ export function useTasks(filters?: TaskFilters) {
   return useQuery({
     queryKey: ['tasks', filters, locale],
     queryFn: async () => {
+      // Get today's date for checking recurring task completions
+      const today = new Date().toISOString().split('T')[0];
+
       let query = supabase
         .from('tasks')
         .select(`
@@ -39,8 +116,11 @@ export function useTasks(filters?: TaskFilters) {
         `)
         .order('created_at', { ascending: false });
 
+      // For status filter, we need special handling for recurring tasks
+      // Don't filter recurring tasks by status - we'll determine status from completions
       if (filters?.status) {
-        query = query.eq('status', filters.status);
+        // Only apply status filter to non-recurring tasks
+        query = query.or(`and(is_recurring.eq.false,status.eq.${filters.status}),is_recurring.eq.true`);
       }
 
       if (filters?.priority) {
@@ -59,7 +139,52 @@ export function useTasks(filters?: TaskFilters) {
 
       if (error) throw error;
 
-      return (data || []).map((row) => transformTask(row, locale));
+      // Filter recurring tasks to only those due today
+      const filteredData = (data || []).filter(task => {
+        if (!task.is_recurring) return true;
+        // Only show recurring tasks that are due today
+        return isRecurringTaskDueOnDate(
+          { due_date: task.due_date, recurrence_rule: task.recurrence_rule },
+          today
+        );
+      });
+
+      // Get today's completions for recurring tasks
+      const recurringTaskIds = filteredData
+        .filter(t => t.is_recurring)
+        .map(t => t.id);
+
+      let todayCompletions: Set<string> = new Set();
+      if (recurringTaskIds.length > 0) {
+        const { data: completions } = await supabase
+          .from('task_completions')
+          .select('task_id')
+          .in('task_id', recurringTaskIds)
+          .eq('completion_date', today);
+
+        todayCompletions = new Set((completions || []).map(c => c.task_id));
+      }
+
+      // Transform tasks and override status for recurring tasks based on today's completion
+      const transformedTasks = filteredData.map((row) => {
+        const task = transformTask(row, locale);
+
+        // For recurring tasks, check if today's instance is completed
+        if (task.isRecurring) {
+          const isTodayCompleted = todayCompletions.has(task.id);
+          // Override the status based on today's completion
+          task.status = isTodayCompleted ? 'completed' : 'pending';
+        }
+
+        return task;
+      });
+
+      // Now filter by status if specified (for recurring tasks, status was computed above)
+      if (filters?.status) {
+        return transformedTasks.filter(task => task.status === filters.status);
+      }
+
+      return transformedTasks;
     },
   });
 }
@@ -104,6 +229,9 @@ export function useMyTasks(userId?: string) {
     queryFn: async () => {
       if (!userId) return [];
 
+      // Get today's date for checking recurring task completions
+      const today = new Date().toISOString().split('T')[0];
+
       // Get user's role
       const { data: userData } = await supabase
         .from('users')
@@ -121,6 +249,7 @@ export function useMyTasks(userId?: string) {
 
       const groupIds = (userGroups || []).map((g) => g.group_id);
 
+      // Get tasks - for recurring tasks, don't filter by status (we'll check completions separately)
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -140,7 +269,7 @@ export function useMyTasks(userId?: string) {
       if (error) throw error;
 
       // Filter tasks assigned to this user
-      const filteredTasks = (data || []).filter((task) => {
+      const assignedTasks = (data || []).filter((task) => {
         return task.assignments.some((assignment: { target_type: string; target_user_id: string; target_group_id: string }) => {
           if (assignment.target_type === 'all') return true;
           if (assignment.target_type === 'all_admins' && isAdmin) return true;
@@ -150,7 +279,45 @@ export function useMyTasks(userId?: string) {
         });
       });
 
-      return filteredTasks.map((row) => transformTask(row, locale));
+      // Filter recurring tasks to only those due today
+      const filteredTasks = assignedTasks.filter(task => {
+        if (!task.is_recurring) return true;
+        // Only show recurring tasks that are due today
+        return isRecurringTaskDueOnDate(
+          { due_date: task.due_date, recurrence_rule: task.recurrence_rule },
+          today
+        );
+      });
+
+      // Get today's completions for recurring tasks that are due today
+      const recurringTaskIds = filteredTasks
+        .filter(t => t.is_recurring)
+        .map(t => t.id);
+
+      let todayCompletions: Set<string> = new Set();
+      if (recurringTaskIds.length > 0) {
+        const { data: completions } = await supabase
+          .from('task_completions')
+          .select('task_id')
+          .in('task_id', recurringTaskIds)
+          .eq('completion_date', today);
+
+        todayCompletions = new Set((completions || []).map(c => c.task_id));
+      }
+
+      // Transform tasks and override status for recurring tasks based on today's completion
+      return filteredTasks.map((row) => {
+        const task = transformTask(row, locale);
+
+        // For recurring tasks, check if today's instance is completed
+        if (task.isRecurring) {
+          const isTodayCompleted = todayCompletions.has(task.id);
+          // Override the status based on today's completion
+          task.status = isTodayCompleted ? 'completed' : 'pending';
+        }
+
+        return task;
+      });
     },
     enabled: !!userId,
   });

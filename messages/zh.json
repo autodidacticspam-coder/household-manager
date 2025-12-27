@@ -252,7 +252,12 @@
     "roles": {
       "admin": "管理员",
       "employee": "员工"
-    }
+    },
+    "changePassword": "修改密码",
+    "changePasswordDescription": "为 {name} 设置新密码",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "输入新密码",
+    "passwordTooShort": "密码至少需要6个字符"
   },
   "profile": {
     "viewAndManage": "查看和管理您的个人资料",
@@ -388,7 +393,16 @@
     "childLogs": "儿童日志",
     "childLogsDescription": "配置儿童日志行为",
     "redirectAfterLog": "创建后跳转到所有日志",
-    "redirectAfterLogDescription": "创建新日志后自动切换到所有日志标签"
+    "redirectAfterLogDescription": "创建新日志后自动切换到所有日志标签",
+    "prepopulateTime": "预填当前时间",
+    "prepopulateSleep": "睡眠日志",
+    "prepopulateSleepDescription": "创建睡眠日志时预填当前时间",
+    "prepopulateFood": "饮食日志",
+    "prepopulateFoodDescription": "创建饮食日志时预填当前时间",
+    "prepopulatePoop": "排便日志",
+    "prepopulatePoopDescription": "创建排便日志时预填当前时间",
+    "prepopulateShower": "洗澡日志",
+    "prepopulateShowerDescription": "创建洗澡日志时预填当前时间"
   },
   "descriptions": {
     "employees": "管理您的家政人员及其资料",
@@ -464,7 +478,9 @@
       "food": "饮食",
       "poop": "排便",
       "shower": "洗澡"
-    }
+    },
+    "menuSuggestions": "从本周菜单快速添加：",
+    "otherDays": "其他日期"
   },
   "menu": {
     "title": "每周菜单",

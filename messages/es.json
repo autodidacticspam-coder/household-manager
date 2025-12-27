@@ -252,7 +252,12 @@
     "roles": {
       "admin": "Administrador",
       "employee": "Empleado"
-    }
+    },
+    "changePassword": "Cambiar Contraseña",
+    "changePasswordDescription": "Establecer una nueva contraseña para {name}",
+    "newPassword": "Nueva Contraseña",
+    "newPasswordPlaceholder": "Ingresa la nueva contraseña",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres"
   },
   "profile": {
     "viewAndManage": "Ver y gestionar tu información de perfil",
@@ -388,7 +393,16 @@
     "childLogs": "Registros de Niños",
     "childLogsDescription": "Configura el comportamiento del registro de niños",
     "redirectAfterLog": "Ir a Todos los Registros después de crear",
-    "redirectAfterLogDescription": "Cambiar automáticamente a la pestaña Todos los Registros después de crear un nuevo registro"
+    "redirectAfterLogDescription": "Cambiar automáticamente a la pestaña Todos los Registros después de crear un nuevo registro",
+    "prepopulateTime": "Prellenar Hora Actual",
+    "prepopulateSleep": "Registros de sueño",
+    "prepopulateSleepDescription": "Prellenar la hora actual al crear registros de sueño",
+    "prepopulateFood": "Registros de comida",
+    "prepopulateFoodDescription": "Prellenar la hora actual al crear registros de comida",
+    "prepopulatePoop": "Registros de pañal",
+    "prepopulatePoopDescription": "Prellenar la hora actual al crear registros de pañal",
+    "prepopulateShower": "Registros de baño",
+    "prepopulateShowerDescription": "Prellenar la hora actual al crear registros de baño"
   },
   "descriptions": {
     "employees": "Administra tu personal del hogar y sus perfiles",
@@ -464,7 +478,9 @@
       "food": "Comida",
       "poop": "Pañal",
       "shower": "Baño"
-    }
+    },
+    "menuSuggestions": "Agregar rápido del menú de esta semana:",
+    "otherDays": "Otros días"
   },
   "menu": {
     "title": "Menú Semanal",

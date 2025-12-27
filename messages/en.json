@@ -252,7 +252,12 @@
     "roles": {
       "admin": "Administrator",
       "employee": "Employee"
-    }
+    },
+    "changePassword": "Change Password",
+    "changePasswordDescription": "Set a new password for {name}",
+    "newPassword": "New Password",
+    "newPasswordPlaceholder": "Enter new password",
+    "passwordTooShort": "Password must be at least 6 characters"
   },
   "profile": {
     "viewAndManage": "View and manage your profile information",
@@ -388,7 +393,16 @@
     "childLogs": "Child Logs",
     "childLogsDescription": "Configure child log entry behavior",
     "redirectAfterLog": "Go to All Logs after entry",
-    "redirectAfterLogDescription": "Automatically switch to the All Logs tab after creating a new log entry"
+    "redirectAfterLogDescription": "Automatically switch to the All Logs tab after creating a new log entry",
+    "prepopulateTime": "Pre-fill Current Time",
+    "prepopulateSleep": "Sleep logs",
+    "prepopulateSleepDescription": "Pre-fill current time when creating sleep logs",
+    "prepopulateFood": "Food logs",
+    "prepopulateFoodDescription": "Pre-fill current time when creating food logs",
+    "prepopulatePoop": "Poop logs",
+    "prepopulatePoopDescription": "Pre-fill current time when creating poop logs",
+    "prepopulateShower": "Shower logs",
+    "prepopulateShowerDescription": "Pre-fill current time when creating shower logs"
   },
   "descriptions": {
     "employees": "Manage your household staff and their profiles",
@@ -464,7 +478,9 @@
       "food": "Food",
       "poop": "Poop",
       "shower": "Shower"
-    }
+    },
+    "menuSuggestions": "Quick add from this week's menu:",
+    "otherDays": "Other days"
   },
   "menu": {
     "title": "Weekly Menu",
