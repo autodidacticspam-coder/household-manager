@@ -159,61 +159,61 @@ export default function FoodRatingsPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Overall Average
+            <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+                Overall Avg
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className={cn("text-3xl font-bold", getRatingColor(stats.overallAverage))}>
+            <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
+              <div className={cn("text-2xl sm:text-3xl font-bold", getRatingColor(stats.overallAverage))}>
                 {stats.overallAverage.toFixed(1)}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">out of 10</p>
+              <p className="text-xs text-muted-foreground">out of 10</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Total Ratings
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.totalRatings}</div>
-              <p className="text-xs text-muted-foreground mt-1">from all dishes</p>
+            <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
+              <div className="text-2xl sm:text-3xl font-bold">{stats.totalRatings}</div>
+              <p className="text-xs text-muted-foreground">from all dishes</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Dishes Rated
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.totalItems}</div>
-              <p className="text-xs text-muted-foreground mt-1">unique items</p>
+            <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
+              <div className="text-2xl sm:text-3xl font-bold">{stats.totalItems}</div>
+              <p className="text-xs text-muted-foreground">unique items</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 Top Dish
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
               {stats.topRated[0] ? (
                 <>
-                  <div className="text-lg font-semibold truncate">
+                  <div className="text-sm sm:text-lg font-semibold truncate">
                     {stats.topRated[0].menuItem}
                   </div>
                   <RatingBadge rating={stats.topRated[0].averageRating} />
                 </>
               ) : (
-                <p className="text-muted-foreground">No ratings yet</p>
+                <p className="text-muted-foreground text-sm">No ratings yet</p>
               )}
             </CardContent>
           </Card>
@@ -232,26 +232,26 @@ export default function FoodRatingsPage() {
       </div>
 
       <Tabs defaultValue="summary" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="summary" className="gap-2">
+        <TabsList className="w-full flex overflow-x-auto no-scrollbar">
+          <TabsTrigger value="summary" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Award className="h-4 w-4" />
-            Summary
+            <span className="hidden sm:inline">Summary</span>
           </TabsTrigger>
-          <TabsTrigger value="top" className="gap-2">
+          <TabsTrigger value="top" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <ThumbsUp className="h-4 w-4" />
-            Top Rated
+            <span className="hidden sm:inline">Top</span>
           </TabsTrigger>
-          <TabsTrigger value="bottom" className="gap-2">
+          <TabsTrigger value="bottom" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <ThumbsDown className="h-4 w-4" />
-            Needs Improvement
+            <span className="hidden sm:inline">Improve</span>
           </TabsTrigger>
-          <TabsTrigger value="all" className="gap-2">
+          <TabsTrigger value="all" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Star className="h-4 w-4" />
-            All Ratings
+            <span className="hidden sm:inline">All</span>
           </TabsTrigger>
-          <TabsTrigger value="requests" className="gap-2">
+          <TabsTrigger value="requests" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Send className="h-4 w-4" />
-            Requests
+            <span className="hidden sm:inline">Requests</span>
             {pendingCount && pendingCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
                 {pendingCount}
@@ -275,61 +275,109 @@ export default function FoodRatingsPage() {
                   No ratings found. Ratings will appear here once the family rates your dishes.
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Dish</TableHead>
-                      <TableHead className="text-center w-[100px]">Request</TableHead>
-                      <TableHead className="text-center">Avg Rating</TableHead>
-                      <TableHead className="text-center">Total Ratings</TableHead>
-                      <TableHead className="text-center">Range</TableHead>
-                      <TableHead>Rated By</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* Mobile card layout */}
+                  <div className="md:hidden space-y-3">
                     {filteredSummary.map((item, i) => (
-                      <TableRow
+                      <div
                         key={i}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className="p-3 rounded-lg border bg-card cursor-pointer hover:bg-muted/50"
                         onClick={() => setSelectedDish(item.menuItem)}
                       >
-                        <TableCell className="font-medium max-w-[300px] truncate">
-                          <span className="hover:underline">{item.menuItem}</span>
-                          {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
-                            <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {item.menuItem}
+                              {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                                <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} • Range: {item.minRating}-{item.maxRating}
+                            </p>
+                          </div>
+                          <RatingBadge rating={item.averageRating} />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground truncate flex-1">
+                            {item.raters.join(', ')}
+                          </p>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 px-3 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400"
+                            className="h-7 px-2 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 ml-2 flex-shrink-0"
                             onClick={(e) => {
                               e.stopPropagation();
                               setRequestFoodName(item.menuItem);
                               setShowRequestDialog(true);
                             }}
                           >
-                            <Send className="h-3 w-3 mr-1.5" />
-                            Request
+                            <Send className="h-3 w-3" />
                           </Button>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <RatingBadge rating={item.averageRating} />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {item.totalRatings}
-                        </TableCell>
-                        <TableCell className="text-center text-sm text-muted-foreground">
-                          {item.minRating} - {item.maxRating}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {item.raters.join(', ')}
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* Desktop table layout */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Dish</TableHead>
+                          <TableHead className="text-center w-[100px]">Request</TableHead>
+                          <TableHead className="text-center">Avg Rating</TableHead>
+                          <TableHead className="text-center">Total Ratings</TableHead>
+                          <TableHead className="text-center">Range</TableHead>
+                          <TableHead>Rated By</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSummary.map((item, i) => (
+                          <TableRow
+                            key={i}
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => setSelectedDish(item.menuItem)}
+                          >
+                            <TableCell className="font-medium max-w-[300px] truncate">
+                              <span className="hover:underline">{item.menuItem}</span>
+                              {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                                <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-3 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRequestFoodName(item.menuItem);
+                                  setShowRequestDialog(true);
+                                }}
+                              >
+                                <Send className="h-3 w-3 mr-1.5" />
+                                Request
+                              </Button>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <RatingBadge rating={item.averageRating} />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {item.totalRatings}
+                            </TableCell>
+                            <TableCell className="text-center text-sm text-muted-foreground">
+                              {item.minRating} - {item.maxRating}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {item.raters.join(', ')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -449,29 +497,18 @@ export default function FoodRatingsPage() {
                   No ratings found
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Dish</TableHead>
-                      <TableHead>Meal</TableHead>
-                      <TableHead className="text-center">Rating</TableHead>
-                      <TableHead>Rated By</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  {/* Mobile card layout */}
+                  <div className="md:hidden space-y-3">
                     {filteredRatings.map((rating) => (
-                      <TableRow key={rating.id}>
-                        <TableCell className="font-medium max-w-[250px] truncate">
-                          {rating.menuItem}
-                        </TableCell>
-                        <TableCell className="capitalize text-sm">
-                          {rating.dayOfWeek} - {rating.mealType}
-                        </TableCell>
-                        <TableCell className="text-center">
+                      <div key={rating.id} className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <p className="font-medium text-sm flex-1 min-w-0 truncate">
+                            {rating.menuItem}
+                          </p>
                           <Badge
                             className={cn(
-                              "font-mono",
+                              "font-mono flex-shrink-0",
                               rating.rating >= 8 && "bg-green-500",
                               rating.rating >= 6 && rating.rating < 8 && "bg-yellow-500",
                               rating.rating >= 4 && rating.rating < 6 && "bg-orange-500",
@@ -480,17 +517,64 @@ export default function FoodRatingsPage() {
                           >
                             {rating.rating}/10
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {rating.ratedByUser?.fullName || 'Unknown'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span className="capitalize">{rating.dayOfWeek} {rating.mealType}</span>
+                          <span>{rating.ratedByUser?.fullName || 'Unknown'}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
                           {format(new Date(rating.createdAt), 'MMM d, yyyy')}
-                        </TableCell>
-                      </TableRow>
+                        </p>
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  {/* Desktop table layout */}
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Dish</TableHead>
+                          <TableHead>Meal</TableHead>
+                          <TableHead className="text-center">Rating</TableHead>
+                          <TableHead>Rated By</TableHead>
+                          <TableHead>Date</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredRatings.map((rating) => (
+                          <TableRow key={rating.id}>
+                            <TableCell className="font-medium max-w-[250px] truncate">
+                              {rating.menuItem}
+                            </TableCell>
+                            <TableCell className="capitalize text-sm">
+                              {rating.dayOfWeek} - {rating.mealType}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge
+                                className={cn(
+                                  "font-mono",
+                                  rating.rating >= 8 && "bg-green-500",
+                                  rating.rating >= 6 && rating.rating < 8 && "bg-yellow-500",
+                                  rating.rating >= 4 && rating.rating < 6 && "bg-orange-500",
+                                  rating.rating < 4 && "bg-red-500"
+                                )}
+                              >
+                                {rating.rating}/10
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {rating.ratedByUser?.fullName || 'Unknown'}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -527,31 +611,31 @@ export default function FoodRatingsPage() {
                         .map((request) => (
                           <div
                             key={request.id}
-                            className="flex items-start justify-between p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                            className="p-3 sm:p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
                           >
                             <div className="flex items-start gap-3">
-                              <Avatar className="h-10 w-10">
+                              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
                                 <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
                                 <AvatarFallback>
                                   {request.requestedByUser?.fullName?.[0] || 'U'}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <p className="font-semibold">{request.foodName}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Requested by {request.requestedByUser?.fullName || 'Unknown'}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-sm sm:text-base truncate">{request.foodName}</p>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  by {request.requestedByUser?.fullName || 'Unknown'}
                                 </p>
                                 {request.notes && (
-                                  <p className="text-sm text-muted-foreground mt-1 italic">
+                                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 italic line-clamp-2">
                                     &quot;{request.notes}&quot;
                                   </p>
                                 )}
                                 <p className="text-xs text-muted-foreground mt-1">
-                                  {format(new Date(request.createdAt), 'MMM d, yyyy h:mm a')}
+                                  {format(new Date(request.createdAt), 'MMM d, h:mm a')}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 mt-3 justify-end">
                               {/* Cancel button - visible to the requester */}
                               {user?.id === request.requestedBy && (
                                 <Button
@@ -559,14 +643,14 @@ export default function FoodRatingsPage() {
                                   variant="outline"
                                   onClick={() => deleteFoodRequest.mutate(request.id)}
                                   disabled={deleteFoodRequest.isPending}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 h-8 text-xs sm:text-sm"
                                 >
                                   {deleteFoodRequest.isPending ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
                                     <>
-                                      <X className="h-4 w-4 mr-1" />
-                                      Cancel
+                                      <X className="h-4 w-4 sm:mr-1" />
+                                      <span className="hidden sm:inline">Cancel</span>
                                     </>
                                   )}
                                 </Button>
@@ -575,14 +659,14 @@ export default function FoodRatingsPage() {
                                 size="sm"
                                 onClick={() => completeFoodRequest.mutate(request.id)}
                                 disabled={completeFoodRequest.isPending}
-                                className="bg-green-600 hover:bg-green-700"
+                                className="bg-green-600 hover:bg-green-700 h-8 text-xs sm:text-sm"
                               >
                                 {completeFoodRequest.isPending ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
                                   <>
-                                    <Check className="h-4 w-4 mr-1" />
-                                    Complete
+                                    <Check className="h-4 w-4 sm:mr-1" />
+                                    <span className="hidden sm:inline">Complete</span>
                                   </>
                                 )}
                               </Button>
@@ -605,21 +689,27 @@ export default function FoodRatingsPage() {
                         .map((request) => (
                           <div
                             key={request.id}
-                            className="flex items-start justify-between p-4 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+                            className="p-3 sm:p-4 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
                           >
                             <div className="flex items-start gap-3">
-                              <Avatar className="h-10 w-10">
+                              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
                                 <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
                                 <AvatarFallback>
                                   {request.requestedByUser?.fullName?.[0] || 'U'}
                                 </AvatarFallback>
                               </Avatar>
-                              <div>
-                                <p className="font-semibold line-through text-muted-foreground">
-                                  {request.foodName}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  Requested by {request.requestedByUser?.fullName || 'Unknown'}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-semibold text-sm sm:text-base line-through text-muted-foreground truncate">
+                                    {request.foodName}
+                                  </p>
+                                  <Badge variant="secondary" className="bg-green-100 text-green-700 flex-shrink-0 text-xs">
+                                    <Check className="h-3 w-3 sm:mr-1" />
+                                    <span className="hidden sm:inline">Done</span>
+                                  </Badge>
+                                </div>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  by {request.requestedByUser?.fullName || 'Unknown'}
                                 </p>
                                 {request.completedAt && (
                                   <p className="text-xs text-green-600 mt-1">
@@ -628,10 +718,6 @@ export default function FoodRatingsPage() {
                                 )}
                               </div>
                             </div>
-                            <Badge variant="secondary" className="bg-green-100 text-green-700">
-                              <Check className="h-3 w-3 mr-1" />
-                              Done
-                            </Badge>
                           </div>
                         ))}
                     </div>
