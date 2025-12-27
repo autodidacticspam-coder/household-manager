@@ -335,7 +335,10 @@ export default function UnifiedLogPage() {
     const startTime24 = to24Hour(editStartTime, editStartAmPm);
     const endTime24 = to24Hour(editEndTime, editEndAmPm);
     const logTime24 = to24Hour(editLogTime, editLogAmPm);
-    const effectiveLogTime = editCategory === 'sleep' && startTime24 ? startTime24 : logTime24;
+    // For sleep logs, use start time if available, otherwise end time
+    const effectiveLogTime = editCategory === 'sleep'
+      ? (startTime24 || endTime24 || logTime24)
+      : logTime24;
 
     await updateLog.mutateAsync({
       id: editingLog.id,
@@ -380,7 +383,10 @@ export default function UnifiedLogPage() {
     const startTime24 = to24Hour(startTime, startAmPm);
     const endTime24 = to24Hour(endTime, endAmPm);
     const logTime24 = to24Hour(logTimeInput, logAmPm);
-    const effectiveLogTime = formCategory === 'sleep' && startTime24 ? startTime24 : logTime24;
+    // For sleep logs, use start time if available, otherwise end time
+    const effectiveLogTime = formCategory === 'sleep'
+      ? (startTime24 || endTime24 || logTime24)
+      : logTime24;
 
     await createLog.mutateAsync({
       child: formChild,
