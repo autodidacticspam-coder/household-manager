@@ -14,14 +14,29 @@ export async function createClient() {
         },
         set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options });
+            cookieStore.set({
+              name,
+              value,
+              ...options,
+              // Ensure proper cookie settings for mobile browsers
+              sameSite: 'lax',
+              secure: process.env.NODE_ENV === 'production',
+              maxAge: options?.maxAge || 60 * 60 * 24 * 7, // 7 days default
+            });
           } catch {
             // Handle cookies in Server Components
           }
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options });
+            cookieStore.set({
+              name,
+              value: '',
+              ...options,
+              sameSite: 'lax',
+              secure: process.env.NODE_ENV === 'production',
+              maxAge: 0,
+            });
           } catch {
             // Handle cookies in Server Components
           }
