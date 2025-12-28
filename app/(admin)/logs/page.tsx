@@ -836,30 +836,6 @@ export default function UnifiedLogPage() {
                     placeholder={t('childLogs.descriptionPlaceholder')}
                     rows={3}
                   />
-
-                  {/* Menu suggestions for food logs */}
-                  {formCategory === 'food' && (() => {
-                    const suggestions = getMenuSuggestions();
-                    if (suggestions.length === 0) return null;
-
-                    return (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-xs text-muted-foreground">{t('childLogs.menuSuggestions')}</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {suggestions.map((item, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => addMenuItemToDescription(item)}
-                              className="px-2 py-1 text-xs rounded-md bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
-                            >
-                              {item}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </div>
 
                 <Button
@@ -879,6 +855,30 @@ export default function UnifiedLogPage() {
                     </>
                   )}
                 </Button>
+
+                {/* Menu suggestions for food logs - quick add */}
+                {formCategory === 'food' && (() => {
+                  const suggestions = getMenuSuggestions();
+                  if (suggestions.length === 0) return null;
+
+                  return (
+                    <div className="space-y-2 pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">{t('childLogs.menuSuggestions')}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.map((item, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => addMenuItemToDescription(item)}
+                            className="px-2 py-1 text-xs rounded-md bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </form>
             </CardContent>
           </Card>
