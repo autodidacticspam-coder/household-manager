@@ -92,29 +92,30 @@ function RatingSelector({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-6 px-2 text-xs gap-1",
-            currentRating ? "text-amber-600" : "text-gray-400 opacity-0 group-hover:opacity-100"
+            "h-7 px-2 text-xs gap-1 touch-manipulation",
+            currentRating ? "text-amber-600" : "text-gray-400 sm:opacity-0 sm:group-hover:opacity-100"
           )}
         >
-          <Star className={cn("h-3 w-3", currentRating && "fill-amber-500")} />
-          {currentRating ? currentRating.rating : 'Rate'}
+          <Star className={cn("h-4 w-4 sm:h-3 sm:w-3", currentRating && "fill-amber-500")} />
+          <span className="hidden sm:inline">{currentRating ? currentRating.rating : 'Rate'}</span>
+          <span className="sm:hidden">{currentRating ? currentRating.rating : ''}</span>
           {currentRating?.comment && <MessageSquare className="h-3 w-3 ml-0.5" />}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-72 p-3" align="start">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 p-3" align="start" sideOffset={5}>
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-medium text-muted-foreground">Rate this item (1-10)</p>
-          <div className="flex gap-1 flex-wrap">
+          <p className="text-sm sm:text-xs font-medium text-muted-foreground">Rate this item (1-10)</p>
+          <div className="grid grid-cols-5 gap-2 sm:flex sm:gap-1 sm:flex-wrap">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
               <Button
                 key={num}
                 variant={selectedRating === num ? "default" : "outline"}
                 size="sm"
                 className={cn(
-                  "h-8 w-8 p-0",
-                  num <= 3 && "hover:bg-red-100 hover:text-red-700 hover:border-red-300",
-                  num >= 4 && num <= 6 && "hover:bg-yellow-100 hover:text-yellow-700 hover:border-yellow-300",
-                  num >= 7 && "hover:bg-green-100 hover:text-green-700 hover:border-green-300",
+                  "h-10 w-full sm:h-8 sm:w-8 p-0 text-base sm:text-sm touch-manipulation",
+                  num <= 3 && "hover:bg-red-100 hover:text-red-700 hover:border-red-300 active:bg-red-100",
+                  num >= 4 && num <= 6 && "hover:bg-yellow-100 hover:text-yellow-700 hover:border-yellow-300 active:bg-yellow-100",
+                  num >= 7 && "hover:bg-green-100 hover:text-green-700 hover:border-green-300 active:bg-green-100",
                   selectedRating === num && num <= 3 && "bg-red-500 hover:bg-red-600",
                   selectedRating === num && num >= 4 && num <= 6 && "bg-yellow-500 hover:bg-yellow-600",
                   selectedRating === num && num >= 7 && "bg-green-500 hover:bg-green-600"
@@ -128,7 +129,7 @@ function RatingSelector({
           </div>
 
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1">
+            <Label className="text-sm sm:text-xs text-muted-foreground flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
               Comment (optional)
             </Label>
@@ -136,7 +137,7 @@ function RatingSelector({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Add a note..."
-              className="h-8 text-sm"
+              className="h-10 sm:h-8 text-base sm:text-sm"
             />
           </div>
 
@@ -144,7 +145,7 @@ function RatingSelector({
             size="sm"
             onClick={handleSave}
             disabled={!selectedRating || rateMenuItem.isPending}
-            className="w-full"
+            className="w-full h-10 sm:h-8 text-base sm:text-sm touch-manipulation"
           >
             {rateMenuItem.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -597,14 +598,14 @@ export default function MenuPage() {
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          className="h-6 px-2 text-xs gap-1 opacity-0 group-hover:opacity-100 bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-700 dark:text-amber-400"
+                                          className="h-7 px-2 text-xs gap-1 touch-manipulation sm:opacity-0 sm:group-hover:opacity-100 bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-700 dark:text-amber-400"
                                           onClick={() => {
                                             setRequestFoodName(trimmedLine);
                                             setShowRequestDialog(true);
                                           }}
                                         >
-                                          <Send className="h-3 w-3" />
-                                          Request
+                                          <Send className="h-4 w-4 sm:h-3 sm:w-3" />
+                                          <span className="hidden sm:inline">Request</span>
                                         </Button>
                                       </>
                                     )}
