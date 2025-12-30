@@ -133,11 +133,12 @@ function RatingSelector({
               <MessageSquare className="h-3 w-3" />
               Comment (optional)
             </Label>
-            <Input
+            <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Add a note..."
-              className="h-10 sm:h-8 text-base sm:text-sm"
+              rows={5}
+              className="text-base sm:text-sm resize-none"
             />
           </div>
 
