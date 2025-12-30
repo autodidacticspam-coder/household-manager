@@ -618,9 +618,9 @@ export default function MenuPage() {
                                           currentRating={getRating(dayMeal.day, key, trimmedLine)}
                                         />
                                         <Button
-                                          variant="outline"
+                                          variant="ghost"
                                           size="sm"
-                                          className="h-7 px-2 text-xs gap-1 touch-manipulation sm:opacity-0 sm:group-hover:opacity-100 bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-700 dark:text-amber-400"
+                                          className="h-7 px-2 text-xs gap-1 touch-manipulation text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100"
                                           onClick={() => {
                                             setRequestFoodName(trimmedLine);
                                             setShowRequestDialog(true);
