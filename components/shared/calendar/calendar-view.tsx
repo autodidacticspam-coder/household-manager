@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask, useCompleteTaskInstance, useDeleteTask, useSkipTaskInstance, useUpdateTaskDateTime, useOverrideTaskInstanceTime } from '@/hooks/use-tasks';
+import { useCompleteTask, useCompleteTaskInstance, useDeleteTask, useSkipTaskInstance, useUpdateTaskDateTime, useOverrideTaskInstanceTime, useUpdateTaskStatus, useUncompleteTaskInstance } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
@@ -159,6 +159,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const skipTaskInstance = useSkipTaskInstance();
   const updateTaskDateTime = useUpdateTaskDateTime();
   const overrideTaskInstanceTime = useOverrideTaskInstanceTime();
+  const updateTaskStatus = useUpdateTaskStatus();
+  const uncompleteTaskInstance = useUncompleteTaskInstance();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
 
@@ -227,6 +229,22 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     } else {
       // For non-recurring tasks, complete the entire task
       await completeTask.mutateAsync(actualTaskId);
+    }
+    setSelectedEvent(null);
+    refetch();
+  };
+
+  const handleUncompleteTask = async (eventId: string, isRecurring: boolean, instanceDate?: string) => {
+    // Extract the actual task ID from the event ID
+    const withoutPrefix = eventId.replace('task-', '');
+    const actualTaskId = withoutPrefix.slice(0, 36);
+
+    if (isRecurring && instanceDate) {
+      // For recurring tasks, uncomplete the specific instance
+      await uncompleteTaskInstance.mutateAsync({ taskId: actualTaskId, completionDate: instanceDate });
+    } else {
+      // For non-recurring tasks, set status back to pending
+      await updateTaskStatus.mutateAsync({ id: actualTaskId, status: 'pending' });
     }
     setSelectedEvent(null);
     refetch();
@@ -641,16 +659,24 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   buttonText: '2 days',
                 },
               }}
-              events={events?.map((e) => ({
-                id: e.id,
-                title: e.title,
-                start: e.start,
-                end: e.end,
-                allDay: e.allDay,
-                backgroundColor: e.color,
-                borderColor: e.color,
-                extendedProps: e.extendedProps,
-              })) || []}
+              events={events?.map((e) => {
+                const isCompleted = e.extendedProps?.status === 'completed';
+                const isViewOnly = e.extendedProps?.isViewOnly === true;
+                return {
+                  id: e.id,
+                  title: e.title,
+                  start: e.start,
+                  end: e.end,
+                  allDay: e.allDay,
+                  backgroundColor: e.color,
+                  borderColor: e.color,
+                  extendedProps: e.extendedProps,
+                  classNames: [
+                    isCompleted ? 'fc-event-completed' : '',
+                    isViewOnly ? 'fc-event-view-only' : '',
+                  ].filter(Boolean),
+                };
+              }) || []}
               eventClick={handleEventClick}
               datesSet={(dateInfo) => {
                 // Update visible range when calendar navigates
@@ -764,8 +790,17 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   </div>
                 )}
 
-                {/* Mark Complete Button */}
-                {String(selectedEvent.extendedProps.status) !== 'completed' && (
+                {/* View Only Notice */}
+                {!!selectedEvent.extendedProps.isViewOnly && (
+                  <div className="mt-2 p-2 bg-slate-100 rounded-md text-center">
+                    <p className="text-sm text-muted-foreground">
+                      {t('tasks.viewOnlyNotice')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Mark Complete Button - hide for view-only tasks */}
+                {String(selectedEvent.extendedProps.status) !== 'completed' && !selectedEvent.extendedProps.isViewOnly && (
                   <Button
                     size="sm"
                     className="w-full mt-2"
@@ -782,6 +817,28 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                       <CheckCircle className="h-4 w-4 mr-2" />
                     )}
                     {t('tasks.markComplete')}
+                  </Button>
+                )}
+
+                {/* Undo Complete Button - show for completed tasks, hide for view-only */}
+                {String(selectedEvent.extendedProps.status) === 'completed' && !selectedEvent.extendedProps.isViewOnly && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full mt-2"
+                    onClick={() => handleUncompleteTask(
+                      selectedEvent.id,
+                      !!selectedEvent.extendedProps.isRecurring,
+                      selectedEvent.extendedProps.instanceDate as string | undefined
+                    )}
+                    disabled={updateTaskStatus.isPending || uncompleteTaskInstance.isPending}
+                  >
+                    {(updateTaskStatus.isPending || uncompleteTaskInstance.isPending) ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    {t('tasks.undoComplete')}
                   </Button>
                 )}
 
@@ -1147,6 +1204,23 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
         }
         .calendar-wrapper .fc-day-today {
           background-color: #eff6ff !important;
+        }
+        /* Completed task styles */
+        .calendar-wrapper .fc-event-completed {
+          opacity: 0.7;
+          border-left: 3px solid #22c55e !important;
+        }
+        .calendar-wrapper .fc-event-completed .fc-event-title {
+          text-decoration: line-through;
+        }
+        .calendar-wrapper .fc-event-completed .fc-event-main {
+          text-decoration: line-through;
+        }
+        /* View-only task styles */
+        .calendar-wrapper .fc-event-view-only {
+          opacity: 0.6;
+          border-style: dashed !important;
+          cursor: default;
         }
       `}</style>
     </div>

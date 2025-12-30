@@ -36,8 +36,9 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
-import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput } from '@/lib/validators/task';
+import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput, type TaskViewerInput } from '@/lib/validators/task';
 import type { TaskWithRelations, TaskTemplate } from '@/types';
+import { Eye } from 'lucide-react';
 
 type TaskFormProps = {
   task?: TaskWithRelations;
@@ -77,10 +78,30 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const [assignments, setAssignments] = useState<TaskAssignmentInput[]>(getInitialAssignments());
 
+  // Initialize viewers from task
+  const getInitialViewers = (): TaskViewerInput[] => {
+    if (task?.viewers) {
+      return task.viewers.map((v) => ({
+        targetType: v.targetType,
+        targetUserId: v.targetUserId,
+        targetGroupId: v.targetGroupId,
+      }));
+    }
+    return [];
+  };
+
+  const [viewers, setViewers] = useState<TaskViewerInput[]>(getInitialViewers());
+
   const [newAssignmentType, setNewAssignmentType] = useState<'user' | 'group' | 'all' | 'all_admins'>('user');
   const [newAssignmentTarget, setNewAssignmentTarget] = useState<string>('');
   const [multiSelectOpen, setMultiSelectOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+
+  // Viewer state
+  const [newViewerType, setNewViewerType] = useState<'user' | 'group' | 'all' | 'all_admins'>('user');
+  const [newViewerTarget, setNewViewerTarget] = useState<string>('');
+  const [viewerMultiSelectOpen, setViewerMultiSelectOpen] = useState(false);
+  const [selectedViewerUsers, setSelectedViewerUsers] = useState<string[]>([]);
 
   // Custom recurrence state
   const [recurrenceType, setRecurrenceType] = useState<'preset' | 'custom'>('preset');
@@ -243,6 +264,82 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
     return 'Unknown';
   };
 
+  // Viewer handling functions
+  const handleAddViewer = () => {
+    if (newViewerType === 'all') {
+      if (!viewers.some((v) => v.targetType === 'all')) {
+        setViewers([...viewers, { targetType: 'all' }]);
+      }
+    } else if (newViewerType === 'all_admins') {
+      if (!viewers.some((v) => v.targetType === 'all_admins')) {
+        setViewers([...viewers, { targetType: 'all_admins' }]);
+      }
+    } else if (newViewerTarget) {
+      const newViewer: TaskViewerInput = {
+        targetType: newViewerType,
+        targetUserId: newViewerType === 'user' ? newViewerTarget : undefined,
+        targetGroupId: newViewerType === 'group' ? newViewerTarget : undefined,
+      };
+
+      const isDuplicate = viewers.some((v) => {
+        if (v.targetType !== newViewerType) return false;
+        if (newViewerType === 'user') return v.targetUserId === newViewerTarget;
+        if (newViewerType === 'group') return v.targetGroupId === newViewerTarget;
+        return false;
+      });
+
+      if (!isDuplicate) {
+        setViewers([...viewers, newViewer]);
+      }
+      setNewViewerTarget('');
+    }
+  };
+
+  const handleRemoveViewer = (index: number) => {
+    setViewers(viewers.filter((_, i) => i !== index));
+  };
+
+  const handleToggleViewerUserSelection = (userId: string) => {
+    setSelectedViewerUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleAddSelectedViewerUsers = () => {
+    const newViewers: TaskViewerInput[] = selectedViewerUsers
+      .filter(userId => !viewers.some(v => v.targetType === 'user' && v.targetUserId === userId))
+      .map(userId => ({
+        targetType: 'user' as const,
+        targetUserId: userId,
+      }));
+
+    if (newViewers.length > 0) {
+      setViewers([...viewers, ...newViewers]);
+    }
+    setSelectedViewerUsers([]);
+    setViewerMultiSelectOpen(false);
+  };
+
+  const getViewerLabel = (viewer: TaskViewerInput) => {
+    if (viewer.targetType === 'all') {
+      return t('tasks.assignmentTypes.all');
+    }
+    if (viewer.targetType === 'all_admins') {
+      return t('tasks.assignmentTypes.allAdmins');
+    }
+    if (viewer.targetType === 'group' && viewer.targetGroupId) {
+      const group = groups?.find((g) => g.id === viewer.targetGroupId);
+      return group?.name || 'Unknown Group';
+    }
+    if (viewer.targetType === 'user' && viewer.targetUserId) {
+      const employee = employees?.find((e) => e.id === viewer.targetUserId);
+      return employee?.full_name || 'Unknown User';
+    }
+    return 'Unknown';
+  };
+
   const onSubmit = async (data: CreateTaskInput) => {
     // Auto-add any pending assignment selection
     let finalAssignments = [...assignments];
@@ -273,6 +370,30 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
     const startTime24 = startTimeInput ? to24Hour(startTimeInput, startTimeAmPm) : null;
     const endTime24 = endTimeInput ? to24Hour(endTimeInput, endTimeAmPm) : null;
 
+    // Auto-add any pending viewer selection
+    let finalViewers = [...viewers];
+
+    if (newViewerType === 'all' && !finalViewers.some((v) => v.targetType === 'all')) {
+      finalViewers.push({ targetType: 'all' });
+    } else if (newViewerType === 'all_admins' && !finalViewers.some((v) => v.targetType === 'all_admins')) {
+      finalViewers.push({ targetType: 'all_admins' });
+    } else if (newViewerTarget) {
+      const pendingViewer: TaskViewerInput = {
+        targetType: newViewerType,
+        targetUserId: newViewerType === 'user' ? newViewerTarget : undefined,
+        targetGroupId: newViewerType === 'group' ? newViewerTarget : undefined,
+      };
+      const isDuplicate = finalViewers.some((v) => {
+        if (v.targetType !== newViewerType) return false;
+        if (newViewerType === 'user') return v.targetUserId === newViewerTarget;
+        if (newViewerType === 'group') return v.targetGroupId === newViewerTarget;
+        return false;
+      });
+      if (!isDuplicate) {
+        finalViewers.push(pendingViewer);
+      }
+    }
+
     // Assignments are now optional - task can be created without assignments
     const submitData = {
       ...data,
@@ -280,6 +401,7 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
       startTime: data.isActivity ? startTime24 : null,
       endTime: data.isActivity ? endTime24 : null,
       assignments: finalAssignments,
+      viewers: finalViewers,
     };
 
     if (task) {
@@ -932,6 +1054,169 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
                       size="sm"
                       onClick={handleAddSelectedUsers}
                       disabled={selectedUsers.length === 0}
+                    >
+                      {t('tasks.addSelected')}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              {t('tasks.viewableBy')}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t('tasks.viewableByDescription')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {viewers.map((viewer, index) => (
+                <Badge key={index} variant="outline" className="text-sm py-1 px-3 bg-slate-50">
+                  {viewer.targetType === 'all' && <Users className="h-3 w-3 mr-1" />}
+                  {viewer.targetType === 'all_admins' && <Users className="h-3 w-3 mr-1" />}
+                  {viewer.targetType === 'group' && <Users className="h-3 w-3 mr-1" />}
+                  {viewer.targetType === 'user' && <Eye className="h-3 w-3 mr-1" />}
+                  {getViewerLabel(viewer)}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveViewer(index)}
+                    className="ml-2 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select
+                  value={newViewerType}
+                  onValueChange={(v) => {
+                    setNewViewerType(v as 'user' | 'group' | 'all' | 'all_admins');
+                    setNewViewerTarget('');
+                  }}
+                >
+                  <SelectTrigger className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">{t('tasks.assignmentTypes.user')}</SelectItem>
+                    <SelectItem value="group">{t('tasks.assignmentTypes.group')}</SelectItem>
+                    <SelectItem value="all">{t('tasks.assignmentTypes.all')}</SelectItem>
+                    <SelectItem value="all_admins">{t('tasks.assignmentTypes.allAdmins')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {newViewerType !== 'all' && newViewerType !== 'all_admins' && (
+                <div className="flex-1 min-w-48 space-y-2">
+                  <Label>
+                    {newViewerType === 'user' ? 'Employee' : 'Group'}
+                  </Label>
+                  <Select
+                    value={newViewerTarget}
+                    onValueChange={setNewViewerTarget}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={`Select ${newViewerType}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {newViewerType === 'user' &&
+                        employees?.map((employee) => (
+                          <SelectItem key={employee.id} value={employee.id}>
+                            <div className="flex items-center">
+                              <Avatar className="h-5 w-5 mr-2">
+                                <AvatarImage src={employee.avatar_url || undefined} />
+                                <AvatarFallback className="text-xs">
+                                  {employee.full_name?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              {employee.full_name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      {newViewerType === 'group' &&
+                        groups?.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleAddViewer}
+                disabled={newViewerType !== 'all' && newViewerType !== 'all_admins' && !newViewerTarget}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+
+              <Popover open={viewerMultiSelectOpen} onOpenChange={setViewerMultiSelectOpen}>
+                <PopoverTrigger asChild>
+                  <Button type="button" variant="outline">
+                    <UserPlus className="h-4 w-4 mr-1" />
+                    {t('tasks.selectMultiple')}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <div className="p-3 border-b">
+                    <p className="font-medium text-sm">{t('tasks.selectEmployees')}</p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto p-2">
+                    {employees?.map((employee) => {
+                      const isAlreadyViewer = viewers.some(
+                        v => v.targetType === 'user' && v.targetUserId === employee.id
+                      );
+                      const isSelected = selectedViewerUsers.includes(employee.id);
+                      return (
+                        <div
+                          key={employee.id}
+                          className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-muted ${
+                            isAlreadyViewer ? 'opacity-50' : ''
+                          }`}
+                          onClick={() => !isAlreadyViewer && handleToggleViewerUserSelection(employee.id)}
+                        >
+                          <Checkbox
+                            checked={isSelected || isAlreadyViewer}
+                            disabled={isAlreadyViewer}
+                            onCheckedChange={() => !isAlreadyViewer && handleToggleViewerUserSelection(employee.id)}
+                          />
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={employee.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {employee.full_name?.[0] || 'U'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm flex-1">{employee.full_name}</span>
+                          {isAlreadyViewer && (
+                            <Badge variant="secondary" className="text-xs">Added</Badge>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="p-3 border-t flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedViewerUsers.length} selected
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddSelectedViewerUsers}
+                      disabled={selectedViewerUsers.length === 0}
                     >
                       {t('tasks.addSelected')}
                     </Button>

@@ -47,7 +47,7 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
     return { error: 'Only admins can create tasks' };
   }
 
-  const { assignments, ...taskData } = result.data;
+  const { assignments, viewers, ...taskData } = result.data;
   const sourceLocale = (userData?.preferred_locale || 'en') as SupportedLocale;
 
   // Translate task content to all languages
@@ -141,6 +141,25 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
     }
   }
 
+  // Create viewers only if there are any
+  if (viewers && viewers.length > 0) {
+    const viewersData = viewers.map((v) => ({
+      task_id: task.id,
+      target_type: v.targetType,
+      target_user_id: v.targetType === 'user' ? v.targetUserId : null,
+      target_group_id: v.targetType === 'group' ? v.targetGroupId : null,
+    }));
+
+    const { error: viewerError } = await supabaseAdmin
+      .from('task_viewers')
+      .insert(viewersData);
+
+    if (viewerError) {
+      console.error('Viewer creation error:', viewerError);
+      // Note: Not rolling back here as the task was created successfully
+    }
+  }
+
   revalidatePath('/tasks');
   revalidatePath('/dashboard');
 
@@ -173,7 +192,7 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
     return { error: 'Only admins can update tasks' };
   }
 
-  const { assignments, ...taskData } = result.data;
+  const { assignments, viewers, ...taskData } = result.data;
   const sourceLocale = (userData?.preferred_locale || 'en') as SupportedLocale;
 
   // Update task
@@ -259,6 +278,34 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
     if (assignmentError) {
       console.error('Assignment update error:', assignmentError);
       return { error: 'Failed to update task assignments' };
+    }
+  }
+
+  // Update viewers if provided
+  if (viewers !== undefined) {
+    // Delete existing viewers
+    await supabaseAdmin
+      .from('task_viewers')
+      .delete()
+      .eq('task_id', taskId);
+
+    // Create new viewers if any
+    if (viewers.length > 0) {
+      const viewersData = viewers.map((v) => ({
+        task_id: taskId,
+        target_type: v.targetType,
+        target_user_id: v.targetType === 'user' ? v.targetUserId : null,
+        target_group_id: v.targetType === 'group' ? v.targetGroupId : null,
+      }));
+
+      const { error: viewerError } = await supabaseAdmin
+        .from('task_viewers')
+        .insert(viewersData);
+
+      if (viewerError) {
+        console.error('Viewer update error:', viewerError);
+        // Note: Not returning error as main task was updated
+      }
     }
   }
 

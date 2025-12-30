@@ -20,6 +20,23 @@ export const taskAssignmentSchema = z.object({
   message: 'Target ID is required for user or group assignments',
 });
 
+// Viewer schema (same structure as assignment)
+export const taskViewerSchema = z.object({
+  targetType: assignmentTargetTypeSchema,
+  targetUserId: z.string().uuid().nullable().optional(),
+  targetGroupId: z.string().uuid().nullable().optional(),
+}).refine((data) => {
+  if (data.targetType === 'user') {
+    return !!data.targetUserId;
+  }
+  if (data.targetType === 'group') {
+    return !!data.targetGroupId;
+  }
+  return true;
+}, {
+  message: 'Target ID is required for user or group viewers',
+});
+
 export const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().max(5000).nullable().optional(),
@@ -35,6 +52,7 @@ export const createTaskSchema = z.object({
   recurrenceRule: z.string().nullable().optional(),
   syncToCalendar: z.boolean().optional(),
   assignments: z.array(taskAssignmentSchema).optional(),
+  viewers: z.array(taskViewerSchema).optional(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial().extend({
@@ -48,3 +66,4 @@ export const completeTaskSchema = z.object({
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TaskAssignmentInput = z.infer<typeof taskAssignmentSchema>;
+export type TaskViewerInput = z.infer<typeof taskViewerSchema>;

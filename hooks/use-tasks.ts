@@ -207,6 +207,11 @@ export function useTask(id: string) {
             *,
             target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
             target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
+          ),
+          viewers:task_viewers(
+            *,
+            target_user:users!task_viewers_target_user_id_fkey(id, full_name, avatar_url),
+            target_group:employee_groups!task_viewers_target_group_id_fkey(id, name)
           )
         `)
         .eq('id', id)
@@ -581,6 +586,24 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
         targetUserId: a.target_user_id as string | null,
         targetGroupId: a.target_group_id as string | null,
         createdAt: a.created_at as string,
+        targetUser: targetUserRaw ? {
+          id: targetUserRaw.id,
+          fullName: targetUserRaw.full_name,
+          avatarUrl: targetUserRaw.avatar_url,
+        } : null,
+        targetGroup: targetGroupRaw,
+      };
+    }),
+    viewers: ((row.viewers as Record<string, unknown>[]) || []).map((v) => {
+      const targetUserRaw = v.target_user as { id: string; full_name: string; avatar_url: string | null } | null;
+      const targetGroupRaw = v.target_group as { id: string; name: string } | null;
+      return {
+        id: v.id as string,
+        taskId: v.task_id as string,
+        targetType: v.target_type as 'user' | 'group' | 'all' | 'all_admins',
+        targetUserId: v.target_user_id as string | null,
+        targetGroupId: v.target_group_id as string | null,
+        createdAt: v.created_at as string,
         targetUser: targetUserRaw ? {
           id: targetUserRaw.id,
           fullName: targetUserRaw.full_name,

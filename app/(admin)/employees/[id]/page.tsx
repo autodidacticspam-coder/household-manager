@@ -61,7 +61,7 @@ function getRequestDates(request: LeaveRequest): Date[] {
     end: parseLocalDate(request.endDate),
   });
 }
-import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift, Key } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Calendar, CheckSquare, Users, Edit2, Trash2, Loader2, Plus, X, Gift, Key, CalendarOff } from 'lucide-react';
 import { ScheduleEditor } from '@/components/admin/schedule-editor';
 
 type EmployeeDetailPageProps = {
@@ -104,6 +104,10 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
   const [newPassword, setNewPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  // Days missed filter state
+  const [daysMissedPeriod, setDaysMissedPeriod] = useState<'30days' | '3months' | '6months' | '1year' | 'lifetime'>('30days');
+  const [daysMissedType, setDaysMissedType] = useState<'both' | 'sick' | 'pto'>('both');
 
   const handleOpenEditDialog = () => {
     if (employee) {
@@ -214,6 +218,69 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
 
   const pendingTasks = tasks?.filter((t) => t.status !== 'completed').length || 0;
   const completedTasks = tasks?.filter((t) => t.status === 'completed').length || 0;
+
+  // Calculate days missed based on filters
+  const getFilteredDaysMissed = () => {
+    if (!leaveRequests) return { totalDays: 0, requests: [] as LeaveRequest[] };
+
+    const now = new Date();
+    let startDate: Date;
+
+    switch (daysMissedPeriod) {
+      case '30days':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '3months':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+        break;
+      case '6months':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+        break;
+      case '1year':
+        startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        break;
+      case 'lifetime':
+        startDate = new Date(0);
+        break;
+    }
+
+    // Filter by approved status, date range, and leave type
+    const filteredRequests = leaveRequests.filter(request => {
+      // Only approved requests count as actual days missed
+      if (request.status !== 'approved') return false;
+
+      // Don't count holidays as days missed
+      if (request.leaveType === 'holiday') return false;
+
+      // Filter by leave type
+      if (daysMissedType !== 'both' && request.leaveType !== daysMissedType) return false;
+
+      // Check if any day of the request falls within the period
+      const requestDates = getRequestDates(request);
+      return requestDates.some(date => date >= startDate && date <= now);
+    });
+
+    // Calculate total days that fall within the filter period
+    let totalDays = 0;
+    const daysWithInfo: { date: Date; leaveType: string; request: LeaveRequest }[] = [];
+
+    for (const request of filteredRequests) {
+      const requestDates = getRequestDates(request);
+      for (const date of requestDates) {
+        if (date >= startDate && date <= now) {
+          totalDays++;
+          daysWithInfo.push({ date, leaveType: request.leaveType, request });
+        }
+      }
+    }
+
+    // Sort by date descending (most recent first)
+    daysWithInfo.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    return { totalDays, daysWithInfo, requests: filteredRequests };
+  };
+
+  const daysMissedData = getFilteredDaysMissed();
 
   return (
     <div className="space-y-6">
@@ -423,6 +490,89 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Not assigned to any groups.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Days Missed Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CalendarOff className="h-4 w-4 mr-2" />
+                {t('employees.daysMissed')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Filters */}
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">
+                    {t('employees.timePeriod')}
+                  </Label>
+                  <Select value={daysMissedPeriod} onValueChange={(v) => setDaysMissedPeriod(v as typeof daysMissedPeriod)}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30days">{t('employees.last30Days')}</SelectItem>
+                      <SelectItem value="3months">{t('employees.last3Months')}</SelectItem>
+                      <SelectItem value="6months">{t('employees.last6Months')}</SelectItem>
+                      <SelectItem value="1year">{t('employees.last1Year')}</SelectItem>
+                      <SelectItem value="lifetime">{t('employees.lifetime')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">
+                    {t('employees.leaveType')}
+                  </Label>
+                  <Select value={daysMissedType} onValueChange={(v) => setDaysMissedType(v as typeof daysMissedType)}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="both">{t('employees.bothTypes')}</SelectItem>
+                      <SelectItem value="sick">{t('employees.sickDays')}</SelectItem>
+                      <SelectItem value="pto">{t('employees.ptoDays')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Total Count */}
+              <div className="text-center p-4 bg-red-50 rounded-lg">
+                <div className="text-3xl font-bold text-red-700">
+                  {daysMissedData.totalDays}
+                </div>
+                <p className="text-xs text-red-600">
+                  {daysMissedData.totalDays === 1 ? t('employees.dayMissed') : t('employees.daysMissedLabel')}
+                </p>
+              </div>
+
+              {/* Days List */}
+              {daysMissedData.daysWithInfo && daysMissedData.daysWithInfo.length > 0 && (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {daysMissedData.daysWithInfo.map((day, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
+                    >
+                      <span>{format(day.date, 'EEE, MMM d, yyyy')}</span>
+                      <Badge
+                        variant="secondary"
+                        className={day.leaveType === 'sick' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}
+                      >
+                        {day.leaveType === 'sick' ? t('leave.sick') : 'PTO'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {daysMissedData.totalDays === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  {t('employees.noDaysMissed')}
                 </p>
               )}
             </CardContent>

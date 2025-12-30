@@ -27,6 +27,24 @@ export interface TaskAssignment {
   } | null;
 }
 
+export interface TaskViewer {
+  id: string;
+  taskId: string;
+  targetType: AssignmentTargetType;
+  targetUserId: string | null;
+  targetGroupId: string | null;
+  createdAt?: string;
+  targetUser?: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+  } | null;
+  targetGroup?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -90,6 +108,10 @@ export type TaskWithRelations = Omit<Task, 'category' | 'createdByUser' | 'assig
   createdByUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   completedByUser: { id: string; fullName: string; avatarUrl: string | null } | null;
   assignments: Array<TaskAssignment & {
+    targetUser: { id: string; fullName: string; avatarUrl: string | null } | null;
+    targetGroup: { id: string; name: string } | null;
+  }>;
+  viewers?: Array<TaskViewer & {
     targetUser: { id: string; fullName: string; avatarUrl: string | null } | null;
     targetGroup: { id: string; name: string } | null;
   }>;

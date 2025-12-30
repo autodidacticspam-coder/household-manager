@@ -130,9 +130,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
       }
 
       if (filters.showTasks !== false) {
-        const { data: regularTasks, error: regularError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name))').eq('is_recurring', false).gte('due_date', filters.startDate).lte('due_date', filters.endDate);
+        const { data: regularTasks, error: regularError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name)), viewers:task_viewers(target_type, target_user_id, target_group_id)').eq('is_recurring', false).gte('due_date', filters.startDate).lte('due_date', filters.endDate);
         if (regularError) throw regularError;
-        const { data: recurringTasks, error: recurringError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name))').eq('is_recurring', true).lte('due_date', filters.endDate);
+        const { data: recurringTasks, error: recurringError } = await supabase.from('tasks').select('*, category:task_categories(name, color), assignments:task_assignments(target_type, target_user_id, target_group_id, user:users(full_name), group:employee_groups(name)), viewers:task_viewers(target_type, target_user_id, target_group_id)').eq('is_recurring', true).lte('due_date', filters.endDate);
         if (recurringError) throw recurringError;
 
         // Fetch task completions for the date range
@@ -183,13 +183,31 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
         for (const task of [...(regularTasks || []), ...(recurringTasks || [])]) {
           if (!task.due_date) continue;
-          if (filters.userId && !task.assignments.some((a: { target_type: string; target_user_id: string; target_group_id: string }) => {
-          if (a.target_type === 'all') return true;
-          if (a.target_type === 'all_admins' && isUserAdmin) return true;
-          if (a.target_type === 'user' && a.target_user_id === filters.userId) return true;
-          if (a.target_type === 'group' && userGroupIds.includes(a.target_group_id)) return true;
-          return false;
-        })) continue;
+
+          // Check if user is assigned to this task
+          const isUserAssigned = !filters.userId || task.assignments.some((a: { target_type: string; target_user_id: string; target_group_id: string }) => {
+            if (a.target_type === 'all') return true;
+            if (a.target_type === 'all_admins' && isUserAdmin) return true;
+            if (a.target_type === 'user' && a.target_user_id === filters.userId) return true;
+            if (a.target_type === 'group' && userGroupIds.includes(a.target_group_id)) return true;
+            return false;
+          });
+
+          // Check if user is a viewer of this task
+          const isUserViewer = filters.userId && (task.viewers || []).some((v: { target_type: string; target_user_id: string; target_group_id: string }) => {
+            if (v.target_type === 'all') return true;
+            if (v.target_type === 'all_admins' && isUserAdmin) return true;
+            if (v.target_type === 'user' && v.target_user_id === filters.userId) return true;
+            if (v.target_type === 'group' && userGroupIds.includes(v.target_group_id)) return true;
+            return false;
+          });
+
+          // Skip if user is neither assigned nor a viewer
+          if (filters.userId && !isUserAssigned && !isUserViewer) continue;
+
+          // Mark as view-only if user is only a viewer (not assigned)
+          const isViewOnly = filters.userId && !isUserAssigned && isUserViewer;
+
           const assignees = formatAssignees(task.assignments);
 
           // Calculate start and end times based on activity mode
@@ -255,6 +273,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                   category: task.category?.name,
                   isRecurring: true,
                   isActivity: task.is_activity,
+                  isViewOnly,
                   assignees,
                   instanceDate: o.date,
                   hasTimeOverride: !!timeOverride,
@@ -266,7 +285,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
             }
           } else {
             const times = getEventTimes(task.due_date);
-            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, assignees } });
+            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, isViewOnly, assignees } });
           }
         }
       }
