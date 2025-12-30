@@ -22,10 +22,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock } from 'lucide-react';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
+import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings, useDeleteMenuRating } from '@/hooks/use-menu-ratings';
 import { useFoodRequests, useCompleteFoodRequest, useCreateFoodRequest, usePendingFoodRequestsCount, useDeleteFoodRequest } from '@/hooks/use-food-requests';
 import { useAuth } from '@/contexts/auth-context';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,6 +76,7 @@ export default function FoodRatingsPage() {
   const completeFoodRequest = useCompleteFoodRequest();
   const createFoodRequest = useCreateFoodRequest();
   const deleteFoodRequest = useDeleteFoodRequest();
+  const deleteMenuRating = useDeleteMenuRating();
 
   // Get all ratings for the selected dish
   const selectedDishRatings = useMemo(() => {
@@ -522,9 +523,22 @@ export default function FoodRatingsPage() {
                           <span className="capitalize">{rating.dayOfWeek} {rating.mealType}</span>
                           <span>{rating.ratedByUser?.fullName || 'Unknown'}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(new Date(rating.createdAt), 'MMM d, yyyy')}
-                        </p>
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                          </p>
+                          {user?.id === rating.ratedBy && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteMenuRating.mutate(rating.id)}
+                              disabled={deleteMenuRating.isPending}
+                              className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -539,6 +553,7 @@ export default function FoodRatingsPage() {
                           <TableHead className="text-center">Rating</TableHead>
                           <TableHead>Rated By</TableHead>
                           <TableHead>Date</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -568,6 +583,19 @@ export default function FoodRatingsPage() {
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell>
+                              {user?.id === rating.ratedBy && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteMenuRating.mutate(rating.id)}
+                                  disabled={deleteMenuRating.isPending}
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -789,6 +817,26 @@ export default function FoodRatingsPage() {
                         Comment
                       </div>
                       <p className="text-sm">{rating.comment}</p>
+                    </div>
+                  )}
+
+                  {/* Delete button - only show if current user rated this */}
+                  {user?.id === rating.ratedBy && (
+                    <div className="mt-3 pt-3 border-t">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteMenuRating.mutate(rating.id)}
+                        disabled={deleteMenuRating.isPending}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                      >
+                        {deleteMenuRating.isPending ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 mr-2" />
+                        )}
+                        Delete Rating
+                      </Button>
                     </div>
                   )}
                 </div>

@@ -21,10 +21,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send } from 'lucide-react';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
-import { useMenuRatings, useRateMenuItem, type MenuRating } from '@/hooks/use-menu-ratings';
+import { useMenuRatings, useRateMenuItem, useDeleteMenuRating, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
 import { useAuth } from '@/contexts/auth-context';
 import type { DayMeals, DayOfWeek } from '@/types';
@@ -57,6 +57,7 @@ function RatingSelector({
   const [comment, setComment] = useState(currentRating?.comment || '');
   const [selectedRating, setSelectedRating] = useState<number | null>(currentRating?.rating || null);
   const rateMenuItem = useRateMenuItem();
+  const deleteRating = useDeleteMenuRating();
 
   // Reset state when popover opens
   const handleOpenChange = (open: boolean) => {
@@ -142,18 +143,38 @@ function RatingSelector({
             />
           </div>
 
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={!selectedRating || rateMenuItem.isPending}
-            className="w-full h-10 sm:h-8 text-base sm:text-sm touch-manipulation"
-          >
-            {rateMenuItem.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Save Rating'
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!selectedRating || rateMenuItem.isPending || deleteRating.isPending}
+              className="flex-1 h-10 sm:h-8 text-base sm:text-sm touch-manipulation"
+            >
+              {rateMenuItem.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Save Rating'
+              )}
+            </Button>
+            {currentRating && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  deleteRating.mutate(currentRating.id);
+                  setIsOpen(false);
+                }}
+                disabled={rateMenuItem.isPending || deleteRating.isPending}
+                className="h-10 sm:h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 touch-manipulation"
+              >
+                {deleteRating.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
             )}
-          </Button>
+          </div>
 
           {currentRating?.comment && (
             <p className="text-xs text-muted-foreground italic border-t pt-2">
