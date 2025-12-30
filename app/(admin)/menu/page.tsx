@@ -619,15 +619,15 @@ export default function MenuPage() {
                                         />
                                         <Button
                                           variant="ghost"
-                                          size="sm"
-                                          className="h-7 px-2 text-xs gap-1 touch-manipulation text-amber-600 hover:text-amber-700 hover:bg-amber-100/50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100"
+                                          size="icon"
+                                          className="h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
                                           onClick={() => {
                                             setRequestFoodName(trimmedLine);
                                             setShowRequestDialog(true);
                                           }}
+                                          title="Request this dish"
                                         >
-                                          <Send className="h-4 w-4 sm:h-3 sm:w-3" />
-                                          <span className="hidden sm:inline">Request</span>
+                                          <Send className="h-3.5 w-3.5" />
                                         </Button>
                                       </>
                                     )}
