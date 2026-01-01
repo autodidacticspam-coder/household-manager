@@ -29,7 +29,17 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, X, Clock } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Loader2, X, Clock, AlertTriangle } from 'lucide-react';
 import { useCreateLeaveRequest } from '@/hooks/use-leave';
 import { createLeaveRequestSchema, type CreateLeaveRequestInput } from '@/lib/validators/leave';
 
@@ -54,6 +64,8 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
   const router = useRouter();
 
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingData, setPendingData] = useState<CreateLeaveRequestInput | null>(null);
 
   const createRequest = useCreateLeaveRequest();
 
@@ -142,7 +154,17 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
       return;
     }
 
-    await createRequest.mutateAsync(data);
+    // Show confirmation dialog instead of submitting directly
+    setPendingData(data);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!pendingData) return;
+
+    await createRequest.mutateAsync(pendingData);
+    setShowConfirmDialog(false);
+    setPendingData(null);
     onSuccess?.();
     router.push('/time-off');
   };
@@ -391,6 +413,31 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
           </Button>
         </div>
       </form>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Before You Submit
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              Note: The system does not track if you have PTO or Sick Leave remaining. If approved, your leave may be unpaid.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={createRequest.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmSubmit}
+              disabled={createRequest.isPending}
+            >
+              {createRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              I Understand, Submit Request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Form>
   );
 }
