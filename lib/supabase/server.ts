@@ -1,5 +1,55 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { createClient as createAdminClientBase } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+
+export type ActionState = {
+  error?: string;
+  success?: boolean;
+  data?: Record<string, unknown>;
+};
+
+/**
+ * Create admin client for bypassing RLS
+ */
+export function getAdminClient() {
+  return createAdminClientBase(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
+/**
+ * Get authenticated user or return error
+ */
+export async function requireAuth(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { error: 'Not authenticated' as const, user: null };
+  }
+  return { error: null, user };
+}
+
+/**
+ * Require admin role or return error
+ */
+export async function requireAdminRole(supabase: Awaited<ReturnType<typeof createClient>>, adminClient: ReturnType<typeof getAdminClient>) {
+  const authResult = await requireAuth(supabase);
+  if (authResult.error) {
+    return { error: authResult.error, user: null, userData: null };
+  }
+
+  const { data: userData } = await adminClient
+    .from('users')
+    .select('role, preferred_locale')
+    .eq('id', authResult.user.id)
+    .single();
+
+  if (userData?.role !== 'admin') {
+    return { error: 'Only admins can perform this action' as const, user: authResult.user, userData: null };
+  }
+
+  return { error: null, user: authResult.user, userData };
+}
 
 export async function createClient() {
   const cookieStore = await cookies();

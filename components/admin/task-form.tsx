@@ -39,6 +39,8 @@ import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useU
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput, type TaskViewerInput } from '@/lib/validators/task';
 import type { TaskWithRelations, TaskTemplate } from '@/types';
 import { Eye } from 'lucide-react';
+import { TaskVideosSection } from '@/components/admin/task-videos-section';
+import type { VideoInput } from '@/hooks/use-task-videos';
 
 type TaskFormProps = {
   task?: TaskWithRelations;
@@ -92,6 +94,16 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const [viewers, setViewers] = useState<TaskViewerInput[]>(getInitialViewers());
 
+  // Video state
+  const [pendingVideos, setPendingVideos] = useState<VideoInput[]>([]);
+  const [existingVideosToKeep, setExistingVideosToKeep] = useState<VideoInput[]>(
+    (task?.videos || []).map(v => ({
+      videoType: v.videoType,
+      url: v.url,
+      title: v.title || undefined,
+    }))
+  );
+
   const [newAssignmentType, setNewAssignmentType] = useState<'user' | 'group' | 'all' | 'all_admins'>('user');
   const [newAssignmentTarget, setNewAssignmentTarget] = useState<string>('');
   const [multiSelectOpen, setMultiSelectOpen] = useState(false);
@@ -101,6 +113,22 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
   const [newViewerType, setNewViewerType] = useState<'user' | 'group' | 'all' | 'all_admins'>('user');
   const [newViewerTarget, setNewViewerTarget] = useState<string>('');
   const [viewerMultiSelectOpen, setViewerMultiSelectOpen] = useState(false);
+
+  const handleAddPendingVideo = (video: VideoInput) => {
+    setPendingVideos((prev) => [...prev, video]);
+  };
+
+  const handleRemovePendingVideo = (index: number) => {
+    setPendingVideos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveExistingVideo = (videoId: string) => {
+    setExistingVideosToKeep(prev => prev.filter(v => {
+      const existingVideo = task?.videos?.find(ev => ev.url === v.url);
+      return existingVideo?.id !== videoId;
+    }));
+  };
+
   const [selectedViewerUsers, setSelectedViewerUsers] = useState<string[]>([]);
 
   // Custom recurrence state
@@ -402,6 +430,7 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
       endTime: data.isActivity ? endTime24 : null,
       assignments: finalAssignments,
       viewers: finalViewers,
+      videos: [...existingVideosToKeep, ...pendingVideos],
     };
 
     if (task) {
@@ -1226,6 +1255,14 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
             </div>
           </CardContent>
         </Card>
+
+        <TaskVideosSection
+          existingVideos={task?.videos}
+          pendingVideos={pendingVideos}
+          onAddVideo={handleAddPendingVideo}
+          onRemoveVideo={handleRemovePendingVideo}
+          onRemoveExistingVideo={handleRemoveExistingVideo}
+        />
 
         <div className="flex justify-end gap-3">
           <Button

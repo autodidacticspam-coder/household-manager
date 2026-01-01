@@ -128,7 +128,7 @@
     "syncCalendar": "Sync to Google Calendar",
     "markComplete": "Mark Complete",
     "undoComplete": "Undo Complete",
-    "taskUncompleted": "Task uncompleted",
+    "taskUncompleted": "Task marked as incomplete",
     "completed": "Completed",
     "pending": "Pending",
     "inProgress": "In Progress",
@@ -170,7 +170,6 @@
     "taskUpdated": "Task updated successfully",
     "taskDeleted": "Task deleted successfully",
     "taskCompleted": "Task marked as complete",
-    "taskUncompleted": "Task marked as incomplete",
     "deleteTask": "Delete Task",
     "deleteConfirmation": "Are you sure you want to delete this task? This action cannot be undone.",
     "deleteRecurringConfirmation": "Are you sure you want to delete \"{title}\"? This is a recurring task.",
@@ -179,7 +178,25 @@
     "skipThisOccurrence": "Skip This Occurrence",
     "deleteAllOccurrences": "Delete All Occurrences",
     "instanceSkipped": "This occurrence has been skipped",
-    "taskMoved": "Task moved successfully"
+    "taskMoved": "Task moved successfully",
+    "videos": {
+      "title": "Videos",
+      "description": "Add instructional videos or links to help with this task",
+      "uploadVideo": "Upload Video",
+      "addLink": "Add Link",
+      "videoUrl": "Video URL",
+      "videoUrlPlaceholder": "https://youtube.com/watch?v=...",
+      "videoTitle": "Title (optional)",
+      "videoTitlePlaceholder": "Enter video title",
+      "uploading": "Uploading...",
+      "uploadSuccess": "Video uploaded",
+      "linkAdded": "Video link added",
+      "deleteConfirmation": "Remove this video?",
+      "noVideos": "No videos added",
+      "invalidUrl": "Please enter a valid URL",
+      "fileTooLarge": "Video file is too large. Maximum size is 250 MB",
+      "invalidFormat": "Invalid video format. Allowed: MP4, WebM, MOV, AVI, MKV"
+    }
   },
   "leave": {
     "title": "Leave Management",

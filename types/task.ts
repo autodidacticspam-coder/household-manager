@@ -45,6 +45,21 @@ export interface TaskViewer {
   } | null;
 }
 
+export type TaskVideoType = 'upload' | 'link';
+
+export interface TaskVideo {
+  id: string;
+  taskId: string;
+  videoType: TaskVideoType;
+  url: string;
+  title: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  createdAt: string;
+  createdBy: string | null;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -115,6 +130,7 @@ export type TaskWithRelations = Omit<Task, 'category' | 'createdByUser' | 'assig
     targetUser: { id: string; fullName: string; avatarUrl: string | null } | null;
     targetGroup: { id: string; name: string } | null;
   }>;
+  videos?: TaskVideo[];
 };
 
 export interface RecurrencePattern {

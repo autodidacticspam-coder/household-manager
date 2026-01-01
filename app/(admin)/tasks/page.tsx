@@ -29,7 +29,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Plus, Search, FileText, ChevronDown, ChevronUp } from 'lucide-react';
-import type { TaskTemplate } from '@/types';
+import type { TaskTemplate, TaskWithRelations } from '@/types';
+import { TaskDetailDialog } from '@/components/shared/task-detail-dialog';
 
 export default function TasksPage() {
   const t = useTranslations();
@@ -43,6 +44,7 @@ export default function TasksPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null);
+  const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
 
   const { data: categories } = useTaskCategories();
   const { data: tasks, isLoading } = useTasks({
@@ -59,13 +61,10 @@ export default function TasksPage() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const handleComplete = async (id: string) => {
-    // Find the task to check if it's recurring
     const task = tasks?.find(t => t.id === id);
     if (task?.isRecurring) {
-      // For recurring tasks, complete just today's instance
       await completeTaskInstance.mutateAsync({ taskId: id, completionDate: today });
     } else {
-      // For regular tasks, mark the whole task as completed
       await completeTask.mutateAsync(id);
     }
   };
@@ -82,7 +81,6 @@ export default function TasksPage() {
   };
 
   const handleUseTemplate = (template: TaskTemplate) => {
-    // Navigate to new task page with template ID
     router.push(`/tasks/new?template=${template.id}`);
   };
 
@@ -106,9 +104,7 @@ export default function TasksPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('tasks.title')}</h1>
-          <p className="text-muted-foreground">
-            {t('descriptions.tasks')}
-          </p>
+          <p className="text-muted-foreground">{t('descriptions.tasks')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowTemplates(!showTemplates)}>
@@ -176,10 +172,7 @@ export default function TasksPage() {
             {categories?.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 <div className="flex items-center">
-                  <div
-                    className="w-3 h-3 rounded-full mr-2"
-                    style={{ backgroundColor: category.color }}
-                  />
+                  <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: category.color }} />
                   {category.name}
                 </div>
               </SelectItem>
@@ -200,6 +193,7 @@ export default function TasksPage() {
             <TaskCard
               key={task.id}
               task={task}
+              onClick={(t) => setSelectedTask(t)}
               onComplete={handleComplete}
               onEdit={handleEdit}
               onDelete={(id) => setDeleteTaskId(id)}
@@ -209,11 +203,7 @@ export default function TasksPage() {
       ) : (
         <div className="text-center py-12">
           <p className="text-muted-foreground">{t('tasks.noTasks')}</p>
-          <Button
-            variant="link"
-            onClick={() => router.push('/tasks/new')}
-            className="mt-2"
-          >
+          <Button variant="link" onClick={() => router.push('/tasks/new')} className="mt-2">
             {t('tasks.createTask')}
           </Button>
         </div>
@@ -223,15 +213,11 @@ export default function TasksPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('tasks.deleteConfirmation')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('tasks.deleteConfirmation')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
-              {t('common.delete')}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete}>{t('common.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -240,6 +226,20 @@ export default function TasksPage() {
         open={templateDialogOpen}
         onClose={handleCloseTemplateDialog}
         template={editingTemplate}
+      />
+
+      <TaskDetailDialog
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
+        onComplete={(id) => {
+          handleComplete(id);
+          setSelectedTask(null);
+        }}
+        onEdit={(id) => {
+          handleEdit(id);
+          setSelectedTask(null);
+        }}
       />
     </div>
   );

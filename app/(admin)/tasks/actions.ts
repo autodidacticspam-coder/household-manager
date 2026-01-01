@@ -1,25 +1,13 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { createClient, getAdminClient, type ActionState } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { createTaskSchema, updateTaskSchema, type CreateTaskInput, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { sendTaskAssignedNotification } from '@/lib/notifications/task-notifications';
 
-export type ActionState = {
-  error?: string;
-  success?: boolean;
-  data?: Record<string, unknown>;
-};
-
-// Admin client for bypassing RLS
-function getAdminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
+// Re-exported from lib/supabase/server
+export type { ActionState };
 
 export async function createTask(input: CreateTaskInput): Promise<ActionState> {
   const supabase = await createClient();
@@ -47,7 +35,7 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
     return { error: 'Only admins can create tasks' };
   }
 
-  const { assignments, viewers, ...taskData } = result.data;
+  const { assignments, viewers, videos, ...taskData } = result.data;
   const sourceLocale = (userData?.preferred_locale || 'en') as SupportedLocale;
 
   // Translate task content to all languages
@@ -160,6 +148,29 @@ export async function createTask(input: CreateTaskInput): Promise<ActionState> {
     }
   }
 
+
+  // Create videos if any
+  if (videos && videos.length > 0) {
+    const videosData = videos.map((v) => ({
+      task_id: task.id,
+      video_type: v.videoType,
+      url: v.url,
+      title: v.title || null,
+      file_name: v.fileName || null,
+      file_size: v.fileSize || null,
+      mime_type: v.mimeType || null,
+      created_by: user.id,
+    }));
+
+    const { error: videoError } = await supabaseAdmin
+      .from('task_videos')
+      .insert(videosData);
+
+    if (videoError) {
+      console.error('Video creation error:', videoError);
+      // Note: Not rolling back here as the task was created successfully
+    }
+  }
   revalidatePath('/tasks');
   revalidatePath('/dashboard');
 
@@ -192,7 +203,7 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
     return { error: 'Only admins can update tasks' };
   }
 
-  const { assignments, viewers, ...taskData } = result.data;
+  const { assignments, viewers, videos, ...taskData } = result.data;
   const sourceLocale = (userData?.preferred_locale || 'en') as SupportedLocale;
 
   // Update task
@@ -308,7 +319,37 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
       }
     }
   }
+  // Update videos if provided
+  if (videos !== undefined) {
+    // Delete existing videos
+    await supabaseAdmin
+      .from('task_videos')
+      .delete()
+      .eq('task_id', taskId);
 
+    // Create new videos if any
+    if (videos.length > 0) {
+      const videosData = videos.map((v) => ({
+        task_id: taskId,
+        video_type: v.videoType,
+        url: v.url,
+        title: v.title || null,
+        file_name: v.fileName || null,
+        file_size: v.fileSize || null,
+        mime_type: v.mimeType || null,
+        created_by: user.id,
+      }));
+
+      const { error: videoError } = await supabaseAdmin
+        .from('task_videos')
+        .insert(videosData);
+
+      if (videoError) {
+        console.error('Video update error:', videoError);
+        // Note: Not returning error as main task was updated
+      }
+    }
+  }
   revalidatePath('/tasks');
   revalidatePath(`/tasks/${taskId}`);
   revalidatePath('/dashboard');

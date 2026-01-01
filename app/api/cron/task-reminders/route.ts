@@ -27,8 +27,6 @@ export async function GET(request: NextRequest) {
     const windowStart = new Date(targetTime.getTime() - 2.5 * 60 * 1000).toTimeString().slice(0, 8);
     const windowEnd = new Date(targetTime.getTime() + 2.5 * 60 * 1000).toTimeString().slice(0, 8);
 
-    console.log(`Checking for tasks due between ${windowStart} and ${windowEnd} on ${today}`);
-
     // Find high/urgent priority tasks due within the time window that are not completed
     const { data: tasks, error: tasksError } = await supabase
       .from('tasks')
@@ -61,8 +59,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'No tasks due soon', tasksFound: 0 });
     }
 
-    console.log(`Found ${tasks.length} tasks due soon`);
-
     // Check which tasks haven't had a reminder sent in the last 20 minutes
     const twentyMinsAgo = new Date(now.getTime() - 20 * 60 * 1000).toISOString();
 
@@ -87,7 +83,6 @@ export async function GET(request: NextRequest) {
     for (const task of tasks) {
       // Skip if reminder was already sent for this task
       if (remindedTitles.has(task.title)) {
-        console.log(`Skipping reminder for task "${task.title}" - already sent recently`);
         continue;
       }
 
@@ -104,7 +99,6 @@ export async function GET(request: NextRequest) {
       const recipients = await getTaskAssigneePhones(assignments);
 
       if (recipients.length === 0) {
-        console.log(`No recipients for task "${task.title}"`);
         continue;
       }
 
@@ -127,8 +121,6 @@ export async function GET(request: NextRequest) {
 
       sentCount += result.sent;
       failedCount += result.failed;
-
-      console.log(`Sent reminder for task "${task.title}": ${result.sent} sent, ${result.failed} failed`);
     }
 
     return NextResponse.json({

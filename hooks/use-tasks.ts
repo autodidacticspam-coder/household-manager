@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { TaskWithRelations } from '@/types';
+import type { TaskWithRelations, TaskVideo } from '@/types';
 import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance, skipTaskInstance, updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
@@ -112,7 +112,8 @@ export function useTasks(filters?: TaskFilters) {
             *,
             target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
             target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
-          )
+          ),
+          videos:task_videos(*)
         `)
         .order('created_at', { ascending: false });
 
@@ -212,7 +213,9 @@ export function useTask(id: string) {
             *,
             target_user:users!task_viewers_target_user_id_fkey(id, full_name, avatar_url),
             target_group:employee_groups!task_viewers_target_group_id_fkey(id, name)
-          )
+          ),
+          videos:task_videos(*)
+
         `)
         .eq('id', id)
         .single();
@@ -266,7 +269,8 @@ export function useMyTasks(userId?: string) {
             *,
             target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
             target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
-          )
+          ),
+          videos:task_videos(*)
         `)
         .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false });
@@ -612,6 +616,18 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
         targetGroup: targetGroupRaw,
       };
     }),
+    videos: ((row.videos as Array<{ id: string; task_id: string; url: string; title: string | null; video_type: 'upload' | 'link'; file_name: string | null; file_size: number | null; mime_type: string | null; created_at: string; created_by: string | null }>) || []).map(v => ({
+      id: v.id,
+      taskId: v.task_id,
+      url: v.url,
+      title: v.title,
+      videoType: v.video_type,
+      fileName: v.file_name,
+      fileSize: v.file_size,
+      mimeType: v.mime_type,
+      createdAt: v.created_at,
+      createdBy: v.created_by,
+    })),
   };
 }
 

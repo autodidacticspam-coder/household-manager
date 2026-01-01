@@ -128,7 +128,7 @@
     "syncCalendar": "Sincronizar con Google Calendar",
     "markComplete": "Marcar como Completada",
     "undoComplete": "Deshacer Completado",
-    "taskUncompleted": "Tarea desmarcada",
+    "taskUncompleted": "Tarea marcada como incompleta",
     "completed": "Completada",
     "pending": "Pendiente",
     "inProgress": "En Progreso",
@@ -170,7 +170,6 @@
     "taskUpdated": "Tarea actualizada exitosamente",
     "taskDeleted": "Tarea eliminada exitosamente",
     "taskCompleted": "Tarea marcada como completada",
-    "taskUncompleted": "Tarea marcada como incompleta",
     "deleteTask": "Eliminar Tarea",
     "deleteConfirmation": "¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.",
     "deleteRecurringConfirmation": "¿Estás seguro de que deseas eliminar \"{title}\"? Esta es una tarea recurrente.",
@@ -179,7 +178,25 @@
     "skipThisOccurrence": "Omitir Esta Ocurrencia",
     "deleteAllOccurrences": "Eliminar Todas las Ocurrencias",
     "instanceSkipped": "Esta ocurrencia ha sido omitida",
-    "taskMoved": "Tarea movida exitosamente"
+    "taskMoved": "Tarea movida exitosamente",
+    "videos": {
+      "title": "Videos",
+      "description": "Agrega videos instructivos o enlaces para ayudar con esta tarea",
+      "uploadVideo": "Subir Video",
+      "addLink": "Agregar Enlace",
+      "videoUrl": "URL del Video",
+      "videoUrlPlaceholder": "https://youtube.com/watch?v=...",
+      "videoTitle": "Título (opcional)",
+      "videoTitlePlaceholder": "Ingresa el título del video",
+      "uploading": "Subiendo...",
+      "uploadSuccess": "Video subido",
+      "linkAdded": "Enlace de video agregado",
+      "deleteConfirmation": "¿Eliminar este video?",
+      "noVideos": "No hay videos agregados",
+      "invalidUrl": "Por favor ingresa una URL válida",
+      "fileTooLarge": "El archivo de video es muy grande. Máximo 250 MB",
+      "invalidFormat": "Formato de video inválido. Permitidos: MP4, WebM, MOV, AVI, MKV"
+    }
   },
   "leave": {
     "title": "Gestión de Ausencias",

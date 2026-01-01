@@ -128,7 +128,7 @@
     "syncCalendar": "同步到谷歌日历",
     "markComplete": "标记完成",
     "undoComplete": "撤销完成",
-    "taskUncompleted": "任务已撤销完成",
+    "taskUncompleted": "任务已标记未完成",
     "completed": "已完成",
     "pending": "待处理",
     "inProgress": "进行中",
@@ -170,7 +170,6 @@
     "taskUpdated": "任务更新成功",
     "taskDeleted": "任务删除成功",
     "taskCompleted": "任务已标记完成",
-    "taskUncompleted": "任务已标记未完成",
     "deleteTask": "删除任务",
     "deleteConfirmation": "您确定要删除此任务吗？此操作无法撤销。",
     "deleteRecurringConfirmation": "您确定要删除「{title}」吗？这是一个重复任务。",
@@ -179,7 +178,25 @@
     "skipThisOccurrence": "跳过此次",
     "deleteAllOccurrences": "删除所有重复项",
     "instanceSkipped": "此次任务已跳过",
-    "taskMoved": "任务移动成功"
+    "taskMoved": "任务移动成功",
+    "videos": {
+      "title": "视频",
+      "description": "添加教学视频或链接来帮助完成此任务",
+      "uploadVideo": "上传视频",
+      "addLink": "添加链接",
+      "videoUrl": "视频链接",
+      "videoUrlPlaceholder": "https://youtube.com/watch?v=...",
+      "videoTitle": "标题（可选）",
+      "videoTitlePlaceholder": "输入视频标题",
+      "uploading": "上传中...",
+      "uploadSuccess": "视频上传成功",
+      "linkAdded": "视频链接已添加",
+      "deleteConfirmation": "删除此视频？",
+      "noVideos": "暂无视频",
+      "invalidUrl": "请输入有效的URL",
+      "fileTooLarge": "视频文件过大，最大250 MB",
+      "invalidFormat": "视频格式无效。允许：MP4、WebM、MOV、AVI、MKV"
+    }
   },
   "leave": {
     "title": "请假管理",

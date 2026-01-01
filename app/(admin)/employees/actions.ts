@@ -1,22 +1,11 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { createClient, getAdminClient, type ActionState } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-export type ActionState = {
-  error?: string;
-  success?: boolean;
-  data?: Record<string, unknown>;
-};
-
-function getAdminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
+// Re-exported from lib/supabase/server
+export type { ActionState };
 
 const createEmployeeSchema = z.object({
   email: z.string().email('Invalid email address'),

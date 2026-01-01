@@ -130,7 +130,6 @@ export async function sendTaskAssignedNotification(task: TaskInfo): Promise<void
   const recipients = await getTaskAssigneePhones(task.assignments);
 
   if (recipients.length === 0) {
-    console.log('No recipients with valid phone numbers for task:', task.id);
     return;
   }
 
@@ -157,8 +156,6 @@ export async function sendTaskAssignedNotification(task: TaskInfo): Promise<void
     message,
     'task_assigned'
   );
-
-  console.log(`Task notification sent: ${result.sent} sent, ${result.failed} failed`);
 }
 
 export async function sendTaskDueReminderNotification(task: TaskInfo): Promise<void> {
@@ -180,8 +177,6 @@ export async function sendTaskDueReminderNotification(task: TaskInfo): Promise<v
     message,
     'task_due_reminder'
   );
-
-  console.log(`Reminder sent: ${result.sent} sent, ${result.failed} failed`);
 }
 
 

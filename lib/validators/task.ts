@@ -37,6 +37,16 @@ export const taskViewerSchema = z.object({
   message: 'Target ID is required for user or group viewers',
 });
 
+// Video input schema
+export const videoInputSchema = z.object({
+  videoType: z.enum(['upload', 'link']),
+  url: z.string().url(),
+  title: z.string().optional(),
+  fileName: z.string().optional(),
+  fileSize: z.number().optional(),
+  mimeType: z.string().optional(),
+});
+
 export const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().max(5000).nullable().optional(),
@@ -53,6 +63,7 @@ export const createTaskSchema = z.object({
   syncToCalendar: z.boolean().optional(),
   assignments: z.array(taskAssignmentSchema).optional(),
   viewers: z.array(taskViewerSchema).optional(),
+  videos: z.array(videoInputSchema).optional(),
 });
 
 export const updateTaskSchema = createTaskSchema.partial().extend({
@@ -67,3 +78,4 @@ export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TaskAssignmentInput = z.infer<typeof taskAssignmentSchema>;
 export type TaskViewerInput = z.infer<typeof taskViewerSchema>;
+export type VideoInput = z.infer<typeof videoInputSchema>;

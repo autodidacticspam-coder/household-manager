@@ -1,22 +1,9 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { createClient, getAdminClient, type ActionState } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
-export type ActionState = {
-  error?: string;
-  success?: boolean;
-};
-
-// Admin client for bypassing RLS
-function getAdminClient() {
-  return createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 const importantDateSchema = z.object({
   label: z.string().min(1, 'Label is required').max(100),

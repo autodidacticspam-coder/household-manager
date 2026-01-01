@@ -10,11 +10,14 @@ import { TaskCard } from '@/components/shared/task-card';
 import { useMyTasks, useCompleteTask, useUpdateTaskStatus, useCompleteTaskInstance, useUncompleteTaskInstance } from '@/hooks/use-tasks';
 import { format } from 'date-fns';
 import { CheckSquare, Clock, Loader2 } from 'lucide-react';
+import { TaskDetailDialog } from '@/components/shared/task-detail-dialog';
+import type { TaskWithRelations } from '@/types';
 
 export default function MyTasksPage() {
   const t = useTranslations();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('pending');
+  const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
 
   const { data: tasks, isLoading } = useMyTasks(user?.id);
   const completeTask = useCompleteTask();
@@ -29,25 +32,19 @@ export default function MyTasksPage() {
   const completedTasks = tasks?.filter((task) => task.status === 'completed') || [];
 
   const handleComplete = async (id: string) => {
-    // Find the task to check if it's recurring
     const task = tasks?.find(t => t.id === id);
     if (task?.isRecurring) {
-      // For recurring tasks, complete just today's instance
       await completeTaskInstance.mutateAsync({ taskId: id, completionDate: today });
     } else {
-      // For regular tasks, mark the whole task as completed
       await completeTask.mutateAsync(id);
     }
   };
 
   const handleUndo = async (id: string) => {
-    // Find the task to check if it's recurring
     const task = tasks?.find(t => t.id === id);
     if (task?.isRecurring) {
-      // For recurring tasks, uncomplete today's instance
       await uncompleteTaskInstance.mutateAsync({ taskId: id, completionDate: today });
     } else {
-      // For regular tasks, reset the status
       await updateTaskStatus.mutateAsync({ id, status: 'pending' });
     }
   };
@@ -75,9 +72,7 @@ export default function MyTasksPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{t('tasks.myTasks')}</h1>
-        <p className="text-muted-foreground">
-          {t('descriptions.myTasks')}
-        </p>
+        <p className="text-muted-foreground">{t('descriptions.myTasks')}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -86,9 +81,7 @@ export default function MyTasksPage() {
           onClick={() => setActiveTab('pending')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('tasks.pending')}
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">{t('tasks.pending')}</CardTitle>
             <Clock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
@@ -103,9 +96,7 @@ export default function MyTasksPage() {
           onClick={() => setActiveTab('in_progress')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('tasks.inProgress')}
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">{t('tasks.inProgress')}</CardTitle>
             <Loader2 className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
@@ -120,9 +111,7 @@ export default function MyTasksPage() {
           onClick={() => setActiveTab('completed')}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('tasks.completed')}
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">{t('tasks.completed')}</CardTitle>
             <CheckSquare className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -159,6 +148,7 @@ export default function MyTasksPage() {
                 <TaskCard
                   key={task.id}
                   task={task}
+                  onClick={(t) => setSelectedTask(t)}
                   onComplete={handleComplete}
                   onUndo={handleUndo}
                   isEmployee
@@ -169,15 +159,24 @@ export default function MyTasksPage() {
             <Card>
               <CardContent className="py-8 text-center">
                 <p className="text-muted-foreground">
-                  {activeTab === 'pending'
-                    ? t('tasks.noPendingTasks')
-                    : t('tasks.noTasks')}
+                  {activeTab === 'pending' ? t('tasks.noPendingTasks') : t('tasks.noTasks')}
                 </p>
               </CardContent>
             </Card>
           )}
         </TabsContent>
       </Tabs>
+
+      <TaskDetailDialog
+        task={selectedTask}
+        open={!!selectedTask}
+        onOpenChange={(open) => !open && setSelectedTask(null)}
+        onComplete={(id) => {
+          handleComplete(id);
+          setSelectedTask(null);
+        }}
+        showActions={false}
+      />
     </div>
   );
 }

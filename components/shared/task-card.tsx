@@ -21,12 +21,13 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { formatTime12h } from '@/lib/format-time';
-import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, User, Repeat, FileText, Undo2, UserPlus, Loader2 } from 'lucide-react';
+import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, User, Repeat, FileText, Undo2, UserPlus, Loader2, Video, ExternalLink } from 'lucide-react';
 import { useEmployees, useQuickAssign } from '@/hooks/use-tasks';
 import type { TaskWithRelations } from '@/types';
 
 type TaskCardProps = {
   task: TaskWithRelations;
+  onClick?: (task: TaskWithRelations) => void;
   onComplete?: (id: string) => void;
   onUndo?: (id: string) => void;
   onEdit?: (id: string) => void;
@@ -56,6 +57,7 @@ const statusIcons = {
 
 export function TaskCard({
   task,
+  onClick,
   onComplete,
   onUndo,
   onEdit,
@@ -124,11 +126,24 @@ export function TaskCard({
 
   const assignees = getAllAssignees();
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on buttons or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a') || target.closest('[role="menuitem"]')) {
+      return;
+    }
+    onClick?.(task);
+  };
+
   return (
-    <Card className={cn(
-      'transition-shadow hover:shadow-md',
-      isOverdue && 'border-red-200 bg-red-50/30'
-    )}>
+    <Card 
+      className={cn(
+        'transition-shadow hover:shadow-md',
+        isOverdue && 'border-red-200 bg-red-50/30',
+        onClick && 'cursor-pointer'
+      )}
+      onClick={handleCardClick}
+    >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
@@ -317,6 +332,28 @@ export function TaskCard({
                   )}
                   <span className="text-muted-foreground">{assignee.name}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Videos section */}
+        {task.videos && task.videos.length > 0 && (
+          <div className="pt-2 border-t">
+            <p className="text-xs text-muted-foreground mb-2">Videos:</p>
+            <div className="flex flex-col gap-2">
+              {task.videos.map((video) => (
+                <a
+                  key={video.id}
+                  href={video.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  <Video className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{video.title || (video.videoType === 'upload' ? 'Uploaded video' : 'Video link')}</span>
+                  <ExternalLink className="h-3 w-3 flex-shrink-0" />
+                </a>
               ))}
             </div>
           </div>

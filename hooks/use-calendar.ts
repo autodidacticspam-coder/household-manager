@@ -1,15 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { parseLocalDate } from '@/lib/date-utils';
 import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
-import { addDays, addWeeks, addMonths, parseISO, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
+import { addDays, addWeeks, addMonths, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
 
-// Parse date string as local date (not UTC) to avoid timezone issues
-function parseLocalDate(dateStr: string): Date {
-  // Append T12:00:00 to parse as noon local time, avoiding day boundary issues
-  return parseISO(dateStr + 'T12:00:00');
-}
 
 export type CalendarFilters = {
   startDate: string;
