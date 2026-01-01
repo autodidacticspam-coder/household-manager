@@ -68,7 +68,7 @@ export async function createClient() {
               name,
               value,
               ...options,
-              // Ensure proper cookie settings for mobile browsers
+              path: '/',
               sameSite: 'lax',
               secure: process.env.NODE_ENV === 'production',
               maxAge: options?.maxAge || 60 * 60 * 24 * 7, // 7 days default
@@ -83,6 +83,7 @@ export async function createClient() {
               name,
               value: '',
               ...options,
+              path: '/',
               sameSite: 'lax',
               secure: process.env.NODE_ENV === 'production',
               maxAge: 0,

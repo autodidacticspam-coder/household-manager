@@ -1,20 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-
-// Admin client for managing users
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-}
+import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -24,30 +9,14 @@ export async function DELETE(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    // Check if current user is admin
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (currentUser?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const { user } = await requireApiAdminRole();
 
     // Prevent deleting yourself
     if (user.id === id) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 });
     }
 
-    const adminClient = getAdminClient();
+    const adminClient = getApiAdminClient();
 
     // Delete user data in correct order (due to foreign keys)
     // 1. Delete group memberships
@@ -112,9 +81,9 @@ export async function DELETE(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Delete employee error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }
 
@@ -122,28 +91,12 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
 
-    // Check if current user is admin
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (currentUser?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await requireApiAdminRole();
 
     const body = await request.json();
     const { fullName, phone, role, groupIds, dateOfBirth, hireDate, emergencyContact, notes, importantDates } = body;
 
-    const adminClient = getAdminClient();
+    const adminClient = getApiAdminClient();
 
     // Update user record
     const updateData: Record<string, unknown> = {};
@@ -225,8 +178,8 @@ export async function PUT(request: Request, context: RouteContext) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Update employee error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }

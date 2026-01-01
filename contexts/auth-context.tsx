@@ -148,10 +148,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
+    // Proactive session refresh every 10 minutes to prevent unexpected logouts
+    const refreshInterval = setInterval(() => {
+      refreshSession();
+    }, 10 * 60 * 1000); // 10 minutes
+
     return () => {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+      clearInterval(refreshInterval);
     };
   }, [supabase, fetchUserData, refreshSession]);
 

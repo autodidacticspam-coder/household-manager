@@ -80,6 +80,26 @@ export function TaskDetailDialog({
     const thumbnail = getVideoThumbnail(video.url, video.videoType);
     const platform = video.videoType === 'link' ? getVideoPlatform(video.url) : null;
 
+    // For uploaded videos, show an embedded video player
+    if (video.videoType === 'upload') {
+      return (
+        <div key={video.id} className="space-y-2">
+          <p className="text-sm font-medium">
+            {video.title || 'Uploaded video'}
+          </p>
+          <video
+            controls
+            preload="metadata"
+            className="w-full max-h-[400px] rounded-lg bg-black"
+          >
+            <source src={video.url} />
+            Your browser does not support video playback.
+          </video>
+        </div>
+      );
+    }
+
+    // For linked videos (YouTube, Vimeo, etc.), open in new tab
     return (
       <a
         key={video.id}
@@ -95,15 +115,13 @@ export function TaskDetailDialog({
               alt={video.title || 'Video thumbnail'}
               className="w-full h-full object-cover"
             />
-          ) : video.videoType === 'upload' ? (
-            <Video className="h-6 w-6 text-muted-foreground" />
           ) : (
             <Play className="h-6 w-6 text-muted-foreground" />
           )}
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate group-hover:text-blue-600">
-            {video.title || (video.videoType === 'upload' ? 'Uploaded video' : 'Video link')}
+            {video.title || 'Video link'}
           </p>
           {platform && (
             <p className="text-xs text-muted-foreground capitalize">

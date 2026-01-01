@@ -1,40 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-
-// Admin client for creating users
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-}
+import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 
 export async function POST(request: Request) {
   try {
-    // Check if current user is admin
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: currentUser } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (currentUser?.role !== 'admin') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    await requireApiAdminRole();
 
     const body = await request.json();
     const { email, fullName, password, phone, groupIds, dateOfBirth, hireDate } = body;
@@ -46,7 +15,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const adminClient = getAdminClient();
+    const adminClient = getApiAdminClient();
 
     // Create auth user
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
@@ -113,8 +82,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, userId });
-  } catch (error) {
-    console.error('Create employee error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }

@@ -4,9 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { TaskVideo, TaskVideoType } from '@/types/task';
-import { getVideoUploadUrl } from '@/app/(admin)/tasks/video-actions';
 
-const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250 MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
 const ALLOWED_VIDEO_TYPES = [
   'video/mp4',
   'video/webm',
@@ -97,11 +96,23 @@ export function useUploadTaskVideo() {
 
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error('Video file is too large. Maximum size is 250 MB');
+        const sizeGB = (file.size / 1024 / 1024 / 1024).toFixed(1);
+        throw new Error(`Video file is too large (${sizeGB} GB). Maximum size is 5 GB`);
       }
 
-      // Get signed upload URL from server action
-      const urlResult = await getVideoUploadUrl(file.name, file.type);
+      // Get signed upload URL from API route
+      const response = await fetch('/api/video-upload-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type,
+        }),
+      });
+
+      const urlResult = await response.json();
 
       if (!urlResult.success || !urlResult.data) {
         throw new Error(urlResult.error || 'Failed to get upload URL');
@@ -121,7 +132,7 @@ export function useUploadTaskVideo() {
       }
 
       return {
-        videoType: 'upload',
+        videoType: 'upload' as const,
         url: urlResult.data.publicUrl,
         title: file.name.replace(/\.[^/.]+$/, ''),
         fileName: file.name,

@@ -1,20 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import { createClient as createServerClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-
-// Admin client for bypassing RLS and generating login links
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    }
-  );
-}
+import { getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 
 export async function POST(request: Request) {
   try {
@@ -24,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    const adminClient = getAdminClient();
+    const adminClient = getApiAdminClient();
 
     // Check if user exists and is an employee
     const { data: userData, error: userError } = await adminClient
@@ -74,8 +59,8 @@ export async function POST(request: Request) {
       redirectTo: '/my-tasks'
     });
 
-  } catch (error) {
-    console.error('Employee login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (err) {
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }

@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
             // Ensure proper cookie settings for mobile browsers
             supabaseResponse.cookies.set(name, value, {
               ...options,
-              // These settings help prevent mobile browsers from dropping cookies
+              path: '/',
               sameSite: 'lax',
               secure: process.env.NODE_ENV === 'production',
               // Extend max age to 7 days for better mobile persistence

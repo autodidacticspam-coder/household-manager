@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { TaskWithRelations, TaskVideo } from '@/types';
-import { createTask, updateTask, deleteTask, completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance, skipTaskInstance, updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
+import { completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance, updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
@@ -393,8 +393,18 @@ export function useCreateTask() {
 
   return useMutation({
     mutationFn: async (input: CreateTaskInput) => {
-      const result = await createTask(input);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to create task');
+      }
       return result;
     },
     onSuccess: () => {
@@ -413,8 +423,18 @@ export function useUpdateTask() {
 
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateTaskInput }) => {
-      const result = await updateTask(id, data);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update task');
+      }
       return result;
     },
     onSuccess: () => {
@@ -433,8 +453,14 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const result = await deleteTask(id);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to delete task');
+      }
       return result;
     },
     onSuccess: () => {
@@ -616,18 +642,24 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
         targetGroup: targetGroupRaw,
       };
     }),
-    videos: ((row.videos as Array<{ id: string; task_id: string; url: string; title: string | null; video_type: 'upload' | 'link'; file_name: string | null; file_size: number | null; mime_type: string | null; created_at: string; created_by: string | null }>) || []).map(v => ({
-      id: v.id,
-      taskId: v.task_id,
-      url: v.url,
-      title: v.title,
-      videoType: v.video_type,
-      fileName: v.file_name,
-      fileSize: v.file_size,
-      mimeType: v.mime_type,
-      createdAt: v.created_at,
-      createdBy: v.created_by,
-    })),
+    videos: (() => {
+      const rawVideos = row.videos as Array<{ id: string; task_id: string; url: string; title: string | null; video_type: 'upload' | 'link'; file_name: string | null; file_size: number | null; mime_type: string | null; created_at: string; created_by: string | null }> | null;
+      if (rawVideos && rawVideos.length > 0) {
+        console.log('Task videos found:', row.id, rawVideos);
+      }
+      return (rawVideos || []).map(v => ({
+        id: v.id,
+        taskId: v.task_id,
+        url: v.url,
+        title: v.title,
+        videoType: v.video_type,
+        fileName: v.file_name,
+        fileSize: v.file_size,
+        mimeType: v.mime_type,
+        createdAt: v.created_at,
+        createdBy: v.created_by,
+      }));
+    })(),
   };
 }
 
@@ -727,8 +759,16 @@ export function useSkipTaskInstance() {
 
   return useMutation({
     mutationFn: async ({ taskId, skipDate }: { taskId: string; skipDate: string }) => {
-      const result = await skipTaskInstance(taskId, skipDate);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${taskId}/skip`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipDate }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to skip task instance');
+      }
       return result;
     },
     onSuccess: () => {
