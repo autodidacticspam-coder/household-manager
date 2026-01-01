@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import type { TaskVideo, TaskVideoType } from '@/types/task';
 import { uploadTaskVideo } from '@/app/(admin)/tasks/video-actions';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB (Supabase free tier limit)
+const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250 MB (Supabase free tier limit)
 const ALLOWED_VIDEO_TYPES = [
   'video/mp4',
   'video/webm',
@@ -98,7 +98,7 @@ export function useUploadTaskVideo() {
 
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error('Video file is too large. Maximum size is 50 MB');
+        throw new Error('Video file is too large. Maximum size is 250 MB');
       }
 
       // Use server action to upload (bypasses storage RLS)

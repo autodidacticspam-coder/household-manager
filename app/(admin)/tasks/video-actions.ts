@@ -2,7 +2,7 @@
 
 import { getAdminClient } from '@/lib/supabase/server';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB (Supabase free tier limit)
+const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250 MB (Supabase free tier limit)
 const ALLOWED_VIDEO_TYPES = [
   'video/mp4',
   'video/webm',
@@ -36,7 +36,7 @@ export async function uploadTaskVideo(formData: FormData): Promise<UploadVideoRe
 
   // Validate file size
   if (file.size > MAX_FILE_SIZE) {
-    return { success: false, error: 'Video file is too large. Maximum size is 50 MB' };
+    return { success: false, error: 'Video file is too large. Maximum size is 250 MB' };
   }
 
   const supabaseAdmin = getAdminClient();
