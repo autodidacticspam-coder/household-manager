@@ -865,16 +865,23 @@ export default function UnifiedLogPage() {
                     <div className="space-y-2 pt-2 border-t">
                       <p className="text-xs text-muted-foreground">{t('childLogs.menuSuggestions')}</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {suggestions.map((item, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => addMenuItemToDescription(item)}
-                            className="px-2 py-1 text-xs rounded-md bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors"
-                          >
-                            {item}
-                          </button>
-                        ))}
+                        {suggestions.map((item, idx) => {
+                          const isSelected = description.toLowerCase().includes(item.toLowerCase());
+                          return (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => addMenuItemToDescription(item)}
+                              className={`px-2 py-1 text-xs rounded-md transition-colors ${
+                                isSelected
+                                  ? 'bg-orange-500 text-white ring-2 ring-orange-300 ring-offset-1'
+                                  : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                              }`}
+                            >
+                              {item}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   );
