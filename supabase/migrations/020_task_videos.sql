@@ -74,3 +74,22 @@ CREATE POLICY "Employees can view task videos"
 
 -- Create storage bucket for task videos (run this in Supabase dashboard or via API)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('task-videos', 'task-videos', true);
+
+-- Storage policies for task-videos bucket
+-- Allow authenticated users to upload
+CREATE POLICY "Authenticated users can upload videos"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = 'task-videos');
+
+-- Allow public read access (bucket is public)
+CREATE POLICY "Public can view videos"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = 'task-videos');
+
+-- Allow authenticated users to delete their uploads
+CREATE POLICY "Authenticated users can delete videos"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = 'task-videos');
