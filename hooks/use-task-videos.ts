@@ -4,8 +4,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { TaskVideo, TaskVideoType } from '@/types/task';
+import { uploadTaskVideo } from '@/app/(admin)/tasks/video-actions';
 
-const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250 MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB (Supabase free tier limit)
 const ALLOWED_VIDEO_TYPES = [
   'video/mp4',
   'video/webm',
@@ -86,10 +87,8 @@ export type VideoInput = {
   mimeType?: string;
 };
 
-// Upload a video file to Supabase Storage
+// Upload a video file via server action (bypasses RLS)
 export function useUploadTaskVideo() {
-  const supabase = createClient();
-
   return useMutation({
     mutationFn: async (file: File): Promise<VideoInput> => {
       // Validate file type
@@ -99,37 +98,26 @@ export function useUploadTaskVideo() {
 
       // Validate file size
       if (file.size > MAX_FILE_SIZE) {
-        throw new Error('Video file is too large. Maximum size is 250 MB');
+        throw new Error('Video file is too large. Maximum size is 50 MB');
       }
 
-      // Create a unique filename
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      // Use server action to upload (bypasses storage RLS)
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('task-videos')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
+      const result = await uploadTaskVideo(formData);
 
-      if (uploadError) {
-        throw uploadError;
+      if (!result.success || !result.data) {
+        throw new Error(result.error || 'Failed to upload video');
       }
-
-      // Get the public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('task-videos')
-        .getPublicUrl(fileName);
 
       return {
         videoType: 'upload',
-        url: publicUrl,
+        url: result.data.url,
         title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for title
-        fileName: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
+        fileName: result.data.fileName,
+        fileSize: result.data.fileSize,
+        mimeType: result.data.mimeType,
       };
     },
     onError: (error: Error) => {
