@@ -4,9 +4,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import type { TaskVideo, TaskVideoType } from '@/types/task';
-import { uploadTaskVideo } from '@/app/(admin)/tasks/video-actions';
+import { getVideoUploadUrl } from '@/app/(admin)/tasks/video-actions';
 
-const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250 MB (Supabase free tier limit)
+const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250 MB
 const ALLOWED_VIDEO_TYPES = [
   'video/mp4',
   'video/webm',
@@ -61,7 +61,7 @@ export function getVimeoVideoId(url: string): string | null {
 // Get thumbnail URL for video
 export function getVideoThumbnail(url: string, videoType: TaskVideoType): string | null {
   if (videoType === 'upload') {
-    return null; // Uploaded videos don't have thumbnails
+    return null;
   }
 
   const platform = getVideoPlatform(url);
@@ -72,7 +72,6 @@ export function getVideoThumbnail(url: string, videoType: TaskVideoType): string
     }
   }
   if (platform === 'vimeo') {
-    // Vimeo requires API call for thumbnail, return null for now
     return null;
   }
   return null;
@@ -87,7 +86,7 @@ export type VideoInput = {
   mimeType?: string;
 };
 
-// Upload a video file via server action (bypasses RLS)
+// Upload a video file using signed URL (bypasses RLS)
 export function useUploadTaskVideo() {
   return useMutation({
     mutationFn: async (file: File): Promise<VideoInput> => {
@@ -101,23 +100,33 @@ export function useUploadTaskVideo() {
         throw new Error('Video file is too large. Maximum size is 250 MB');
       }
 
-      // Use server action to upload (bypasses storage RLS)
-      const formData = new FormData();
-      formData.append('file', file);
+      // Get signed upload URL from server action
+      const urlResult = await getVideoUploadUrl(file.name, file.type);
 
-      const result = await uploadTaskVideo(formData);
+      if (!urlResult.success || !urlResult.data) {
+        throw new Error(urlResult.error || 'Failed to get upload URL');
+      }
 
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to upload video');
+      // Upload directly to Supabase using signed URL
+      const uploadResponse = await fetch(urlResult.data.signedUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type,
+        },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload video');
       }
 
       return {
         videoType: 'upload',
-        url: result.data.url,
-        title: file.name.replace(/\.[^/.]+$/, ''), // Remove extension for title
-        fileName: result.data.fileName,
-        fileSize: result.data.fileSize,
-        mimeType: result.data.mimeType,
+        url: urlResult.data.publicUrl,
+        title: file.name.replace(/\.[^/.]+$/, ''),
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
       };
     },
     onError: (error: Error) => {
@@ -130,7 +139,6 @@ export function useUploadTaskVideo() {
 export function useAddVideoLink() {
   return useMutation({
     mutationFn: async ({ url, title }: { url: string; title?: string }): Promise<VideoInput> => {
-      // Validate URL
       try {
         new URL(url);
       } catch {
@@ -156,7 +164,6 @@ export function useDeleteTaskVideo() {
 
   return useMutation({
     mutationFn: async ({ id, url, videoType }: { id: string; url: string; videoType: TaskVideoType }) => {
-      // If it's an uploaded video, delete from storage
       if (videoType === 'upload') {
         try {
           const urlObj = new URL(url);
@@ -171,7 +178,6 @@ export function useDeleteTaskVideo() {
         }
       }
 
-      // Delete from database
       const { error } = await supabase
         .from('task_videos')
         .delete()
