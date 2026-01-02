@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { TaskWithRelations, TaskVideo } from '@/types';
-import { completeTask, updateTaskStatus, completeTaskInstance, uncompleteTaskInstance, updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
+import { updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
@@ -479,8 +479,13 @@ export function useCompleteTask() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const result = await completeTask(id);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${id}/complete`, {
+        method: 'POST',
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to complete task');
+      }
       return result;
     },
     onSuccess: () => {
@@ -499,8 +504,15 @@ export function useUpdateTaskStatus() {
 
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'pending' | 'in_progress' | 'completed' }) => {
-      const result = await updateTaskStatus(id, status);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update task status');
+      }
       return result;
     },
     onSuccess: () => {
@@ -713,8 +725,15 @@ export function useCompleteTaskInstance() {
 
   return useMutation({
     mutationFn: async ({ taskId, completionDate }: { taskId: string; completionDate: string }) => {
-      const result = await completeTaskInstance(taskId, completionDate);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${taskId}/complete-instance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completionDate }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to complete task instance');
+      }
       return result;
     },
     onSuccess: () => {
@@ -736,8 +755,13 @@ export function useUncompleteTaskInstance() {
 
   return useMutation({
     mutationFn: async ({ taskId, completionDate }: { taskId: string; completionDate: string }) => {
-      const result = await uncompleteTaskInstance(taskId, completionDate);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${taskId}/complete-instance?completionDate=${completionDate}`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to uncomplete task instance');
+      }
       return result;
     },
     onSuccess: () => {
