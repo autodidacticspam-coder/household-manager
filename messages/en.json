@@ -476,7 +476,13 @@
     "taskDueReminder": "Reminder: {title} is due {time}",
     "leaveRequestSubmitted": "{name} requested {type} from {start} to {end}",
     "leaveApproved": "Your {type} request has been approved",
-    "leaveDenied": "Your {type} request has been denied"
+    "leaveDenied": "Your {type} request has been denied",
+    "enableTitle": "Enable Push Notifications",
+    "enableDescription": "Get notified about task reminders, updates, and important events.",
+    "enableButton": "Enable Notifications",
+    "enabled": "Notifications enabled",
+    "denied": "Notifications disabled",
+    "notSupported": "Push notifications not available"
   },
   "errors": {
     "general": "Something went wrong. Please try again.",

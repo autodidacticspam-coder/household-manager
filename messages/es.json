@@ -476,7 +476,13 @@
     "taskDueReminder": "Recordatorio: {title} vence {time}",
     "leaveRequestSubmitted": "{name} solicitó {type} del {start} al {end}",
     "leaveApproved": "Tu solicitud de {type} ha sido aprobada",
-    "leaveDenied": "Tu solicitud de {type} ha sido denegada"
+    "leaveDenied": "Tu solicitud de {type} ha sido denegada",
+    "enableTitle": "Habilitar Notificaciones Push",
+    "enableDescription": "Recibe notificaciones sobre recordatorios de tareas, actualizaciones y eventos importantes.",
+    "enableButton": "Habilitar Notificaciones",
+    "enabled": "Notificaciones habilitadas",
+    "denied": "Notificaciones deshabilitadas",
+    "notSupported": "Notificaciones push no disponibles"
   },
   "errors": {
     "general": "Algo salió mal. Por favor, inténtalo de nuevo.",

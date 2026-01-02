@@ -476,7 +476,13 @@
     "taskDueReminder": "提醒：{title} 将于 {time} 到期",
     "leaveRequestSubmitted": "{name} 申请 {type}，从 {start} 到 {end}",
     "leaveApproved": "您的 {type} 申请已批准",
-    "leaveDenied": "您的 {type} 申请已拒绝"
+    "leaveDenied": "您的 {type} 申请已拒绝",
+    "enableTitle": "启用推送通知",
+    "enableDescription": "接收任务提醒、更新和重要事件的通知。",
+    "enableButton": "启用通知",
+    "enabled": "通知已启用",
+    "denied": "通知已禁用",
+    "notSupported": "推送通知不可用"
   },
   "errors": {
     "general": "出错了，请重试。",
