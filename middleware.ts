@@ -37,9 +37,14 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (error) {
+    // Auth might fail during certain server operations (e.g., revalidation)
+    console.warn('Middleware auth check failed:', error);
+  }
 
   const pathname = request.nextUrl.pathname;
 
