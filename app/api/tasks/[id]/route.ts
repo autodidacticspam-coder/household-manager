@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
 import { updateTaskSchema, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
@@ -27,9 +26,6 @@ export async function DELETE(
         { status: 500 }
       );
     }
-
-    revalidatePath('/tasks');
-    revalidatePath('/dashboard');
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -203,10 +199,6 @@ export async function PUT(
         }
       }
     }
-
-    revalidatePath('/tasks');
-    revalidatePath(`/tasks/${taskId}`);
-    revalidatePath('/dashboard');
 
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 
 // POST handler for skipping a task instance
@@ -39,10 +38,6 @@ export async function POST(
         { status: 500 }
       );
     }
-
-    revalidatePath('/tasks');
-    revalidatePath('/dashboard');
-    revalidatePath('/calendar');
 
     return NextResponse.json({ success: true });
   } catch (err) {

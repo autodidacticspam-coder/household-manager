@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
 import { createTaskSchema, type CreateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { sendTaskAssignedNotification } from '@/lib/notifications/task-notifications';
@@ -159,9 +158,6 @@ export async function POST(request: NextRequest) {
         console.error('Video creation error:', videoError);
       }
     }
-
-    revalidatePath('/tasks');
-    revalidatePath('/dashboard');
 
     return NextResponse.json({ success: true, data: { id: task.id } });
   } catch (err) {
