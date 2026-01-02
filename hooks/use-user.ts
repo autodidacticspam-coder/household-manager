@@ -22,15 +22,20 @@ export function useUser() {
     mutationFn: async (data: UpdateUserData) => {
       if (!user) throw new Error('Not authenticated');
 
+      // Only include fields that are actually provided (not undefined)
+      const updateData: Record<string, unknown> = {};
+      if (data.fullName !== undefined) updateData.full_name = data.fullName;
+      if (data.phone !== undefined) updateData.phone = data.phone;
+      if (data.avatarUrl !== undefined) updateData.avatar_url = data.avatarUrl;
+      if (data.smsNotificationsEnabled !== undefined) updateData.sms_notifications_enabled = data.smsNotificationsEnabled;
+      if (data.preferredLocale !== undefined) updateData.preferred_locale = data.preferredLocale;
+
+      // Don't make a request if there's nothing to update
+      if (Object.keys(updateData).length === 0) return;
+
       const { error } = await supabase
         .from('users')
-        .update({
-          full_name: data.fullName,
-          phone: data.phone,
-          avatar_url: data.avatarUrl,
-          sms_notifications_enabled: data.smsNotificationsEnabled,
-          preferred_locale: data.preferredLocale,
-        })
+        .update(updateData)
         .eq('id', user.id);
 
       if (error) throw error;
