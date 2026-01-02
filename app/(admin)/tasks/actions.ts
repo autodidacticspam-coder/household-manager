@@ -1,10 +1,12 @@
 'use server';
 
 import { createClient, getAdminClient, type ActionState } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
 
 // Re-exported from lib/supabase/server
 export type { ActionState };
+
+// Note: We don't use revalidatePath here because React Query handles cache invalidation
+// on the client side. Using revalidatePath was causing server component render errors.
 
 // Note: createTask, updateTask, deleteTask, and skipTaskInstance have been migrated to API routes.
 // See: /api/tasks/route.ts, /api/tasks/[id]/route.ts, and /api/tasks/[id]/skip/route.ts
@@ -31,10 +33,6 @@ export async function completeTask(taskId: string): Promise<ActionState> {
     console.error('Task completion error:', error);
     return { error: 'Failed to complete task' };
   }
-
-  revalidatePath('/tasks');
-  revalidatePath('/my-tasks');
-  revalidatePath('/dashboard');
 
   return { success: true };
 }
@@ -68,10 +66,6 @@ export async function updateTaskStatus(taskId: string, status: 'pending' | 'in_p
     return { error: 'Failed to update task status' };
   }
 
-  revalidatePath('/tasks');
-  revalidatePath('/my-tasks');
-  revalidatePath('/dashboard');
-
   return { success: true };
 }
 
@@ -102,10 +96,6 @@ export async function completeTaskInstance(taskId: string, completionDate: strin
     return { error: 'Failed to complete task instance' };
   }
 
-  revalidatePath('/tasks');
-  revalidatePath('/my-tasks');
-  revalidatePath('/dashboard');
-
   return { success: true };
 }
 
@@ -129,10 +119,6 @@ export async function uncompleteTaskInstance(taskId: string, completionDate: str
     console.error('Task instance uncomplete error:', error);
     return { error: 'Failed to uncomplete task instance' };
   }
-
-  revalidatePath('/tasks');
-  revalidatePath('/my-tasks');
-  revalidatePath('/dashboard');
 
   return { success: true };
 }
@@ -186,9 +172,6 @@ export async function updateTaskDateTime(
     return { error: 'Failed to update task date/time' };
   }
 
-  revalidatePath('/tasks');
-  revalidatePath('/dashboard');
-
   return { success: true };
 }
 
@@ -237,9 +220,6 @@ export async function overrideTaskInstanceTime(
     console.error('Task instance override error:', error);
     return { error: 'Failed to override task instance time' };
   }
-
-  revalidatePath('/tasks');
-  revalidatePath('/dashboard');
 
   return { success: true };
 }
