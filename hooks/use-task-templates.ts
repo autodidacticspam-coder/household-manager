@@ -2,9 +2,18 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { TaskTemplate, TemplateAssignment, TaskCategory } from '@/types';
+import type { TaskTemplate, TemplateAssignment, TemplateVideo, TaskVideoType } from '@/types';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+
+export type VideoInput = {
+  videoType: TaskVideoType;
+  url: string;
+  title?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+};
 
 type CreateTemplateInput = {
   name: string;
@@ -20,10 +29,27 @@ type CreateTemplateInput = {
   isRecurring?: boolean;
   recurrenceRule?: string | null;
   defaultAssignments?: TemplateAssignment[];
+  videos?: VideoInput[];
 };
+
+function transformTemplateVideo(row: Record<string, unknown>): TemplateVideo {
+  return {
+    id: row.id as string,
+    templateId: row.template_id as string,
+    videoType: row.video_type as TaskVideoType,
+    url: row.url as string,
+    title: row.title as string | null,
+    fileName: row.file_name as string | null,
+    fileSize: row.file_size as number | null,
+    mimeType: row.mime_type as string | null,
+    createdAt: row.created_at as string,
+    createdBy: row.created_by as string | null,
+  };
+}
 
 function transformTemplate(row: Record<string, unknown>): TaskTemplate {
   const category = row.category as { id: string; name: string; color: string; icon: string | null } | null;
+  const videosRaw = row.videos as Record<string, unknown>[] | null;
 
   return {
     id: row.id as string,
@@ -49,6 +75,7 @@ function transformTemplate(row: Record<string, unknown>): TaskTemplate {
       color: category.color,
       icon: category.icon,
     } : null,
+    videos: videosRaw ? videosRaw.map(transformTemplateVideo) : [],
   };
 }
 
@@ -62,7 +89,8 @@ export function useTaskTemplates() {
         .from('task_templates')
         .select(`
           *,
-          category:task_categories(id, name, color, icon)
+          category:task_categories(id, name, color, icon),
+          videos:template_videos(*)
         `)
         .order('name', { ascending: true });
 
@@ -82,7 +110,8 @@ export function useTaskTemplate(id: string) {
         .from('task_templates')
         .select(`
           *,
-          category:task_categories(id, name, color, icon)
+          category:task_categories(id, name, color, icon),
+          videos:template_videos(*)
         `)
         .eq('id', id)
         .single();
@@ -126,6 +155,29 @@ export function useCreateTaskTemplate() {
         .single();
 
       if (error) throw error;
+
+      // Insert videos if provided
+      if (input.videos && input.videos.length > 0) {
+        const videoInserts = input.videos.map(video => ({
+          template_id: data.id,
+          video_type: video.videoType,
+          url: video.url,
+          title: video.title || null,
+          file_name: video.fileName || null,
+          file_size: video.fileSize || null,
+          mime_type: video.mimeType || null,
+          created_by: user.id,
+        }));
+
+        const { error: videoError } = await supabase
+          .from('template_videos')
+          .insert(videoInserts);
+
+        if (videoError) {
+          console.error('Error inserting template videos:', videoError);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -145,6 +197,9 @@ export function useUpdateTaskTemplate() {
 
   return useMutation({
     mutationFn: async ({ id, ...input }: CreateTemplateInput & { id: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const { data, error } = await supabase
         .from('task_templates')
         .update({
@@ -167,6 +222,29 @@ export function useUpdateTaskTemplate() {
         .single();
 
       if (error) throw error;
+
+      // Insert new videos if provided
+      if (input.videos && input.videos.length > 0) {
+        const videoInserts = input.videos.map(video => ({
+          template_id: id,
+          video_type: video.videoType,
+          url: video.url,
+          title: video.title || null,
+          file_name: video.fileName || null,
+          file_size: video.fileSize || null,
+          mime_type: video.mimeType || null,
+          created_by: user.id,
+        }));
+
+        const { error: videoError } = await supabase
+          .from('template_videos')
+          .insert(videoInserts);
+
+        if (videoError) {
+          console.error('Error inserting template videos:', videoError);
+        }
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -196,6 +274,45 @@ export function useDeleteTaskTemplate() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-templates'] });
       toast.success(t('templates.deleted'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+export function useDeleteTemplateVideo() {
+  const queryClient = useQueryClient();
+  const supabase = createClient();
+
+  return useMutation({
+    mutationFn: async ({ id, url, videoType }: { id: string; url: string; videoType: 'upload' | 'link' }) => {
+      // Delete from storage if it's an uploaded video
+      if (videoType === 'upload') {
+        try {
+          const urlObj = new URL(url);
+          if (urlObj.pathname.includes('/task-videos/')) {
+            const path = urlObj.pathname.split('/task-videos/')[1];
+            if (path) {
+              await supabase.storage.from('task-videos').remove([path]);
+            }
+          }
+        } catch (e) {
+          console.error('Error deleting video from storage:', e);
+        }
+      }
+
+      // Delete from database
+      const { error } = await supabase
+        .from('template_videos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['task-templates'] });
+      toast.success('Video removed');
     },
     onError: (error: Error) => {
       toast.error(error.message);

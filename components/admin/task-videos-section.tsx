@@ -18,11 +18,19 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Video, Link, Upload, X, Loader2, ExternalLink, Play } from 'lucide-react';
 import { useUploadTaskVideo, useAddVideoLink, getVideoThumbnail, getVideoPlatform, type VideoInput } from '@/hooks/use-task-videos';
-import type { TaskVideo } from '@/types/task';
+import type { TaskVideoType } from '@/types/task';
 import { toast } from 'sonner';
 
+// Common video interface that works for both TaskVideo and TemplateVideo
+type VideoItem = {
+  id: string;
+  videoType: TaskVideoType;
+  url: string;
+  title: string | null;
+};
+
 type TaskVideosSectionProps = {
-  existingVideos?: TaskVideo[];
+  existingVideos?: VideoItem[];
   pendingVideos: VideoInput[];
   onAddVideo: (video: VideoInput) => void;
   onRemoveVideo: (index: number) => void;

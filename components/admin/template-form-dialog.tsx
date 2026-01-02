@@ -24,9 +24,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Loader2, X } from 'lucide-react';
 import { useTaskCategories, useEmployees, useEmployeeGroups } from '@/hooks/use-tasks';
-import { useCreateTaskTemplate, useUpdateTaskTemplate } from '@/hooks/use-task-templates';
-import type { TaskTemplate, TemplateAssignment, AssignmentTargetType } from '@/types';
+import { useCreateTaskTemplate, useUpdateTaskTemplate, useDeleteTemplateVideo, type VideoInput } from '@/hooks/use-task-templates';
+import type { TaskTemplate, TemplateAssignment, TemplateVideo, AssignmentTargetType } from '@/types';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
+import { TaskVideosSection } from './task-videos-section';
 
 type TemplateFormDialogProps = {
   open: boolean;
@@ -41,6 +42,7 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
   const { data: groups } = useEmployeeGroups();
   const createTemplate = useCreateTaskTemplate();
   const updateTemplate = useUpdateTaskTemplate();
+  const deleteVideo = useDeleteTemplateVideo();
 
   const [name, setName] = useState('');
   const [title, setTitle] = useState('');
@@ -55,6 +57,8 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
   const [assignments, setAssignments] = useState<TemplateAssignment[]>([]);
   const [assignType, setAssignType] = useState<AssignmentTargetType>('user');
   const [assignTarget, setAssignTarget] = useState<string>('');
+  const [pendingVideos, setPendingVideos] = useState<VideoInput[]>([]);
+  const [existingVideos, setExistingVideos] = useState<TemplateVideo[]>([]);
 
   useEffect(() => {
     if (template) {
@@ -74,6 +78,8 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
       setIsRecurring(template.isRecurring);
       setRecurrencePreset(template.recurrenceRule || 'daily');
       setAssignments(template.defaultAssignments);
+      setExistingVideos(template.videos || []);
+      setPendingVideos([]);
     } else {
       resetForm();
     }
@@ -93,6 +99,8 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
     setAssignments([]);
     setAssignType('user');
     setAssignTarget('');
+    setPendingVideos([]);
+    setExistingVideos([]);
   };
 
   const handleAddAssignment = () => {
@@ -137,6 +145,26 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
     return 'Unknown';
   };
 
+  const handleAddVideo = (video: VideoInput) => {
+    setPendingVideos([...pendingVideos, video]);
+  };
+
+  const handleRemovePendingVideo = (index: number) => {
+    setPendingVideos(pendingVideos.filter((_, i) => i !== index));
+  };
+
+  const handleRemoveExistingVideo = async (videoId: string) => {
+    const video = existingVideos.find(v => v.id === videoId);
+    if (video) {
+      await deleteVideo.mutateAsync({
+        id: video.id,
+        url: video.url,
+        videoType: video.videoType,
+      });
+      setExistingVideos(existingVideos.filter(v => v.id !== videoId));
+    }
+  };
+
   const handleSubmit = async () => {
     const time24 = defaultTime && !isAllDay ? formatTime24h(`${defaultTime} ${defaultTimeAmPm}`) : null;
 
@@ -154,6 +182,7 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
       isRecurring,
       recurrenceRule: isRecurring ? recurrencePreset : null,
       defaultAssignments: assignments,
+      videos: pendingVideos,
     };
 
     if (template) {
@@ -383,6 +412,15 @@ export function TemplateFormDialog({ open, onClose, template }: TemplateFormDial
               </Button>
             </div>
           </div>
+
+          {/* Videos Section */}
+          <TaskVideosSection
+            existingVideos={existingVideos}
+            pendingVideos={pendingVideos}
+            onAddVideo={handleAddVideo}
+            onRemoveVideo={handleRemovePendingVideo}
+            onRemoveExistingVideo={handleRemoveExistingVideo}
+          />
         </div>
 
         <DialogFooter>

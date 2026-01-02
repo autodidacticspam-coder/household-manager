@@ -94,15 +94,27 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const [viewers, setViewers] = useState<TaskViewerInput[]>(getInitialViewers());
 
-  // Video state
+  // Video state - initialize from task (editing) or template (creating from template)
+  const getInitialVideos = (): VideoInput[] => {
+    if (task?.videos) {
+      return task.videos.map(v => ({
+        videoType: v.videoType,
+        url: v.url,
+        title: v.title || undefined,
+      }));
+    }
+    if (template?.videos) {
+      return template.videos.map(v => ({
+        videoType: v.videoType,
+        url: v.url,
+        title: v.title || undefined,
+      }));
+    }
+    return [];
+  };
+
   const [pendingVideos, setPendingVideos] = useState<VideoInput[]>([]);
-  const [existingVideosToKeep, setExistingVideosToKeep] = useState<VideoInput[]>(
-    (task?.videos || []).map(v => ({
-      videoType: v.videoType,
-      url: v.url,
-      title: v.title || undefined,
-    }))
-  );
+  const [existingVideosToKeep, setExistingVideosToKeep] = useState<VideoInput[]>(getInitialVideos());
 
   const [newAssignmentType, setNewAssignmentType] = useState<'user' | 'group' | 'all' | 'all_admins'>('user');
   const [newAssignmentTarget, setNewAssignmentTarget] = useState<string>('');
@@ -124,7 +136,8 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const handleRemoveExistingVideo = (videoId: string) => {
     setExistingVideosToKeep(prev => prev.filter(v => {
-      const existingVideo = task?.videos?.find(ev => ev.url === v.url);
+      const existingVideo = task?.videos?.find(ev => ev.url === v.url)
+        || template?.videos?.find(ev => ev.url === v.url);
       return existingVideo?.id !== videoId;
     }));
   };
@@ -1257,7 +1270,7 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
         </Card>
 
         <TaskVideosSection
-          existingVideos={task?.videos}
+          existingVideos={task?.videos || template?.videos}
           pendingVideos={pendingVideos}
           onAddVideo={handleAddPendingVideo}
           onRemoveVideo={handleRemovePendingVideo}

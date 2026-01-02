@@ -60,6 +60,19 @@ export interface TaskVideo {
   createdBy: string | null;
 }
 
+export interface TemplateVideo {
+  id: string;
+  templateId: string;
+  videoType: TaskVideoType;
+  url: string;
+  title: string | null;
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  createdAt: string;
+  createdBy: string | null;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -167,4 +180,5 @@ export interface TaskTemplate {
   createdAt: string;
   updatedAt: string;
   category?: TaskCategory | null;
+  videos?: TemplateVideo[];
 }
