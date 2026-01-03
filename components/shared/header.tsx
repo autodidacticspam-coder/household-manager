@@ -15,7 +15,7 @@ export function Header({ title }: HeaderProps) {
 
   return (
     <header className="ios-header border-b">
-      <div className="flex h-6 items-center gap-4 px-4 lg:px-6">
+      <div className="flex h-9 items-center gap-4 px-4 lg:px-6">
         <MobileSidebar />
 
         <div className="flex-1">
