@@ -14,7 +14,7 @@ export function Header({ title }: HeaderProps) {
   const { user } = useAuth();
 
   return (
-    <header className="fixed-header-ios border-b">
+    <header className="ios-header border-b">
       <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
         <MobileSidebar />
 

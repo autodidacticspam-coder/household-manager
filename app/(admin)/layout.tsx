@@ -9,11 +9,11 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="ios-app-shell bg-gray-50">
       <Sidebar />
-      <div className="lg:pl-64 flex flex-col min-h-screen">
+      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
         <Header />
-        <main className="main-content-ios flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
+        <main className="ios-scroll-content p-4 lg:p-6 pb-24 lg:pb-6">
           <PushNotificationPrompt />
           {children}
         </main>

@@ -133,27 +133,27 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Fixed header for iOS - includes safe area in its height */
-.fixed-header-ios {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 50;
-  /* Padding top for safe area, the header content sits below the notch */
+/* iOS app shell - prevents body scroll, only content scrolls */
+.ios-app-shell {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header container - static, never scrolls */
+.ios-header {
+  flex-shrink: 0;
   padding-top: env(safe-area-inset-top, 0px);
   background-color: white;
+  z-index: 50;
 }
 
-/* Main content padding to account for fixed header */
-/* Header is 64px (h-16) + safe area inset */
-.main-content-ios {
-  padding-top: calc(env(safe-area-inset-top, 0px) + 4rem);
-}
-
-/* On desktop (lg+), account for sidebar */
-@media (min-width: 1024px) {
-  .fixed-header-ios {
-    left: 16rem; /* lg:pl-64 = 256px = 16rem */
-  }
+/* Scrollable content area */
+.ios-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
