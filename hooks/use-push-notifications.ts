@@ -50,42 +50,45 @@ export function usePushNotifications() {
       try {
         const { PushNotifications } = await import('@capacitor/push-notifications');
 
-        // Register with Apple/Google to get push token
-        await PushNotifications.register();
-
-        // Listen for registration success
+        // Set up listeners BEFORE calling register
         PushNotifications.addListener('registration', async (pushToken) => {
-          console.log('Push registration success, token:', pushToken.value);
+          console.log('[PUSH_HOOK] Registration success, token:', pushToken.value.slice(0, 20) + '...');
           setToken(pushToken.value);
 
           // Save token to database for the current user
           if (user) {
+            console.log('[PUSH_HOOK] Saving token for user:', user.id);
             await saveTokenToDatabase(pushToken.value);
+          } else {
+            console.log('[PUSH_HOOK] No user available to save token');
           }
         });
 
         // Listen for registration errors
         PushNotifications.addListener('registrationError', (error) => {
-          console.error('Push registration error:', error);
+          console.error('[PUSH_HOOK] Registration error:', error);
         });
 
         // Listen for incoming notifications when app is open
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('Push notification received:', notification);
-          // You can show an in-app notification here
+          console.log('[PUSH_HOOK] Notification received:', notification);
         });
 
         // Listen for notification tap/action
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-          console.log('Push notification action performed:', notification);
-          // Navigate to relevant screen based on notification data
+          console.log('[PUSH_HOOK] Notification action performed:', notification);
           const data = notification.notification.data;
           if (data?.taskId) {
             window.location.href = `/tasks/${data.taskId}`;
           }
         });
+
+        // Now call register AFTER listeners are set up
+        console.log('[PUSH_HOOK] Calling PushNotifications.register()...');
+        await PushNotifications.register();
+        console.log('[PUSH_HOOK] Register called successfully');
       } catch (error) {
-        console.error('Error registering for push:', error);
+        console.error('[PUSH_HOOK] Error registering for push:', error);
       }
     };
 
@@ -102,8 +105,12 @@ export function usePushNotifications() {
   }, [user]);
 
   const saveTokenToDatabase = async (pushToken: string) => {
-    if (!user) return;
+    if (!user) {
+      console.log('[PUSH_HOOK] saveTokenToDatabase: No user, skipping');
+      return;
+    }
 
+    console.log('[PUSH_HOOK] saveTokenToDatabase: Saving token for user', user.id);
     const supabase = createClient();
 
     // Upsert the push token for this user
@@ -119,7 +126,9 @@ export function usePushNotifications() {
       });
 
     if (error) {
-      console.error('Error saving push token:', error);
+      console.error('[PUSH_HOOK] Error saving push token:', error);
+    } else {
+      console.log('[PUSH_HOOK] Token saved successfully!');
     }
   };
 
