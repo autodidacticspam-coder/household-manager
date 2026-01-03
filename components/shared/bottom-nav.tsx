@@ -25,28 +25,28 @@ type NavItem = {
 };
 
 const adminNavItems: NavItem[] = [
-  { href: '/dashboard', labelKey: 'nav.dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { href: '/tasks', labelKey: 'nav.tasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
-  { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> },
+  { href: '/dashboard', labelKey: 'nav.dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/tasks', labelKey: 'nav.tasks', icon: <CheckSquare className="h-4 w-4" /> },
+  { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-4 w-4" /> },
+  { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-4 w-4" /> },
 ];
 
 const employeeBaseNavItems: NavItem[] = [
-  { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
-  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
+  { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-4 w-4" /> },
+  { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-4 w-4" /> },
+  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-4 w-4" /> },
 ];
 
 // Chef-specific nav items: Tasks, Menu, Food Ratings, Supplies
 const chefNavItems: NavItem[] = [
-  { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-5 w-5" /> },
-  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
-  { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-5 w-5" /> },
-  { href: '/supply-requests', labelKey: 'nav.supplies', icon: <Package className="h-5 w-5" /> },
+  { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-4 w-4" /> },
+  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-4 w-4" /> },
+  { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-4 w-4" /> },
+  { href: '/supply-requests', labelKey: 'nav.supplies', icon: <Package className="h-4 w-4" /> },
 ];
 
-const logNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> };
-const profileNavItem: NavItem = { href: '/profile', labelKey: 'nav.profile', icon: <User className="h-5 w-5" /> };
+const logNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-4 w-4" /> };
+const profileNavItem: NavItem = { href: '/profile', labelKey: 'nav.profile', icon: <User className="h-4 w-4" /> };
 
 export function BottomNav() {
   const t = useTranslations();
@@ -58,10 +58,11 @@ export function BottomNav() {
   if (isLoading) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg shadow-black/5 lg:hidden">
-        <div className="flex justify-around items-center h-9">
+        <div className="flex justify-around items-center h-12">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center justify-center w-12 h-8">
-              <div className="h-5 w-5 bg-muted rounded animate-pulse" />
+            <div key={i} className="flex flex-col items-center justify-center">
+              <div className="h-4 w-4 bg-muted rounded animate-pulse" />
+              <div className="h-2 w-6 bg-muted rounded mt-0.5 animate-pulse" />
             </div>
           ))}
         </div>
@@ -82,7 +83,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg shadow-black/5 lg:hidden">
-      <div className="flex justify-around items-center h-9">
+      <div className="flex justify-around items-center h-12">
         {navItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
@@ -91,17 +92,15 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center justify-center min-w-[48px] px-2 py-1 rounded-lg transition-all duration-200',
+                'flex flex-col items-center justify-center px-2 py-1 rounded-lg transition-all duration-200',
                 isActive
-                  ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent active:bg-accent/80'
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground active:bg-accent/80'
               )}
             >
-              <span className={cn(
-                'transition-transform duration-200',
-                isActive && 'scale-110'
-              )}>
-                {item.icon}
+              {item.icon}
+              <span className="text-[10px] mt-0.5 font-medium">
+                {t(item.labelKey)}
               </span>
             </Link>
           );

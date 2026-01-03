@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { createClient } from '@/lib/supabase/client';
 
 // Check if we're running in Capacitor
 const isCapacitor = typeof window !== 'undefined' && 'Capacitor' in window;
@@ -117,36 +116,31 @@ export function usePushNotifications() {
   }, [user]);
 
   const saveTokenToDatabase = async (pushToken: string) => {
-    if (!user) {
-      console.log('[PUSH_HOOK] saveTokenToDatabase: No user, skipping');
-      return;
-    }
-
     if (tokenSavedRef.current) {
       console.log('[PUSH_HOOK] saveTokenToDatabase: Token already saved, skipping');
       return;
     }
 
-    console.log('[PUSH_HOOK] saveTokenToDatabase: Saving token for user', user.id);
-    const supabase = createClient();
+    console.log('[PUSH_HOOK] saveTokenToDatabase: Saving token via API...');
 
-    // Upsert the push token for this user
-    const { error } = await supabase
-      .from('user_push_tokens')
-      .upsert({
-        user_id: user.id,
-        token: pushToken,
-        platform: 'ios',
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,token',
+    try {
+      const response = await fetch('/api/push-tokens/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: pushToken, platform: 'ios' }),
       });
 
-    if (error) {
-      console.error('[PUSH_HOOK] Error saving push token:', error);
-    } else {
-      console.log('[PUSH_HOOK] Token saved successfully!');
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('[PUSH_HOOK] API error:', data.error);
+        return;
+      }
+
+      console.log('[PUSH_HOOK] Token saved successfully via API!');
       tokenSavedRef.current = true;
+    } catch (error) {
+      console.error('[PUSH_HOOK] Error saving push token:', error);
     }
   };
 
