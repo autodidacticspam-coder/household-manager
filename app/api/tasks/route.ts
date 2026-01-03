@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Send push notification for all task assignments (non-blocking)
-      if (assignedUserIds.length > 0) {
+      if (assignedUserIds.length > 0 && taskData.priority) {
         sendTaskAssignedPush(
           [...new Set(assignedUserIds)], // Deduplicate
           taskData.title,

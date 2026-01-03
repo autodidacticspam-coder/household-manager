@@ -141,7 +141,7 @@ export async function getUserPushTokens(userIds: string[]): Promise<{ userId: st
     return [];
   }
 
-  return tokens || [];
+  return (tokens || []).map(t => ({ userId: t.user_id, token: t.token }));
 }
 
 // Send push notification to multiple users
