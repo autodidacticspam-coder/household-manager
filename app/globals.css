@@ -123,3 +123,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* iOS Safe Area Support */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.safe-area-header {
+  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+}

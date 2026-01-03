@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   // Use the live server URL during development
   // Comment this out and use 'out' directory for production builds
   server: {
-    url: 'https://household-manager-one.vercel.app',
+    url: 'https://household-manager-two.vercel.app',
     cleartext: true,
   },
 

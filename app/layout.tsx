@@ -13,6 +13,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Household Manager',
   description: 'Manage your household staff, tasks, and schedules',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: 'cover',
+  },
 };
 
 export default async function RootLayout({
