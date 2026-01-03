@@ -10,6 +10,9 @@ export function PushNotificationPrompt() {
   const { status, isLoading, isSupported, requestPermission } = usePushNotifications();
   const t = useTranslations();
 
+  // Debug logging
+  console.log('[PUSH_PROMPT] status:', status, 'isLoading:', isLoading, 'isSupported:', isSupported);
+
   // Don't show anything if not in Capacitor or still loading
   if (!isSupported || isLoading) {
     return null;

@@ -149,15 +149,22 @@ export async function sendPushToUsers(
   userIds: string[],
   notification: PushNotification
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
+  console.log('[PUSH] sendPushToUsers called for userIds:', userIds);
+
   // Check if APNS is configured
   if (!APNS_KEY_ID || !APNS_TEAM_ID || !APNS_PRIVATE_KEY) {
-    console.warn('APNS not configured - skipping push notifications');
+    console.warn('[PUSH] APNS not configured - skipping push notifications');
+    console.log('[PUSH] APNS_KEY_ID:', APNS_KEY_ID ? 'set' : 'missing');
+    console.log('[PUSH] APNS_TEAM_ID:', APNS_TEAM_ID ? 'set' : 'missing');
+    console.log('[PUSH] APNS_PRIVATE_KEY:', APNS_PRIVATE_KEY ? 'set' : 'missing');
     return { sent: 0, failed: 0, errors: ['APNS not configured'] };
   }
 
   const tokens = await getUserPushTokens(userIds);
+  console.log('[PUSH] Found tokens:', tokens.length);
 
   if (tokens.length === 0) {
+    console.log('[PUSH] No tokens found for users');
     return { sent: 0, failed: 0, errors: [] };
   }
 
@@ -170,6 +177,11 @@ export async function sendPushToUsers(
   const errors = results
     .filter((r) => !r.success && r.error)
     .map((r) => `${r.token.slice(0, 8)}...: ${r.error}`);
+
+  console.log('[PUSH] Results - sent:', sent, 'failed:', failed);
+  if (errors.length > 0) {
+    console.log('[PUSH] Errors:', errors);
+  }
 
   // Remove invalid tokens from database
   const invalidTokens = results

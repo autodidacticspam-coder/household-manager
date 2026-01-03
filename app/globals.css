@@ -133,6 +133,20 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-.safe-area-header {
-  padding-top: calc(env(safe-area-inset-top) + 0.5rem);
+/* Header that sticks below the notch */
+.sticky-header-ios {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 50;
+}
+
+/* Add safe area background above header */
+.safe-area-header-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background-color: white;
+  z-index: 50;
 }

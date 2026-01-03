@@ -14,8 +14,11 @@ export function Header({ title }: HeaderProps) {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6 safe-area-header">
-      <MobileSidebar />
+    <>
+      {/* Fill the notch area with white background */}
+      <div className="safe-area-header-bg" />
+      <header className="sticky-header-ios flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6">
+        <MobileSidebar />
 
       <div className="flex-1">
         {title && (
@@ -29,5 +32,6 @@ export function Header({ title }: HeaderProps) {
         <UserMenu />
       </div>
     </header>
+    </>
   );
 }
