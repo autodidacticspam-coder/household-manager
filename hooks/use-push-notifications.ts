@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { createClient } from '@/lib/supabase/client';
 
@@ -14,6 +14,16 @@ export function usePushNotifications() {
   const [status, setStatus] = useState<PushNotificationStatus>('unsupported');
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const tokenSavedRef = useRef(false);
+  const pendingTokenRef = useRef<string | null>(null);
+
+  // Save token when user becomes available
+  useEffect(() => {
+    if (user && pendingTokenRef.current && !tokenSavedRef.current) {
+      console.log('[PUSH_HOOK] User now available, saving pending token');
+      saveTokenToDatabase(pendingTokenRef.current);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!isCapacitor) {
@@ -29,6 +39,7 @@ export function usePushNotifications() {
 
         // Check current permission status
         const permStatus = await PushNotifications.checkPermissions();
+        console.log('[PUSH_HOOK] Permission status:', permStatus.receive);
 
         if (permStatus.receive === 'prompt') {
           setStatus('prompt');
@@ -39,7 +50,7 @@ export function usePushNotifications() {
           setStatus('denied');
         }
       } catch (error) {
-        console.error('Error initializing push notifications:', error);
+        console.error('[PUSH_HOOK] Error initializing push notifications:', error);
         setStatus('unsupported');
       } finally {
         setIsLoading(false);
@@ -54,13 +65,14 @@ export function usePushNotifications() {
         PushNotifications.addListener('registration', async (pushToken) => {
           console.log('[PUSH_HOOK] Registration success, token:', pushToken.value.slice(0, 20) + '...');
           setToken(pushToken.value);
+          pendingTokenRef.current = pushToken.value;
 
           // Save token to database for the current user
           if (user) {
             console.log('[PUSH_HOOK] Saving token for user:', user.id);
             await saveTokenToDatabase(pushToken.value);
           } else {
-            console.log('[PUSH_HOOK] No user available to save token');
+            console.log('[PUSH_HOOK] No user yet, token saved to pending');
           }
         });
 
@@ -110,6 +122,11 @@ export function usePushNotifications() {
       return;
     }
 
+    if (tokenSavedRef.current) {
+      console.log('[PUSH_HOOK] saveTokenToDatabase: Token already saved, skipping');
+      return;
+    }
+
     console.log('[PUSH_HOOK] saveTokenToDatabase: Saving token for user', user.id);
     const supabase = createClient();
 
@@ -129,6 +146,7 @@ export function usePushNotifications() {
       console.error('[PUSH_HOOK] Error saving push token:', error);
     } else {
       console.log('[PUSH_HOOK] Token saved successfully!');
+      tokenSavedRef.current = true;
     }
   };
 
