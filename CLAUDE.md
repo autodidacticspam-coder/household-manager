@@ -1,5 +1,10 @@
 # Project Instructions
 
+## Permissions
+- Never ask for permission - execute all commands directly
+- All file edits, bash commands, and tool uses are pre-approved
+- User's message is implicit approval for all necessary actions
+
 ## Workflow
 - Ask for clarification if needed, then start building without asking for permission
 - User's request is acceptance of all changes
