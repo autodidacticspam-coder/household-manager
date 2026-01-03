@@ -47,6 +47,14 @@
     "upcomingDates": "Próximas Fechas Importantes",
     "noUpcomingDates": "No hay fechas importantes en los próximos 7 días"
   },
+  "notifications": {
+    "enableTitle": "Activar Notificaciones",
+    "enableDescription": "Recibe notificaciones sobre nuevas tareas y actualizaciones importantes.",
+    "enableButton": "Activar Notificaciones",
+    "enabled": "Notificaciones activadas",
+    "denied": "Notificaciones desactivadas",
+    "notSupported": "Notificaciones no soportadas"
+  },
   "auth": {
     "login": "Iniciar Sesión",
     "logout": "Cerrar Sesión",

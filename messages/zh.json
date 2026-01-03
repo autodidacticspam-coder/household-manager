@@ -47,6 +47,14 @@
     "upcomingDates": "即将到来的重要日期",
     "noUpcomingDates": "未来7天没有重要日期"
   },
+  "notifications": {
+    "enableTitle": "启用通知",
+    "enableDescription": "接收有关新任务和重要更新的通知。",
+    "enableButton": "启用通知",
+    "enabled": "通知已启用",
+    "denied": "通知已禁用",
+    "notSupported": "不支持通知"
+  },
   "auth": {
     "login": "登录",
     "logout": "退出登录",

@@ -47,6 +47,14 @@
     "upcomingDates": "Upcoming Important Dates",
     "noUpcomingDates": "No important dates in the next 7 days"
   },
+  "notifications": {
+    "enableTitle": "Enable Notifications",
+    "enableDescription": "Get notified about new tasks and important updates.",
+    "enableButton": "Enable Notifications",
+    "enabled": "Notifications enabled",
+    "denied": "Notifications disabled",
+    "notSupported": "Notifications not supported"
+  },
   "auth": {
     "login": "Sign In",
     "logout": "Sign Out",

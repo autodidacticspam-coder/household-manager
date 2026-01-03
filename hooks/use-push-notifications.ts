@@ -133,6 +133,31 @@ export function usePushNotifications() {
 
       if (permStatus.receive === 'granted') {
         setStatus('granted');
+
+        // Set up listener for registration before calling register
+        PushNotifications.addListener('registration', async (pushToken) => {
+          console.log('Push registration success, token:', pushToken.value);
+          setToken(pushToken.value);
+
+          // Save token to database for the current user
+          if (user) {
+            await saveTokenToDatabase(pushToken.value);
+          }
+        });
+
+        PushNotifications.addListener('registrationError', (error) => {
+          console.error('Push registration error:', error);
+        });
+
+        // Listen for notification tap/action
+        PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+          console.log('Push notification action performed:', notification);
+          const data = notification.notification.data;
+          if (data?.taskId) {
+            window.location.href = `/tasks/${data.taskId}`;
+          }
+        });
+
         await PushNotifications.register();
         return true;
       } else {
