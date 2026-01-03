@@ -14,24 +14,22 @@ export function Header({ title }: HeaderProps) {
   const { user } = useAuth();
 
   return (
-    <>
-      {/* Fill the notch area with white background */}
-      <div className="safe-area-header-bg" />
-      <header className="sticky-header-ios flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6">
+    <header className="fixed-header-ios border-b">
+      <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
         <MobileSidebar />
 
-      <div className="flex-1">
-        {title && (
-          <h1 className="text-lg font-semibold text-gray-900 lg:text-xl">
-            {title}
-          </h1>
-        )}
-      </div>
+        <div className="flex-1">
+          {title && (
+            <h1 className="text-lg font-semibold text-gray-900 lg:text-xl">
+              {title}
+            </h1>
+          )}
+        </div>
 
-      <div className="flex items-center gap-4">
-        <UserMenu />
+        <div className="flex items-center gap-4">
+          <UserMenu />
+        </div>
       </div>
     </header>
-    </>
   );
 }

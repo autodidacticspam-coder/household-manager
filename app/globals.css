@@ -133,20 +133,27 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Header that sticks below the notch */
-.sticky-header-ios {
-  position: sticky;
-  top: env(safe-area-inset-top, 0px);
-  z-index: 50;
-}
-
-/* Add safe area background above header */
-.safe-area-header-bg {
+/* Fixed header for iOS - includes safe area in its height */
+.fixed-header-ios {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: env(safe-area-inset-top, 0px);
-  background-color: white;
   z-index: 50;
+  /* Padding top for safe area, the header content sits below the notch */
+  padding-top: env(safe-area-inset-top, 0px);
+  background-color: white;
+}
+
+/* Main content padding to account for fixed header */
+/* Header is 64px (h-16) + safe area inset */
+.main-content-ios {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4rem);
+}
+
+/* On desktop (lg+), account for sidebar */
+@media (min-width: 1024px) {
+  .fixed-header-ios {
+    left: 16rem; /* lg:pl-64 = 256px = 16rem */
+  }
 }
