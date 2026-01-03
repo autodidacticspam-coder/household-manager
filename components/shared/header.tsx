@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-import { useAuth } from '@/contexts/auth-context';
 import { UserMenu } from './user-menu';
 import { MobileSidebar } from './mobile-sidebar';
 
@@ -10,8 +8,6 @@ type HeaderProps = {
 };
 
 export function Header({ title }: HeaderProps) {
-  const t = useTranslations();
-  const { user } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6">

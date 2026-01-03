@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const leaveTypeSchema = z.enum(['pto', 'sick']);
+export const leaveTypeSchema = z.enum(['vacation', 'sick']);
 export const leaveStatusSchema = z.enum(['pending', 'approved', 'denied']);
 
 export const createLeaveRequestSchema = z.object({
@@ -43,7 +43,7 @@ export const denyLeaveRequestSchema = z.object({
 export const updateLeaveBalanceSchema = z.object({
   userId: z.string().uuid(),
   year: z.number().int().min(2000).max(2100),
-  ptoTotal: z.number().min(0).max(365).optional(),
+  vacationTotal: z.number().min(0).max(365).optional(),
   sickTotal: z.number().min(0).max(365).optional(),
 });
 

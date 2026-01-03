@@ -3,11 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { TaskWithRelations, TaskVideo } from '@/types';
-import { updateTaskDateTime, overrideTaskInstanceTime } from '@/app/(admin)/tasks/actions';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
-import { parseISO, isBefore, isAfter, isEqual, getDay, addDays, addWeeks, addMonths, format } from 'date-fns';
+import { parseISO, isBefore, getDay } from 'date-fns';
 
 type SupportedLocale = 'en' | 'es' | 'zh';
 
@@ -825,8 +824,15 @@ export function useUpdateTaskDateTime() {
       startTime?: string | null;
       endTime?: string | null;
     }) => {
-      const result = await updateTaskDateTime(taskId, dueDate, dueTime, startTime, endTime);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${taskId}/datetime`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueDate, dueTime, startTime, endTime }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update task date/time');
+      }
       return result;
     },
     onSuccess: () => {
@@ -859,8 +865,15 @@ export function useOverrideTaskInstanceTime() {
       overrideStartTime?: string | null;
       overrideEndTime?: string | null;
     }) => {
-      const result = await overrideTaskInstanceTime(taskId, instanceDate, overrideTime, overrideStartTime, overrideEndTime);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/tasks/${taskId}/override-time`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instanceDate, overrideTime, overrideStartTime, overrideEndTime }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to override task instance time');
+      }
       return result;
     },
     onSuccess: () => {

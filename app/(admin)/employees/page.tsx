@@ -18,9 +18,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useEmployeesList } from '@/hooks/use-employees';
-import { useEmployeeGroups } from '@/hooks/use-tasks';
 import { format } from 'date-fns';
-import { Plus, Search, Mail, Phone, Users } from 'lucide-react';
+import { Plus, Search, Mail, Users } from 'lucide-react';
 
 export default function EmployeesPage() {
   const t = useTranslations();
@@ -28,7 +27,6 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('');
 
   const { data: employees, isLoading } = useEmployeesList();
-  const { data: groups } = useEmployeeGroups();
 
   const filteredEmployees = employees?.filter((e) =>
     e.fullName.toLowerCase().includes(search.toLowerCase()) ||

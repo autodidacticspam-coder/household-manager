@@ -107,7 +107,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
 
   // Days missed filter state
   const [daysMissedPeriod, setDaysMissedPeriod] = useState<'30days' | '3months' | '6months' | '1year' | 'lifetime'>('30days');
-  const [daysMissedType, setDaysMissedType] = useState<'both' | 'sick' | 'pto'>('both');
+  const [daysMissedType, setDaysMissedType] = useState<'both' | 'sick' | 'vacation'>('both');
 
   const handleOpenEditDialog = () => {
     if (employee) {
@@ -415,7 +415,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary">
-                            {request.leaveType === 'pto' ? 'PTO' : request.leaveType === 'holiday' ? 'Holiday' : 'Sick'}
+                            {request.leaveType === 'vacation' ? 'Vacation' : request.leaveType === 'holiday' ? 'Holiday' : 'Sick'}
                           </Badge>
                           <Badge variant={
                             request.status === 'approved' ? 'default' :
@@ -534,7 +534,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                     <SelectContent>
                       <SelectItem value="both">{t('employees.bothTypes')}</SelectItem>
                       <SelectItem value="sick">{t('employees.sickDays')}</SelectItem>
-                      <SelectItem value="pto">{t('employees.ptoDays')}</SelectItem>
+                      <SelectItem value="vacation">{t('employees.vacationDays')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -563,7 +563,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                         variant="secondary"
                         className={day.leaveType === 'sick' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}
                       >
-                        {day.leaveType === 'sick' ? t('leave.sick') : 'PTO'}
+                        {day.leaveType === 'sick' ? t('leave.sick') : t('leave.vacation')}
                       </Badge>
                     </div>
                   ))}

@@ -62,7 +62,7 @@ export default function NewEmployeePage() {
         toast.success(t('employees.employeeCreated'));
         router.push('/employees');
       }
-    } catch (error) {
+    } catch {
       toast.error(t('common.error'));
     } finally {
       setIsSubmitting(false);

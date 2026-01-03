@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -19,34 +19,33 @@ export default function SettingsPage() {
   const t = useTranslations();
   const { user, isLoading, updateUser, isUpdating } = useUser();
 
-  // Log redirect preference
-  const [redirectAfterLog, setRedirectAfterLog] = useState(false);
+  // Log redirect preference - use lazy initialization
+  const [redirectAfterLog, setRedirectAfterLog] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('logs-redirect-after-entry') === 'true';
+  });
 
-  // Time prepopulate preferences (default to true)
-  const [prepopulateSleepTime, setPrepopulateSleepTime] = useState(true);
-  const [prepopulateFoodTime, setPrepopulateFoodTime] = useState(true);
-  const [prepopulatePoopTime, setPrepopulatePoopTime] = useState(true);
-  const [prepopulateShowerTime, setPrepopulateShowerTime] = useState(true);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('logs-redirect-after-entry');
-    if (stored !== null) {
-      setRedirectAfterLog(stored === 'true');
-    }
-
-    // Load time prepopulate settings (default to true if not set)
-    const sleepTime = localStorage.getItem('logs-prepopulate-sleep-time');
-    if (sleepTime !== null) setPrepopulateSleepTime(sleepTime === 'true');
-
-    const foodTime = localStorage.getItem('logs-prepopulate-food-time');
-    if (foodTime !== null) setPrepopulateFoodTime(foodTime === 'true');
-
-    const poopTime = localStorage.getItem('logs-prepopulate-poop-time');
-    if (poopTime !== null) setPrepopulatePoopTime(poopTime === 'true');
-
-    const showerTime = localStorage.getItem('logs-prepopulate-shower-time');
-    if (showerTime !== null) setPrepopulateShowerTime(showerTime === 'true');
-  }, []);
+  // Time prepopulate preferences (default to true) - use lazy initialization
+  const [prepopulateSleepTime, setPrepopulateSleepTime] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('logs-prepopulate-sleep-time');
+    return stored === null ? true : stored === 'true';
+  });
+  const [prepopulateFoodTime, setPrepopulateFoodTime] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('logs-prepopulate-food-time');
+    return stored === null ? true : stored === 'true';
+  });
+  const [prepopulatePoopTime, setPrepopulatePoopTime] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('logs-prepopulate-poop-time');
+    return stored === null ? true : stored === 'true';
+  });
+  const [prepopulateShowerTime, setPrepopulateShowerTime] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = localStorage.getItem('logs-prepopulate-shower-time');
+    return stored === null ? true : stored === 'true';
+  });
 
   const handleRedirectToggle = (checked: boolean) => {
     setRedirectAfterLog(checked);

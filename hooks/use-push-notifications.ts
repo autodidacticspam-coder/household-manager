@@ -99,7 +99,8 @@ export function usePushNotifications() {
         });
       }
     };
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const saveTokenToDatabase = async (pushToken: string) => {
     if (!user) return;

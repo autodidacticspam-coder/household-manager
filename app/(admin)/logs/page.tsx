@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { formatTime12h } from '@/lib/format-time';
@@ -50,6 +50,81 @@ const CHILD_COLORS: Record<ChildName, { bg: string; text: string; ring: string }
   'Zander': { bg: 'bg-blue-100', text: 'text-blue-700', ring: 'ring-blue-500' },
 };
 
+// Date filter component extracted to avoid recreation on render
+function DateFilterCard({
+  startDate,
+  endDate,
+  setStartDate,
+  setEndDate,
+  t,
+}: {
+  startDate: string;
+  endDate: string;
+  setStartDate: (date: string) => void;
+  setEndDate: (date: string) => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <Card className="mb-6">
+      <CardContent className="pt-6">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="startDate">{t('leave.startDate')}</Label>
+            <Input
+              id="startDate"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="endDate">{t('leave.endDate')}</Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-40"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setStartDate(format(new Date(), 'yyyy-MM-dd'));
+                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              {t('common.today')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setStartDate(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
+                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              {t('common.thisWeek')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setStartDate(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+              }}
+            >
+              {t('common.thisMonth')}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // Convert 24-hour time to 12-hour input format (returns {time: "9:30", ampm: "PM"})
 function parse24To12(time24: string | null): { time: string; ampm: 'AM' | 'PM' } {
@@ -73,24 +148,17 @@ export default function UnifiedLogPage() {
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  // Redirect after log preference
-  const [redirectAfterLog, setRedirectAfterLog] = useState(false);
-
-  // Time prepopulate preferences (default to true)
-  const [prepopulateSettings, setPrepopulateSettings] = useState<Record<ChildLogCategory, boolean>>({
-    sleep: true,
-    food: true,
-    poop: true,
-    shower: true,
+  // Redirect after log preference - use lazy initializer to avoid setState in effect
+  const [redirectAfterLog, setRedirectAfterLog] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('logs-redirect-after-entry') === 'true';
   });
 
-  useEffect(() => {
-    const stored = localStorage.getItem('logs-redirect-after-entry');
-    if (stored === 'true') {
-      setRedirectAfterLog(true);
+  // Time prepopulate preferences (default to true) - use lazy initializer
+  const [prepopulateSettings, setPrepopulateSettings] = useState<Record<ChildLogCategory, boolean>>(() => {
+    if (typeof window === 'undefined') {
+      return { sleep: true, food: true, poop: true, shower: true };
     }
-
-    // Load prepopulate settings
     const settings: Record<ChildLogCategory, boolean> = {
       sleep: true,
       food: true,
@@ -104,8 +172,8 @@ export default function UnifiedLogPage() {
         settings[cat] = val === 'true';
       }
     });
-    setPrepopulateSettings(settings);
-  }, []);
+    return settings;
+  });
 
   // Helper to get current time in 12-hour format
   const getCurrentTime12h = () => {
@@ -523,67 +591,6 @@ export default function UnifiedLogPage() {
     </div>
   );
 
-  const DateFilterCard = () => (
-    <Card className="mb-6">
-      <CardContent className="pt-6">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="startDate">{t('leave.startDate')}</Label>
-            <Input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-40"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="endDate">{t('leave.endDate')}</Label>
-            <Input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-40"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setStartDate(format(new Date(), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
-              }}
-            >
-              {t('common.today')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setStartDate(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
-              }}
-            >
-              {t('common.thisWeek')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setStartDate(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
-              }}
-            >
-              {t('common.thisMonth')}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <div className="space-y-6">
       <div>
@@ -893,7 +900,7 @@ export default function UnifiedLogPage() {
 
         {/* All Logs View */}
         <TabsContent value="all" className="mt-6">
-          <DateFilterCard />
+          <DateFilterCard startDate={startDate} endDate={endDate} setStartDate={setStartDate} setEndDate={setEndDate} t={t} />
           {logsLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -928,7 +935,7 @@ export default function UnifiedLogPage() {
 
         {/* By Child View */}
         <TabsContent value="by-child" className="mt-6">
-          <DateFilterCard />
+          <DateFilterCard startDate={startDate} endDate={endDate} setStartDate={setStartDate} setEndDate={setEndDate} t={t} />
           <div className="grid gap-6 lg:grid-cols-4">
             {/* Child Selection Sidebar */}
             <Card className="lg:col-span-1 h-fit">
@@ -1002,7 +1009,7 @@ export default function UnifiedLogPage() {
 
         {/* By Category View */}
         <TabsContent value="by-category" className="mt-6">
-          <DateFilterCard />
+          <DateFilterCard startDate={startDate} endDate={endDate} setStartDate={setStartDate} setEndDate={setEndDate} t={t} />
           <div className="grid gap-6 lg:grid-cols-4">
             {/* Category Selection Sidebar */}
             <Card className="lg:col-span-1 h-fit">

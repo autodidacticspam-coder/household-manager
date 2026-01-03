@@ -383,7 +383,7 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const onSubmit = async (data: CreateTaskInput) => {
     // Auto-add any pending assignment selection
-    let finalAssignments = [...assignments];
+    const finalAssignments = [...assignments];
 
     if (newAssignmentType === 'all' && !finalAssignments.some((a) => a.targetType === 'all')) {
       finalAssignments.push({ targetType: 'all' });
@@ -412,7 +412,7 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
     const endTime24 = endTimeInput ? to24Hour(endTimeInput, endTimeAmPm) : null;
 
     // Auto-add any pending viewer selection
-    let finalViewers = [...viewers];
+    const finalViewers = [...viewers];
 
     if (newViewerType === 'all' && !finalViewers.some((v) => v.targetType === 'all')) {
       finalViewers.push({ targetType: 'all' });

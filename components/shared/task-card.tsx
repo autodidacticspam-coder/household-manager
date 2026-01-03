@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { formatTime12h } from '@/lib/format-time';
-import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, User, Repeat, FileText, Undo2, UserPlus, Loader2, Video, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, Repeat, Undo2, UserPlus, Loader2, Video, ExternalLink } from 'lucide-react';
 import { useEmployees, useQuickAssign } from '@/hooks/use-tasks';
 import type { TaskWithRelations } from '@/types';
 

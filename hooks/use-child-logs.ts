@@ -225,9 +225,13 @@ export function useCanAccessChildLogs() {
 
       if (membership) {
         const allowedGroups = ['nanny', 'teacher'];
-        return membership.some((m: any) =>
-          allowedGroups.includes(m.group?.name?.toLowerCase())
-        );
+        return membership.some((m) => {
+          // Supabase can return group as either an object or array depending on relation
+          const group = m.group as { name: string } | { name: string }[] | null;
+          if (!group) return false;
+          const groupName = Array.isArray(group) ? group[0]?.name : group.name;
+          return groupName && allowedGroups.includes(groupName.toLowerCase());
+        });
       }
 
       return false;

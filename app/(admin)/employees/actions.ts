@@ -114,8 +114,8 @@ export async function createEmployee(input: z.infer<typeof createEmployeeSchema>
     .insert({
       user_id: authData.user.id,
       year: currentYear,
-      pto_total: 15,
-      pto_used: 0,
+      vacation_total: 15,
+      vacation_used: 0,
       sick_total: 10,
       sick_used: 0,
     });

@@ -72,7 +72,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
   const form = useForm<CreateLeaveRequestInput>({
     resolver: zodResolver(createLeaveRequestSchema),
     defaultValues: {
-      leaveType: 'pto',
+      leaveType: 'vacation',
       startDate: '',
       endDate: '',
       isFullDay: true,
@@ -190,7 +190,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="pto">{t('leave.pto')}</SelectItem>
+                      <SelectItem value="vacation">{t('leave.vacation')}</SelectItem>
                       <SelectItem value="sick">{t('leave.sick')}</SelectItem>
                     </SelectContent>
                   </Select>
@@ -423,7 +423,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               Before You Submit
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base">
-              Note: The system does not track if you have PTO or Sick Leave remaining. If approved, your leave may be unpaid.
+              Note: The system does not track if you have Vacation or Sick Leave remaining. If approved, your leave may be unpaid.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

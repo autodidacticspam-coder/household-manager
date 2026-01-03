@@ -60,7 +60,7 @@ function getLeaveTypeLabel(request: LeaveRequest, t: (key: string) => string): s
   if (isHoliday(request)) {
     return 'Holiday';
   }
-  return request.leaveType === 'pto' ? t('leave.pto') : t('leave.sick');
+  return request.leaveType === 'vacation' ? t('leave.vacation') : t('leave.sick');
 }
 
 // Helper to get dates - uses selectedDates if available, otherwise falls back to range
@@ -80,7 +80,7 @@ function getLeaveTypeBadgeClass(request: LeaveRequest): string {
   if (isHoliday(request)) {
     return 'bg-amber-100 text-amber-700';
   }
-  if (request.leaveType === 'pto') {
+  if (request.leaveType === 'vacation') {
     return '';  // default variant
   }
   return 'bg-green-100 text-green-700';  // sick
@@ -273,7 +273,7 @@ export default function LeaveRequestsPage() {
         .from('leave_requests')
         .insert({
           user_id: addingEmployee,
-          leave_type: 'pto',
+          leave_type: 'vacation',
           status: 'approved',
           start_date: startDate,
           end_date: endDate,

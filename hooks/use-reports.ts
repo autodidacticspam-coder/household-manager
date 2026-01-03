@@ -20,7 +20,7 @@ type SimpleEmployeeReport = {
     completionRate: number;
   };
   leaveStats: {
-    ptoTaken: number;
+    vacationTaken: number;
     sickTaken: number;
     totalDaysOff: number;
   };
@@ -162,8 +162,8 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
         .lte('start_date', dateRange.endDate)
         .gte('end_date', dateRange.startDate);
 
-      const ptoTaken = (leaveRequests || [])
-        .filter((r) => r.leave_type === 'pto')
+      const vacationTaken = (leaveRequests || [])
+        .filter((r) => r.leave_type === 'vacation')
         .reduce((sum, r) => sum + parseFloat(r.total_days || '0'), 0);
 
       const sickTaken = (leaveRequests || [])
@@ -212,9 +212,9 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
           completionRate,
         },
         leaveStats: {
-          ptoTaken,
+          vacationTaken,
           sickTaken,
-          totalDaysOff: ptoTaken + sickTaken,
+          totalDaysOff: vacationTaken + sickTaken,
         },
         tasksByCategory: Object.entries(tasksByCategory).map(([name, count]) => ({
           name,

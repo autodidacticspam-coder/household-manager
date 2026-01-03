@@ -3,19 +3,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { LeaveRequest, LeaveBalance } from '@/types';
-import {
-  createLeaveRequest,
-  approveLeaveRequest,
-  denyLeaveRequest,
-  cancelLeaveRequest,
-} from '@/app/(employee)/time-off/actions';
 import type { CreateLeaveRequestInput } from '@/lib/validators/leave';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
 type LeaveFilters = {
   status?: 'pending' | 'approved' | 'denied';
-  leaveType?: 'pto' | 'sick';
+  leaveType?: 'vacation' | 'sick';
 };
 
 export function useLeaveRequests(filters?: LeaveFilters) {
@@ -122,8 +116,8 @@ export function useLeaveBalance(userId?: string, year?: number) {
             id: '',
             userId,
             year: targetYear,
-            ptoTotal: 15,
-            ptoUsed: 0,
+            vacationTotal: 15,
+            vacationUsed: 0,
             sickTotal: 10,
             sickUsed: 0,
           } as LeaveBalance;
@@ -135,8 +129,8 @@ export function useLeaveBalance(userId?: string, year?: number) {
         id: data.id,
         userId: data.user_id,
         year: data.year,
-        ptoTotal: parseFloat(data.pto_total),
-        ptoUsed: parseFloat(data.pto_used),
+        vacationTotal: parseFloat(data.vacation_total),
+        vacationUsed: parseFloat(data.vacation_used),
         sickTotal: parseFloat(data.sick_total),
         sickUsed: parseFloat(data.sick_used),
         createdAt: data.created_at,
@@ -222,8 +216,15 @@ export function useCreateLeaveRequest() {
 
   return useMutation({
     mutationFn: async (input: CreateLeaveRequestInput) => {
-      const result = await createLeaveRequest(input);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch('/api/leave-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to create leave request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -244,8 +245,15 @@ export function useApproveLeaveRequest() {
 
   return useMutation({
     mutationFn: async ({ id, adminNotes }: { id: string; adminNotes?: string }) => {
-      const result = await approveLeaveRequest(id, adminNotes);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/leave-requests/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to approve leave request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -266,8 +274,15 @@ export function useDenyLeaveRequest() {
 
   return useMutation({
     mutationFn: async ({ id, adminNotes }: { id: string; adminNotes?: string }) => {
-      const result = await denyLeaveRequest(id, adminNotes);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/leave-requests/${id}/deny`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to deny leave request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -286,8 +301,13 @@ export function useCancelLeaveRequest() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const result = await cancelLeaveRequest(id);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/leave-requests/${id}/cancel`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to cancel leave request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -310,7 +330,7 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
   return {
     id: row.id as string,
     userId: row.user_id as string,
-    leaveType: row.leave_type as 'pto' | 'sick',
+    leaveType: row.leave_type as 'vacation' | 'sick',
     status: row.status as 'pending' | 'approved' | 'denied',
     startDate: row.start_date as string,
     endDate: row.end_date as string,

@@ -1,4 +1,4 @@
-export type LeaveType = 'pto' | 'sick' | 'holiday';
+export type LeaveType = 'vacation' | 'sick' | 'holiday';
 export type LeaveStatus = 'pending' | 'approved' | 'denied';
 
 export interface LeaveRequest {
@@ -35,11 +35,11 @@ export interface LeaveBalance {
   id: string;
   userId: string;
   year: number;
-  ptoTotal: number;
-  ptoUsed: number;
+  vacationTotal: number;
+  vacationUsed: number;
   sickTotal: number;
   sickUsed: number;
-  ptoRemaining?: number;
+  vacationRemaining?: number;
   sickRemaining?: number;
   createdAt?: string;
   updatedAt?: string;

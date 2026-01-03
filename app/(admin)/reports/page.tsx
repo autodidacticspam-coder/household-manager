@@ -75,7 +75,7 @@ export default function ReportsPage() {
       ['Completion Rate', `${employeeReport.taskStats.completionRate}%`],
       [],
       ['Leave Statistics'],
-      ['PTO Taken', employeeReport.leaveStats.ptoTaken.toString()],
+      ['Vacation Days Taken', employeeReport.leaveStats.vacationTaken.toString()],
       ['Sick Days Taken', employeeReport.leaveStats.sickTaken.toString()],
       ['Total Days Off', employeeReport.leaveStats.totalDaysOff.toString()],
     ];
@@ -282,8 +282,8 @@ export default function ReportsPage() {
                   <p className="text-2xl font-bold text-green-700">{employeeReport.taskStats.completionRate}%</p>
                 </div>
                 <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-600 font-medium">{t('reports.ptoTaken')}</p>
-                  <p className="text-2xl font-bold text-blue-700">{employeeReport.leaveStats.ptoTaken}</p>
+                  <p className="text-sm text-blue-600 font-medium">{t('reports.vacationTaken')}</p>
+                  <p className="text-2xl font-bold text-blue-700">{employeeReport.leaveStats.vacationTaken}</p>
                   <p className="text-xs text-blue-500">{t('common.days')}</p>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-lg">

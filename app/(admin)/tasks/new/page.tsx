@@ -1,12 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { TaskForm } from '@/components/admin/task-form';
 import { useTaskTemplate } from '@/hooks/use-task-templates';
 import { Loader2 } from 'lucide-react';
 
-export default function NewTaskPage() {
+function NewTaskContent() {
   const t = useTranslations();
   const searchParams = useSearchParams();
   const templateId = searchParams.get('template');
@@ -32,5 +33,17 @@ export default function NewTaskPage() {
 
       <TaskForm template={template} />
     </div>
+  );
+}
+
+export default function NewTaskPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <NewTaskContent />
+    </Suspense>
   );
 }

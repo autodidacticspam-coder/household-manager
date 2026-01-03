@@ -34,9 +34,9 @@ export interface TrendData {
 
 export interface EmployeeLeaveStats {
   currentYear: number;
-  ptoTotal: number;
-  ptoUsed: number;
-  ptoRemaining: number;
+  vacationTotal: number;
+  vacationUsed: number;
+  vacationRemaining: number;
   sickTotal: number;
   sickUsed: number;
   sickRemaining: number;
@@ -48,7 +48,7 @@ export interface EmployeeLeaveStats {
 
 export interface MonthlyLeaveData {
   month: string;
-  pto: number;
+  vacation: number;
   sick: number;
 }
 

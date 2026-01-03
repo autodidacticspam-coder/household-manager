@@ -26,6 +26,7 @@ import {
   User,
   Eye,
 } from 'lucide-react';
+import Image from 'next/image';
 import type { TaskWithRelations } from '@/types';
 import { getVideoThumbnail, getVideoPlatform } from '@/hooks/use-task-videos';
 
@@ -108,12 +109,14 @@ export function TaskDetailDialog({
         rel="noopener noreferrer"
         className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors group"
       >
-        <div className="flex-shrink-0 w-20 h-14 bg-muted rounded overflow-hidden flex items-center justify-center">
+        <div className="flex-shrink-0 w-20 h-14 bg-muted rounded overflow-hidden flex items-center justify-center relative">
           {thumbnail ? (
-            <img
+            <Image
               src={thumbnail}
               alt={video.title || 'Video thumbnail'}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
+              unoptimized
             />
           ) : (
             <Play className="h-6 w-6 text-muted-foreground" />

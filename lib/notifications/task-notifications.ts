@@ -151,7 +151,7 @@ export async function sendTaskAssignedNotification(task: TaskInfo): Promise<void
     }
   }
 
-  const result = await sendBulkSms(
+  await sendBulkSms(
     recipients.map(r => ({ phoneNumber: r.phoneNumber, userId: r.userId })),
     message,
     'task_assigned'
@@ -172,7 +172,7 @@ export async function sendTaskDueReminderNotification(task: TaskInfo): Promise<v
     message += ` - Due at ${formatTime12h(task.dueTime)}`;
   }
 
-  const result = await sendBulkSms(
+  await sendBulkSms(
     recipients.map(r => ({ phoneNumber: r.phoneNumber, userId: r.userId })),
     message,
     'task_due_reminder'
@@ -189,8 +189,7 @@ export async function getUpcomingHighPriorityTasks(minutesBefore: number = 15): 
   // Get today's date in YYYY-MM-DD format
   const today = now.toISOString().split('T')[0];
 
-  // Calculate time window (15 minutes before and after the target)
-  const targetTimeStr = targetTime.toTimeString().slice(0, 8);
+  // Calculate time window (2 minutes before and after the target)
   const windowStart = new Date(targetTime.getTime() - 2 * 60 * 1000).toTimeString().slice(0, 8);
   const windowEnd = new Date(targetTime.getTime() + 2 * 60 * 1000).toTimeString().slice(0, 8);
 

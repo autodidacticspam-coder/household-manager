@@ -3,12 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { SupplyRequest } from '@/types';
-import {
-  createSupplyRequest,
-  cancelSupplyRequest,
-  approveSupplyRequest,
-  rejectSupplyRequest,
-} from '@/app/(employee)/supplies/actions';
 import { toast } from 'sonner';
 
 type SupplyFilters = {
@@ -145,8 +139,15 @@ export function useCreateSupplyRequest() {
 
   return useMutation({
     mutationFn: async (input: { title: string; description?: string; productUrl?: string }) => {
-      const result = await createSupplyRequest(input);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch('/api/supply-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to create supply request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -166,8 +167,13 @@ export function useCancelSupplyRequest() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const result = await cancelSupplyRequest(id);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/supply-requests/${id}/cancel`, {
+        method: 'DELETE',
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to cancel supply request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -187,8 +193,15 @@ export function useApproveSupplyRequest() {
 
   return useMutation({
     mutationFn: async ({ id, adminNotes }: { id: string; adminNotes?: string }) => {
-      const result = await approveSupplyRequest(id, adminNotes);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/supply-requests/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to approve supply request');
+      }
       return result;
     },
     onSuccess: () => {
@@ -207,8 +220,15 @@ export function useRejectSupplyRequest() {
 
   return useMutation({
     mutationFn: async ({ id, adminNotes }: { id: string; adminNotes?: string }) => {
-      const result = await rejectSupplyRequest(id, adminNotes);
-      if (result.error) throw new Error(result.error);
+      const response = await fetch(`/api/supply-requests/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to reject supply request');
+      }
       return result;
     },
     onSuccess: () => {

@@ -139,9 +139,13 @@ export function useCanEditMenu() {
         .eq('user_id', user.id);
 
       if (membership) {
-        return membership.some((m: any) =>
-          m.group?.name?.toLowerCase() === 'chef'
-        );
+        return membership.some((m) => {
+          // Supabase can return group as either an object or array depending on relation
+          const group = m.group as { name: string } | { name: string }[] | null;
+          if (!group) return false;
+          const groupName = Array.isArray(group) ? group[0]?.name : group.name;
+          return groupName?.toLowerCase() === 'chef';
+        });
       }
 
       return false;

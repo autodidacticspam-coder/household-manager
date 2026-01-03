@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
 import { addDays, addWeeks, addMonths, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
 
+// Type for user relation from Supabase joins
+type UserRelation = { id: string; full_name: string } | null;
+
 
 export type CalendarFilters = {
   startDate: string;
@@ -301,17 +304,18 @@ export function useCalendarEvents(filters: CalendarFilters) {
           if (isHoliday) {
             displayType = 'Holiday';
             color = '#f59e0b'; // amber for holidays
-          } else if (l.leave_type === 'pto') {
-            displayType = 'PTO';
-            color = '#3b82f6'; // blue for PTO
+          } else if (l.leave_type === 'vacation') {
+            displayType = 'Vacation';
+            color = '#3b82f6'; // blue for vacation
           } else {
             displayType = 'Sick';
             color = '#10b981'; // green for sick
           }
 
+          const user = l.user as UserRelation;
           const title = isHoliday
-            ? `${(l.user as any)?.full_name || 'Employee'} - ${holidayName}`
-            : `${(l.user as any)?.full_name || 'Employee'} - ${displayType}`;
+            ? `${user?.full_name || 'Employee'} - ${holidayName}`
+            : `${user?.full_name || 'Employee'} - ${displayType}`;
 
           const baseEventProps = {
             type: 'leave' as const,
@@ -322,7 +326,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
             extendedProps: {
               leaveType: isHoliday ? 'holiday' : l.leave_type,
               userId: l.user_id,
-              userName: (l.user as any)?.full_name,
+              userName: user?.full_name,
               totalDays: l.total_days,
               isHoliday,
               holidayName,
@@ -427,7 +431,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
           events.push({
             id: 'log-' + log.id,
-            type: 'log' as any,
+            type: 'log',
             title,
             start: eventStart,
             end: eventEnd,
@@ -438,7 +442,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
               logCategory: log.category,
               child: log.child,
               description: log.description,
-              loggedBy: (log.logged_by_user as any)?.full_name,
+              loggedBy: (log.logged_by_user as UserRelation)?.full_name,
               startTime: log.start_time,
               endTime: log.end_time,
             },
@@ -482,7 +486,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                     (isBefore(eventDate, rangeEnd) || isEqual(eventDate, rangeEnd))) {
                   events.push({
                     id: `important-${user.id}-${d.date}-${year}`,
-                    type: 'important_date' as any,
+                    type: 'important_date',
                     title: `🎂 ${d.label} (${user.full_name})`,
                     start: eventDateStr,
                     end: eventDateStr,
@@ -602,7 +606,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
               events.push({
                 id: `schedule-${schedule.id}-${dateStr}`,
-                type: 'schedule' as any,
+                type: 'schedule',
                 title: `${user.full_name}`,
                 start: `${dateStr}T${startTime}`,
                 end: `${dateStr}T${endTime}`,
