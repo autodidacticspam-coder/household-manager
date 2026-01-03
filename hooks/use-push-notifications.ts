@@ -191,11 +191,45 @@ export function usePushNotifications() {
     }
   };
 
+  const manualRegister = async () => {
+    if (!isCapacitor) return;
+
+    try {
+      console.log('[PUSH_HOOK] Manual register triggered');
+      const { PushNotifications } = await import('@capacitor/push-notifications');
+
+      // Remove old listeners first
+      await PushNotifications.removeAllListeners();
+
+      // Set up fresh listener
+      PushNotifications.addListener('registration', async (pushToken) => {
+        console.log('[PUSH_HOOK] Manual registration success, token:', pushToken.value.slice(0, 20) + '...');
+        setToken(pushToken.value);
+        pendingTokenRef.current = pushToken.value;
+        tokenSavedRef.current = false; // Reset so it saves again
+        await saveTokenToDatabase(pushToken.value);
+      });
+
+      PushNotifications.addListener('registrationError', (error) => {
+        console.error('[PUSH_HOOK] Manual registration error:', error);
+        alert('Registration error: ' + JSON.stringify(error));
+      });
+
+      console.log('[PUSH_HOOK] Calling register...');
+      await PushNotifications.register();
+      console.log('[PUSH_HOOK] Register called');
+    } catch (error) {
+      console.error('[PUSH_HOOK] Manual register error:', error);
+      alert('Error: ' + String(error));
+    }
+  };
+
   return {
     status,
     token,
     isLoading,
     isSupported: isCapacitor,
     requestPermission,
+    manualRegister,
   };
 }
