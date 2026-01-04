@@ -205,13 +205,18 @@ Request vacation days, sick leave, or other time off.
 2. Tap the **+ New Request** button
 3. Fill out the form:
    - **Type:** Select Vacation or Sick Leave
-   - **Start Date:** First day of your time off
-   - **End Date:** Last day of your time off
-   - **Full Day or Partial:**
-     - Full Day = entire day(s) off
-     - Partial = specific hours (select start and end times)
+   - **Select Days Off:** Tap on the calendar to select the days you want off
+     - Tap a date to select it (tap again to deselect)
+     - You can select multiple non-consecutive days
+     - Selected days appear as badges above the calendar
+     - Use "Clear all" to start over
+   - **Full Day or Partial Day:** (only available when selecting a single day)
+     - Toggle "Full Day" off to request partial time
+     - Select start and end times for partial day requests
    - **Reason:** Brief explanation (optional but helpful)
-4. Tap **Submit Request**
+4. Tap **Submit**
+5. A confirmation dialog will appear reminding you that the system does not track remaining leave balances
+6. Tap **I Understand, Submit Request** to confirm
 
 ### Checking Request Status
 
