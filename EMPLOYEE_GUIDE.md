@@ -298,8 +298,11 @@ You can track four types of activities:
 3. **Select Category** - Tap on the type of activity (Sleep, Food, Poop, or Shower)
 4. **Date** - Defaults to today, change if needed
 5. **Time** - Enter the time of the activity
-   - For **Sleep logs**: Enter both start time (when they fell asleep) and end time (when they woke up)
-   - For other logs: Enter the time it happened
+   - For **Sleep logs**: You can enter start time, end time, or both:
+     - **Both times**: Shows as "9:00 PM - 7:00 AM" (full sleep record)
+     - **Start time only**: Shows as "Put to bed 9:00 PM" (use when child just fell asleep)
+     - **End time only**: Shows as "Woke up 7:00 AM" (use when you only know wake time)
+   - For **other logs**: Enter the time it happened
 6. **Description** (optional) - Add any notes
    - For food logs, you'll see menu suggestions you can tap to quickly add
 7. Tap **Add Log**
