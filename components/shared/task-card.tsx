@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, startOfDay, isBefore } from 'date-fns';
+import { parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,7 +89,7 @@ export function TaskCard({
   const isOverdue = (() => {
     if (!task.dueDate || task.status === 'completed') return false;
 
-    const dueDate = new Date(task.dueDate);
+    const dueDate = parseLocalDate(task.dueDate);
     const now = new Date();
 
     // If the task is recurring and the due date is before today, don't show as overdue
@@ -297,7 +298,7 @@ export function TaskCard({
               isOverdue ? 'text-red-600' : 'text-muted-foreground'
             )}>
               <Calendar className="h-4 w-4 mr-1" />
-              {format(new Date(task.dueDate), 'EEE, MMM d')}
+              {format(parseLocalDate(task.dueDate), 'EEE, MMM d')}
               {task.dueTime && !task.isAllDay && (
                 <span className="ml-1">
                   at {formatTime12h(task.dueTime)}

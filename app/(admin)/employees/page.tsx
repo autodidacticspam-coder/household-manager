@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/table';
 import { useEmployeesList } from '@/hooks/use-employees';
 import { format } from 'date-fns';
+import { parseLocalDate } from '@/lib/date-utils';
 import { Plus, Search, Mail, Users } from 'lucide-react';
 
 export default function EmployeesPage() {
@@ -119,7 +120,7 @@ export default function EmployeesPage() {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       {employee.profile?.hireDate ? (
-                        format(new Date(employee.profile.hireDate), 'MMM d, yyyy')
+                        format(parseLocalDate(employee.profile.hireDate), 'MMM d, yyyy')
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}

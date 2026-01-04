@@ -14,16 +14,11 @@ import {
 } from '@/components/ui/dialog';
 import { ClipboardList, Moon, Utensils, Droplets, Bath, Loader2 } from 'lucide-react';
 import { useRecentChildLogs, useCanAccessChildLogs } from '@/hooks/use-child-logs';
+import { format } from 'date-fns';
 import { formatTime12h } from '@/lib/format-time';
-import { getTodayString } from '@/lib/date-utils';
+import { getTodayString, parseLocalDate } from '@/lib/date-utils';
 import type { ChildLogCategory } from '@/types';
 import Link from 'next/link';
-
-// Helper to parse date string without timezone issues
-function parseLocalDate(dateStr: string): Date {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
 
 // Helper to get category icon
 function getCategoryIcon(category: ChildLogCategory) {

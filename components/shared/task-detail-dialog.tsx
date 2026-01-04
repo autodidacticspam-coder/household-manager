@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
+import { parseLocalDate } from '@/lib/date-utils';
 import {
   Dialog,
   DialogContent,
@@ -190,7 +191,7 @@ export function TaskDetailDialog({
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">{t('tasks.dueDate')}:</span>
-              <span>{format(new Date(task.dueDate), 'EEEE, MMMM d, yyyy')}</span>
+              <span>{format(parseLocalDate(task.dueDate), 'EEEE, MMMM d, yyyy')}</span>
               {task.dueTime && !task.isAllDay && (
                 <span className="text-muted-foreground">
                   at {formatTime12h(task.dueTime)}

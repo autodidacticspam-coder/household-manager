@@ -292,7 +292,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium text-sm">{task.title}</p>
                       <p className="text-xs text-red-600">
-                        {t('tasks.dueDate')}: {task.due_date ? format(new Date(task.due_date), 'MMM d') : '-'}
+                        {t('tasks.dueDate')}: {task.due_date ? format(parseLocalDate(task.due_date), 'MMM d') : '-'}
                       </p>
                     </div>
                     <Badge variant="destructive" className="text-xs">
@@ -308,7 +308,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium text-sm">{task.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {task.due_date ? format(new Date(task.due_date), 'MMM d') : t('tasks.noDueDate')}
+                      {task.due_date ? format(parseLocalDate(task.due_date), 'MMM d') : t('tasks.noDueDate')}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs">
@@ -349,7 +349,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium">{request.user?.fullName}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(new Date(request.startDate), 'MMM d')} - {format(new Date(request.endDate), 'MMM d')}
+                        {format(parseLocalDate(request.startDate), 'MMM d')} - {format(parseLocalDate(request.endDate), 'MMM d')}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {request.totalDays} {t('common.days')}

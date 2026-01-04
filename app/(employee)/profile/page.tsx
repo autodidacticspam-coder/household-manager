@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pencil, Calendar, Phone, UserCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { parseLocalDate } from '@/lib/date-utils';
 import Link from 'next/link';
 import { getProfile } from './actions';
 
@@ -123,7 +124,7 @@ export default function ProfilePage() {
                 {profile.dateOfBirth && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{t('profile.dateOfBirth')}: {format(new Date(profile.dateOfBirth), 'MMMM d, yyyy')}</span>
+                    <span>{t('profile.dateOfBirth')}: {format(parseLocalDate(profile.dateOfBirth), 'MMMM d, yyyy')}</span>
                   </div>
                 )}
                 {profile.emergencyContact && (
@@ -177,7 +178,7 @@ export default function ProfilePage() {
                     <span className="font-medium">{date.label}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {format(new Date(date.date), 'MMMM d, yyyy')}
+                    {format(parseLocalDate(date.date), 'MMMM d, yyyy')}
                   </span>
                 </div>
               ))}

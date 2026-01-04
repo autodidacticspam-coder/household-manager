@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, subDays, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear } from 'date-fns';
+import { parseLocalDate } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -97,7 +98,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   };
 
   const displayText = value.preset === 'custom' && value.startDate && value.endDate
-    ? `${format(new Date(value.startDate), 'MMM d, yyyy')} - ${format(new Date(value.endDate), 'MMM d, yyyy')}`
+    ? `${format(parseLocalDate(value.startDate), 'MMM d, yyyy')} - ${format(parseLocalDate(value.endDate), 'MMM d, yyyy')}`
     : t(`reports.dateRange.presets.${value.preset || 'last30days'}`);
 
   return (

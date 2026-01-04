@@ -358,7 +358,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      Hired: {format(new Date(employee.profile.hireDate), 'MMM d, yyyy')}
+                      Hired: {format(parseLocalDate(employee.profile.hireDate), 'MMM d, yyyy')}
                     </span>
                   </div>
                 )}
@@ -366,7 +366,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      Birthday: {format(new Date(employee.profile.dateOfBirth), 'MMM d')}
+                      Birthday: {format(parseLocalDate(employee.profile.dateOfBirth), 'MMM d')}
                     </span>
                   </div>
                 )}
@@ -392,7 +392,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                         <div key={index} className="flex justify-between text-sm">
                           <span>{date.label}</span>
                           <span className="text-muted-foreground">
-                            {format(new Date(date.date), 'MMM d')}
+                            {format(parseLocalDate(date.date), 'MMM d')}
                           </span>
                         </div>
                       ))}

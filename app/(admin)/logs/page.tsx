@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, subDays, startOfMonth } from 'date-fns';
 import { formatTime12h } from '@/lib/format-time';
+import { parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -923,7 +924,7 @@ export default function UnifiedLogPage() {
                   <div key={date}>
                     <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {format(new Date(date), 'EEEE, MMMM d, yyyy')}
+                      {format(parseLocalDate(date), 'EEEE, MMMM d, yyyy')}
                       <Badge variant="secondary">{dateLogs.length} logs</Badge>
                     </h3>
                     <div className="space-y-2">
@@ -996,7 +997,7 @@ export default function UnifiedLogPage() {
                     .map(([date, dateLogs]) => (
                       <div key={date}>
                         <h3 className="font-medium text-sm text-muted-foreground mb-2">
-                          {format(new Date(date), 'EEEE, MMMM d')}
+                          {format(parseLocalDate(date), 'EEEE, MMMM d')}
                         </h3>
                         <div className="space-y-2">
                           {dateLogs.map((log) => (
@@ -1077,7 +1078,7 @@ export default function UnifiedLogPage() {
                     .map(([date, dateLogs]) => (
                       <div key={date}>
                         <h3 className="font-medium text-sm text-muted-foreground mb-2">
-                          {format(new Date(date), 'EEEE, MMMM d')}
+                          {format(parseLocalDate(date), 'EEEE, MMMM d')}
                         </h3>
                         <div className="space-y-2">
                           {dateLogs.map((log) => (
