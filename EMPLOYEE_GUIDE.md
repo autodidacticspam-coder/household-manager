@@ -16,8 +16,9 @@ Welcome to Household Manager! This guide will help you get started with the app 
 5. [My Calendar](#my-calendar)
 6. [Time-Off Requests](#time-off-requests)
 7. [Supply Requests](#supply-requests)
-8. [My Profile](#my-profile)
-9. [Tips & Troubleshooting](#tips--troubleshooting)
+8. [Child Logs (Nanny/Teacher Only)](#child-logs-nannyteacher-only)
+9. [My Profile](#my-profile)
+10. [Tips & Troubleshooting](#tips--troubleshooting)
 
 ---
 
@@ -265,6 +266,71 @@ Need supplies for your work? Request them here.
 1. Find your pending request
 2. Tap **Cancel**
 3. Confirm cancellation
+
+---
+
+## Child Logs (Nanny/Teacher Only)
+
+**This feature is only available if you are assigned to the Nanny or Teacher role.**
+
+Track daily activities for the children in your care.
+
+### Accessing Logs
+
+1. If you have access, you'll see **Log** in your navigation
+2. Tap **Log** to open the child logs page
+
+### Log Categories
+
+You can track four types of activities:
+
+| Category | Icon | Description |
+|----------|------|-------------|
+| **Sleep** | Moon | Nap times and bedtimes (with start/end times) |
+| **Food** | Fork & Knife | Meals and snacks |
+| **Poop** | Baby | Diaper changes |
+| **Shower** | Showerhead | Baths and showers |
+
+### Creating a New Log
+
+1. Tap the **New Log** tab (or it may be selected by default)
+2. **Select Child** - Tap on the child's name (Zoe, Zara, or Zander)
+3. **Select Category** - Tap on the type of activity (Sleep, Food, Poop, or Shower)
+4. **Date** - Defaults to today, change if needed
+5. **Time** - Enter the time of the activity
+   - For **Sleep logs**: Enter both start time (when they fell asleep) and end time (when they woke up)
+   - For other logs: Enter the time it happened
+6. **Description** (optional) - Add any notes
+   - For food logs, you'll see menu suggestions you can tap to quickly add
+7. Tap **Add Log**
+
+### Viewing Logs
+
+Use the tabs at the top to view logs different ways:
+
+- **New Log** - Create a new entry
+- **All** - See all logs sorted by date
+- **By Child** - Filter logs by a specific child
+- **By Type** - Filter logs by category (Sleep, Food, etc.)
+
+### Filtering by Date
+
+When viewing logs, you can filter by date range:
+1. Use the date pickers at the top
+2. Or tap quick filters: **Today**, **This Week**, or **This Month**
+
+### Editing a Log
+
+1. Find the log you want to edit
+2. Tap the **pencil icon** on the right side
+3. Make your changes
+4. Tap **Update Log**
+
+### Deleting a Log
+
+1. Find the log you want to delete
+2. Tap the **trash icon** on the right side
+3. Confirm the deletion
 
 ---
 
