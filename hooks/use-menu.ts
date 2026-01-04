@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { WeeklyMenu, DayMeals, UpdateMenuInput } from '@/types';
 import { toast } from 'sonner';
-import { startOfWeek, format } from 'date-fns';
+import { startOfWeek } from 'date-fns';
+import { formatDateString } from '@/lib/date-utils';
 
 function transformMenu(row: Record<string, unknown>): WeeklyMenu {
   return {
@@ -70,7 +71,7 @@ export function useWeeklyMenu(weekStart: string) {
 
 // Keep for backwards compatibility
 export function useCurrentWeekMenu() {
-  const currentWeekStart = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+  const currentWeekStart = formatDateString(startOfWeek(new Date(), { weekStartsOn: 1 }));
   return useWeeklyMenu(currentWeekStart);
 }
 

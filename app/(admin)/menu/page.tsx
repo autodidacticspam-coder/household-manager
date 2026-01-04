@@ -297,9 +297,11 @@ function parseMenuText(text: string): DayMeals[] {
 
 export default function MenuPage() {
   const t = useTranslations();
-  const [selectedWeek, setSelectedWeek] = useState(() =>
-    startOfWeek(new Date(), { weekStartsOn: 1 })
-  );
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    // SSR-safe initialization
+    if (typeof window === 'undefined') return new Date();
+    return startOfWeek(new Date(), { weekStartsOn: 1 });
+  });
   const weekStartStr = format(selectedWeek, 'yyyy-MM-dd');
   const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const isCurrentWeek = format(selectedWeek, 'yyyy-MM-dd') === format(currentWeekStart, 'yyyy-MM-dd');

@@ -23,3 +23,33 @@ export function formatDateString(date: Date): string {
 export function getTodayString(): string {
   return formatDateString(new Date());
 }
+
+/**
+ * Get today's date for SSR-safe initialization.
+ * Returns empty string on server, actual date on client.
+ * Use with useEffect to update on client mount.
+ */
+export function getClientTodayString(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return formatDateString(new Date());
+}
+
+/**
+ * Get the start of current month as YYYY-MM-DD string in local timezone
+ */
+export function getStartOfMonthString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+/**
+ * Get the start of current month for SSR-safe initialization.
+ */
+export function getClientStartOfMonthString(): string {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return getStartOfMonthString();
+}

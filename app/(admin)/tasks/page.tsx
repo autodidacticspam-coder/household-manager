@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { TaskCard } from '@/components/shared/task-card';
 import { TaskTemplates } from '@/components/admin/task-templates';
 import { TemplateFormDialog } from '@/components/admin/template-form-dialog';
 import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask, useCompleteTaskInstance } from '@/hooks/use-tasks';
-import { format } from 'date-fns';
+import { getTodayString } from '@/lib/date-utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +58,7 @@ export default function TasksPage() {
   const completeTask = useCompleteTask();
   const completeTaskInstance = useCompleteTaskInstance();
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = useMemo(() => getTodayString(), []);
 
   const handleComplete = async (id: string) => {
     const task = tasks?.find(t => t.id === id);

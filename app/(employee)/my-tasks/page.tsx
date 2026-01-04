@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,10 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
 import { useMyTasks, useCompleteTask, useUpdateTaskStatus, useCompleteTaskInstance, useUncompleteTaskInstance } from '@/hooks/use-tasks';
-import { format } from 'date-fns';
 import { CheckSquare, Clock, Loader2 } from 'lucide-react';
 import { TaskDetailDialog } from '@/components/shared/task-detail-dialog';
 import type { TaskWithRelations } from '@/types';
+import { getTodayString } from '@/lib/date-utils';
 
 export default function MyTasksPage() {
   const t = useTranslations();
@@ -25,7 +25,8 @@ export default function MyTasksPage() {
   const uncompleteTaskInstance = useUncompleteTaskInstance();
   const updateTaskStatus = useUpdateTaskStatus();
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Use memoized today to avoid recalculating on every render
+  const today = useMemo(() => getTodayString(), []);
 
   const pendingTasks = tasks?.filter((task) => task.status === 'pending') || [];
   const inProgressTasks = tasks?.filter((task) => task.status === 'in_progress') || [];

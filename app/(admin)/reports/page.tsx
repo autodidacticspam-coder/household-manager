@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
+import { getTodayString, formatDateString } from '@/lib/date-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -46,11 +47,13 @@ const COLORS = ['#6366f1', '#ec4899', '#3b82f6', '#f97316', '#10b981', '#8b5cf6'
 
 export default function ReportsPage() {
   const t = useTranslations();
-  const today = new Date();
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startDate: format(subDays(today, 29), 'yyyy-MM-dd'),
-    endDate: format(today, 'yyyy-MM-dd'),
-    preset: 'last30days',
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const today = new Date();
+    return {
+      startDate: formatDateString(subDays(today, 29)),
+      endDate: getTodayString(),
+      preset: 'last30days',
+    };
   });
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 

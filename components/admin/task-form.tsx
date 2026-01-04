@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
+import { getTodayString } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -202,7 +202,7 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
     return `FREQ=WEEKLY${interval};BYDAY=${customDays.join(',')}`;
   };
 
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = useMemo(() => getTodayString(), []);
 
   const form = useForm<CreateTaskInput>({
     resolver: zodResolver(createTaskSchema),

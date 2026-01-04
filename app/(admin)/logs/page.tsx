@@ -145,8 +145,15 @@ export default function UnifiedLogPage() {
   const [activeTab, setActiveTab] = useState<'create' | 'all' | 'by-child' | 'by-category'>('create');
   const [selectedChild, setSelectedChild] = useState<ChildName | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<ChildLogCategory | null>(null);
-  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  // Use lazy initializers to avoid SSR timezone issues
+  const [startDate, setStartDate] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return format(startOfMonth(new Date()), 'yyyy-MM-dd');
+  });
+  const [endDate, setEndDate] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return format(new Date(), 'yyyy-MM-dd');
+  });
 
   // Redirect after log preference - use lazy initializer to avoid setState in effect
   const [redirectAfterLog, setRedirectAfterLog] = useState(() => {
@@ -191,7 +198,10 @@ export default function UnifiedLogPage() {
   // Create form state
   const [formChild, setFormChild] = useState<ChildName | ''>('');
   const [formCategory, setFormCategory] = useState<ChildLogCategory | ''>('');
-  const [logDate, setLogDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [logDate, setLogDate] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return format(new Date(), 'yyyy-MM-dd');
+  });
   const [startTime, setStartTime] = useState('');
   const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('AM');
   const [endTime, setEndTime] = useState('');

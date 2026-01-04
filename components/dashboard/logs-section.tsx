@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,8 +14,8 @@ import {
 } from '@/components/ui/dialog';
 import { ClipboardList, Moon, Utensils, Droplets, Bath, Loader2 } from 'lucide-react';
 import { useRecentChildLogs, useCanAccessChildLogs } from '@/hooks/use-child-logs';
-import { format } from 'date-fns';
 import { formatTime12h } from '@/lib/format-time';
+import { getTodayString } from '@/lib/date-utils';
 import type { ChildLogCategory } from '@/types';
 import Link from 'next/link';
 
@@ -81,9 +82,10 @@ export function LogsTopCard({ onClick }: { onClick: () => void }) {
   const { data: canAccessLogs } = useCanAccessChildLogs();
   const { data: recentLogs, isLoading } = useRecentChildLogs(10);
 
+  const today = useMemo(() => getTodayString(), []);
+
   if (!canAccessLogs) return null;
 
-  const today = format(new Date(), 'yyyy-MM-dd');
   const todaysLogs = recentLogs?.filter(log => log.logDate === today) || [];
 
   return (
