@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createTaskSchema, type CreateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
-import { sendTaskAssignedNotification } from '@/lib/notifications/task-notifications';
+import { sendTaskAssignedPush } from '@/lib/notifications/push-service';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 
 export async function POST(request: NextRequest) {
@@ -100,23 +100,62 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Send SMS notification for high/urgent priority tasks (non-blocking)
-      if (taskData.priority === 'high' || taskData.priority === 'urgent') {
-        sendTaskAssignedNotification({
-          id: task.id,
-          title: taskData.title,
-          priority: taskData.priority,
-          dueDate: taskData.dueDate || undefined,
-          dueTime: taskData.dueTime || undefined,
-          assignments: assignments.map(a => ({
-            targetType: a.targetType,
-            targetUserId: a.targetUserId,
-            targetGroupId: a.targetGroupId,
-          })),
-        }).catch(err => {
-          console.error('Failed to send task assignment SMS:', err);
-        });
+      // Get user IDs for push notifications
+      const assignedUserIds: string[] = [];
+      for (const a of assignments) {
+        if (a.targetType === 'user' && a.targetUserId) {
+          assignedUserIds.push(a.targetUserId);
+        } else if (a.targetType === 'group' && a.targetGroupId) {
+          // Get group members
+          const { data: members } = await supabaseAdmin
+            .from('employee_group_memberships')
+            .select('user_id')
+            .eq('group_id', a.targetGroupId);
+          if (members) {
+            assignedUserIds.push(...members.map(m => m.user_id));
+          }
+        } else if (a.targetType === 'all') {
+          // Get all employees
+          const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .neq('role', 'admin');
+          if (users) {
+            assignedUserIds.push(...users.map(u => u.id));
+          }
+        } else if (a.targetType === 'all_admins') {
+          // Get all admins
+          const { data: users } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('role', 'admin');
+          if (users) {
+            assignedUserIds.push(...users.map(u => u.id));
+          }
+        }
       }
+
+      // Send push notification for high/urgent priority tasks only
+      const isHighPriority = taskData.priority === 'high' || taskData.priority === 'urgent';
+
+      if (assignedUserIds.length > 0 && isHighPriority) {
+        console.log('[TASK] Sending push notification for high/urgent task:', task.id);
+        try {
+          await sendTaskAssignedPush(
+            [...new Set(assignedUserIds)], // Deduplicate
+            taskData.title,
+            task.id,
+            taskData.priority!, // Already checked in isHighPriority
+            taskData.description,
+            taskData.dueDate,
+            taskData.dueTime
+          );
+          console.log('[TASK] Push notification sent successfully');
+        } catch (err) {
+          console.error('[TASK] Failed to send task assignment push:', err);
+        }
+      }
+
     }
 
     // Create viewers only if there are any

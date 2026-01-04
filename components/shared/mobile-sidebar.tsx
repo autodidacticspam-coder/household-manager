@@ -116,7 +116,7 @@ export function MobileSidebar() {
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-0">
+      <SheetContent side="left" className="w-72 p-0 safe-area-top">
         <div className="flex flex-col h-full">
           <div className="flex items-center h-16 px-6 border-b border-gray-200">
             <Link

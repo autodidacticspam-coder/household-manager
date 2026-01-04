@@ -36,12 +36,17 @@ function isHoliday(request: LeaveRequest): boolean {
   return request.leaveType === 'holiday' || request.reason?.startsWith('Holiday:') || false;
 }
 
+// Helper to check if leave type is vacation
+function isVacation(request: LeaveRequest): boolean {
+  return request.leaveType === 'vacation' || request.leaveType === 'pto';
+}
+
 // Helper to get leave type display label
 function getLeaveTypeLabel(request: LeaveRequest, t: (key: string) => string): string {
   if (isHoliday(request)) {
     return t('leave.holiday');
   }
-  return request.leaveType === 'vacation' ? t('leave.vacation') : t('leave.sick');
+  return isVacation(request) ? t('leave.pto') : t('leave.sick');
 }
 
 // Helper to get badge class based on leave type
@@ -49,7 +54,7 @@ function getLeaveTypeBadgeClass(request: LeaveRequest): string {
   if (isHoliday(request)) {
     return 'bg-amber-100 text-amber-700';
   }
-  if (request.leaveType === 'vacation') {
+  if (isVacation(request)) {
     return '';  // default variant
   }
   return 'bg-green-100 text-green-700';  // sick

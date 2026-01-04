@@ -1,6 +1,7 @@
 import { Sidebar } from '@/components/shared/sidebar';
 import { Header } from '@/components/shared/header';
 import { BottomNav } from '@/components/shared/bottom-nav';
+import { PushNotificationPrompt } from '@/components/push-notification-prompt';
 
 export default function EmployeeLayout({
   children,
@@ -8,11 +9,14 @@ export default function EmployeeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="ios-app-shell bg-gray-50">
       <Sidebar />
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 flex flex-col flex-1 overflow-hidden">
         <Header />
-        <main className="p-4 lg:p-6 pb-24 lg:pb-6">{children}</main>
+        <main className="ios-scroll-content p-4 lg:p-6 pb-24 lg:pb-6">
+          <PushNotificationPrompt />
+          {children}
+        </main>
       </div>
       <BottomNav />
     </div>

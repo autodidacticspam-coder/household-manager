@@ -123,3 +123,37 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* iOS Safe Area Support */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* iOS app shell - prevents body scroll, only content scrolls */
+.ios-app-shell {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header container - static, never scrolls */
+.ios-header {
+  flex-shrink: 0;
+  padding-top: env(safe-area-inset-top, 0px);
+  background-color: white;
+  z-index: 50;
+}
+
+/* Scrollable content area */
+.ios-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
+}

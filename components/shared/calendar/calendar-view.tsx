@@ -32,7 +32,7 @@ import { useCompleteTask, useCompleteTaskInstance, useDeleteTask, useSkipTaskIns
 import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
-import { format, startOfMonth, endOfMonth, subWeeks, addWeeks } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, subWeeks, addWeeks } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2 } from 'lucide-react';
 
 type CalendarViewProps = {
@@ -881,8 +881,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 >
                   {Boolean(selectedEvent.extendedProps.isHoliday)
                     ? t('leave.holiday')
-                    : String(selectedEvent.extendedProps.leaveType) === 'vacation'
-                      ? t('leave.vacation')
+                    : (String(selectedEvent.extendedProps.leaveType) === 'vacation' || String(selectedEvent.extendedProps.leaveType) === 'pto')
+                      ? t('leave.pto')
                       : t('leave.sick')}
                 </Badge>
                 {Boolean(selectedEvent.extendedProps.isHoliday) && selectedEvent.extendedProps.holidayName ? (

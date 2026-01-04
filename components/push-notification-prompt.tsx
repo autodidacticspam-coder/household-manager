@@ -3,41 +3,30 @@
 import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { Button } from '@/components/ui/button';
 import { Bell, BellOff, Check } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from 'next-intl';
 
 export function PushNotificationPrompt() {
   const { status, isLoading, isSupported, requestPermission } = usePushNotifications();
   const t = useTranslations();
 
-  // Don't show anything if not in Capacitor or still loading
-  if (!isSupported || isLoading) {
+  // Only show prompt if notifications are supported and permission hasn't been granted/denied
+  if (!isSupported || isLoading || status !== 'prompt') {
     return null;
   }
 
-  // Don't show if already granted
-  if (status === 'granted') {
-    return null;
-  }
-
-  // Don't show if denied (user made their choice)
-  if (status === 'denied') {
-    return null;
-  }
-
-  // Show prompt for users who haven't decided yet
   return (
-    <Card className="border-blue-200 bg-blue-50">
+    <Card className="border-primary/20 bg-primary/5 mb-4">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Bell className="h-5 w-5 text-blue-600" />
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Bell className="h-4 w-4" />
           {t('notifications.enableTitle')}
         </CardTitle>
-        <CardDescription>
-          {t('notifications.enableDescription')}
-        </CardDescription>
       </CardHeader>
       <CardContent>
+        <p className="text-sm text-muted-foreground mb-3">
+          {t('notifications.enableDescription')}
+        </p>
         <Button onClick={requestPermission} variant="default" size="sm">
           {t('notifications.enableButton')}
         </Button>

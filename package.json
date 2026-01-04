@@ -41,6 +41,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "jose": "^6.1.3",
     "lucide-react": "^0.562.0",
     "next": "16.1.0",
     "next-intl": "^4.6.1",
@@ -52,7 +53,6 @@
     "recharts": "^3.6.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
-    "twilio": "^5.11.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
