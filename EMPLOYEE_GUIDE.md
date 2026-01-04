@@ -17,8 +17,7 @@ Welcome to Household Manager! This guide will help you get started with the app 
 6. [Time-Off Requests](#time-off-requests)
 7. [Supply Requests](#supply-requests)
 8. [My Profile](#my-profile)
-9. [Settings](#settings)
-10. [Tips & Troubleshooting](#tips--troubleshooting)
+9. [Tips & Troubleshooting](#tips--troubleshooting)
 
 ---
 
@@ -112,10 +111,9 @@ After logging in, you'll see the Employee Portal with these main sections:
 |---------|------|-------------|
 | **My Tasks** | Clipboard | View and complete your assigned tasks |
 | **My Calendar** | Calendar | See your schedule and time-off |
-| **Time-Off** | Calendar with clock | Request vacation or sick days |
+| **Time-Off** | Clock | Request vacation or sick days |
 | **Supplies** | Shopping bag | Request supplies or items |
-| **Profile** | Person icon | Update your personal information |
-| **Settings** | Gear | Change language preferences |
+| **Profile** | Person icon | Update your personal information and language |
 
 **Navigation:**
 - Use the bottom navigation bar (mobile) or sidebar (desktop) to switch between sections
@@ -177,10 +175,11 @@ View your schedule, tasks, and approved time-off in a calendar format.
 
 ### Calendar Views
 
-You can switch between different views:
-- **Month** - Overview of the entire month
-- **Week** - Detailed week view
+You can switch between different views using the buttons at the top:
 - **Day** - Focus on a single day
+- **2D** - Two-day view (great for mobile)
+- **Week** - Detailed week view
+- **Month** - Overview of the entire month
 
 ### Understanding Calendar Colors
 
@@ -248,12 +247,12 @@ Need supplies for your work? Request them here.
 ### Submitting a Supply Request
 
 1. Tap **Supplies** in the navigation
-2. Tap **+ New Request**
+2. Tap **Request Supply** button
 3. Fill out the form:
-   - **Title:** What you need (e.g., "Cleaning supplies")
-   - **Description:** Details about the items
+   - **What do you need?** - Enter what you need (e.g., "Cleaning supplies")
    - **Product Link:** (Optional) Paste a URL to the exact product
-4. Tap **Submit**
+   - **Description:** (Optional) Additional details about the items
+4. Tap **Submit Request**
 
 ### Request Statuses
 
@@ -279,43 +278,32 @@ View and update your personal information.
 2. You'll see your:
    - Name and role
    - Profile photo
-   - Contact information
-   - Important dates
+   - Phone number
+   - Date of birth
+   - Emergency contact
+   - Important dates (birthdays, anniversaries, etc.)
 
 ### Updating Your Information
 
-1. Tap the **Edit** button
-2. Update any of the following:
-   - Phone number
-   - Address
-   - Emergency contact
+1. Tap the **Edit Profile** button
+2. You can update the following:
+   - **Profile Photo** - Tap your photo to upload a new one
+   - **Language** - Choose English, Spanish, or Chinese
+   - **Full Name** - Your display name
+   - **Phone Number** - Your contact number
+   - **Date of Birth** - Your birthday
+   - **Emergency Contact** - Who to contact in an emergency
+   - **Important Dates** - Add birthdays, anniversaries, or other dates you want your manager to know about
 3. Tap **Save Changes**
 
-### Changing Your Profile Photo
+### Adding Important Dates
 
-1. Tap on your current photo (or the placeholder)
-2. Choose **Take Photo** or **Choose from Library**
-3. Crop the image if needed
-4. Tap **Save**
-
----
-
-## Settings
-
-Customize your app experience.
-
-### Changing Language
-
-The app supports three languages:
-- **English**
-- **Spanish (Español)**
-- **Chinese (中文)**
-
-To change your language:
-1. Tap **Settings** in the navigation
-2. Find the **Language** option
-3. Select your preferred language
-4. The app will immediately update to the new language
+Important dates help your manager remember special occasions:
+1. Go to **Profile** > **Edit Profile**
+2. Scroll to the **Important Dates** section
+3. Tap **Add Date**
+4. Enter a label (e.g., "Child's Birthday") and select the date
+5. Tap **Save Changes**
 
 ---
 
