@@ -163,7 +163,7 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
         .gte('end_date', dateRange.startDate);
 
       const ptoTaken = (leaveRequests || [])
-        .filter((r) => r.leave_type === 'pto')
+        .filter((r) => r.leave_type === 'vacation' || r.leave_type === 'pto')
         .reduce((sum, r) => sum + parseFloat(r.total_days || '0'), 0);
 
       const sickTaken = (leaveRequests || [])

@@ -423,7 +423,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               Before You Submit
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base">
-              Note: The system does not track if you have PTO or Sick Leave remaining. If approved, your leave may be unpaid.
+              Note: The system does not track if you have Vacation or Sick Leave remaining. If approved, your leave may be unpaid.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

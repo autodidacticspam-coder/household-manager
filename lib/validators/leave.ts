@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const leaveTypeSchema = z.enum(['pto', 'sick']);
+export const leaveTypeSchema = z.enum(['vacation', 'pto', 'sick']);
 export const leaveStatusSchema = z.enum(['pending', 'approved', 'denied']);
 
 export const createLeaveRequestSchema = z.object({

@@ -881,7 +881,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 >
                   {Boolean(selectedEvent.extendedProps.isHoliday)
                     ? t('leave.holiday')
-                    : String(selectedEvent.extendedProps.leaveType) === 'pto'
+                    : (String(selectedEvent.extendedProps.leaveType) === 'vacation' || String(selectedEvent.extendedProps.leaveType) === 'pto')
                       ? t('leave.pto')
                       : t('leave.sick')}
                 </Badge>

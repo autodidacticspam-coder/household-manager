@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendTaskDueReminderNotification, getTaskAssigneePhones } from '@/lib/notifications/task-notifications';
-import { sendBulkSms } from '@/lib/twilio/sms-service';
+import { sendTaskReminderPush } from '@/lib/notifications/push-service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -21,11 +20,10 @@ export async function GET(request: NextRequest) {
 
     // Calculate time 15 minutes from now
     const targetTime = new Date(now.getTime() + 15 * 60 * 1000);
-    const targetTimeStr = targetTime.toTimeString().slice(0, 8);
 
-    // Allow a 5-minute window around the target time
-    const windowStart = new Date(targetTime.getTime() - 2.5 * 60 * 1000).toTimeString().slice(0, 8);
-    const windowEnd = new Date(targetTime.getTime() + 2.5 * 60 * 1000).toTimeString().slice(0, 8);
+    // Allow a 1-minute window around the target time (cron runs every minute)
+    const windowStart = new Date(targetTime.getTime() - 30 * 1000).toTimeString().slice(0, 8);
+    const windowEnd = new Date(targetTime.getTime() + 30 * 1000).toTimeString().slice(0, 8);
 
     // Find high/urgent priority tasks due within the time window that are not completed
     const { data: tasks, error: tasksError } = await supabase
@@ -33,6 +31,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         title,
+        description,
         priority,
         due_date,
         due_time,
@@ -44,7 +43,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('due_date', today)
-      .in('priority', ['high', 'urgent'])
+      .in('priority', ['medium', 'high', 'urgent'])
       .neq('status', 'completed')
       .not('due_time', 'is', null)
       .gte('due_time', windowStart)
@@ -59,33 +58,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'No tasks due soon', tasksFound: 0 });
     }
 
-    // Check which tasks haven't had a reminder sent in the last 20 minutes
-    const twentyMinsAgo = new Date(now.getTime() - 20 * 60 * 1000).toISOString();
-
-    const { data: recentReminders } = await supabase
-      .from('sms_notifications')
-      .select('message')
-      .eq('notification_type', 'task_due_reminder')
-      .gte('created_at', twentyMinsAgo);
-
-    // Build a set of task titles that have had reminders sent
-    const remindedTitles = new Set(
-      recentReminders?.map(n => {
-        // Extract title from message format "[REMINDER] PRIORITY priority task due soon: TITLE"
-        const match = n.message.match(/task due soon: (.+?)(?:\s*-|$)/);
-        return match ? match[1] : null;
-      }).filter(Boolean) || []
-    );
-
-    let sentCount = 0;
-    let failedCount = 0;
+    let pushSentCount = 0;
+    let pushFailedCount = 0;
 
     for (const task of tasks) {
-      // Skip if reminder was already sent for this task
-      if (remindedTitles.has(task.title)) {
-        continue;
-      }
-
       const assignments = (task.task_assignments || []).map((a: {
         target_type: string;
         target_user_id: string | null;
@@ -96,38 +72,55 @@ export async function GET(request: NextRequest) {
         targetGroupId: a.target_group_id || undefined,
       }));
 
-      const recipients = await getTaskAssigneePhones(assignments);
-
-      if (recipients.length === 0) {
-        continue;
+      // Get user IDs for push notifications
+      const assignedUserIds: string[] = [];
+      for (const a of assignments) {
+        if (a.targetType === 'user' && a.targetUserId) {
+          assignedUserIds.push(a.targetUserId);
+        } else if (a.targetType === 'group' && a.targetGroupId) {
+          const { data: members } = await supabase
+            .from('employee_group_memberships')
+            .select('user_id')
+            .eq('group_id', a.targetGroupId);
+          if (members) {
+            assignedUserIds.push(...members.map(m => m.user_id));
+          }
+        } else if (a.targetType === 'all') {
+          const { data: users } = await supabase
+            .from('users')
+            .select('id')
+            .neq('role', 'admin');
+          if (users) {
+            assignedUserIds.push(...users.map(u => u.id));
+          }
+        }
       }
 
-      const priorityLabel = task.priority.toUpperCase();
-      let message = `[REMINDER] ${priorityLabel} priority task due soon: ${task.title}`;
-
-      if (task.due_time) {
-        const [hours, minutes] = task.due_time.split(':');
-        const hour = parseInt(hours, 10);
-        const ampm = hour >= 12 ? 'PM' : 'AM';
-        const hour12 = hour % 12 || 12;
-        message += ` - Due at ${hour12}:${minutes} ${ampm}`;
+      // Send push notification
+      if (assignedUserIds.length > 0) {
+        try {
+          const pushResult = await sendTaskReminderPush(
+            [...new Set(assignedUserIds)],
+            task.title,
+            task.id,
+            task.priority,
+            task.description,
+            task.due_date,
+            task.due_time
+          );
+          pushSentCount += pushResult.sent;
+          pushFailedCount += pushResult.failed;
+        } catch (err) {
+          console.error('Failed to send reminder push:', err);
+        }
       }
-
-      const result = await sendBulkSms(
-        recipients.map(r => ({ phoneNumber: r.phoneNumber, userId: r.userId })),
-        message,
-        'task_due_reminder'
-      );
-
-      sentCount += result.sent;
-      failedCount += result.failed;
     }
 
     return NextResponse.json({
       message: 'Reminder check completed',
       tasksFound: tasks.length,
-      remindersSent: sentCount,
-      remindersFailed: failedCount,
+      pushRemindersSent: pushSentCount,
+      pushRemindersFailed: pushFailedCount,
     });
   } catch (error) {
     console.error('Cron job error:', error);

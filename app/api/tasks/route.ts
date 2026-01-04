@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createTaskSchema, type CreateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
-import { sendTaskAssignedNotification } from '@/lib/notifications/task-notifications';
 import { sendTaskAssignedPush } from '@/lib/notifications/push-service';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 
@@ -136,37 +135,27 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Send push notification for all task assignments (non-blocking)
-      console.log('[TASK] Assigned user IDs for push:', assignedUserIds);
-      if (assignedUserIds.length > 0 && taskData.priority) {
-        console.log('[TASK] Sending push notification for task:', task.id);
-        sendTaskAssignedPush(
-          [...new Set(assignedUserIds)], // Deduplicate
-          taskData.title,
-          task.id,
-          taskData.priority
-        ).catch(err => {
-          console.error('Failed to send task assignment push:', err);
-        });
+      // Send push notification for high/urgent priority tasks only
+      const isHighPriority = taskData.priority === 'high' || taskData.priority === 'urgent';
+
+      if (assignedUserIds.length > 0 && isHighPriority) {
+        console.log('[TASK] Sending push notification for high/urgent task:', task.id);
+        try {
+          await sendTaskAssignedPush(
+            [...new Set(assignedUserIds)], // Deduplicate
+            taskData.title,
+            task.id,
+            taskData.priority!, // Already checked in isHighPriority
+            taskData.description,
+            taskData.dueDate,
+            taskData.dueTime
+          );
+          console.log('[TASK] Push notification sent successfully');
+        } catch (err) {
+          console.error('[TASK] Failed to send task assignment push:', err);
+        }
       }
 
-      // Send SMS notification for high/urgent priority tasks (non-blocking)
-      if (taskData.priority === 'high' || taskData.priority === 'urgent') {
-        sendTaskAssignedNotification({
-          id: task.id,
-          title: taskData.title,
-          priority: taskData.priority,
-          dueDate: taskData.dueDate || undefined,
-          dueTime: taskData.dueTime || undefined,
-          assignments: assignments.map(a => ({
-            targetType: a.targetType,
-            targetUserId: a.targetUserId,
-            targetGroupId: a.targetGroupId,
-          })),
-        }).catch(err => {
-          console.error('Failed to send task assignment SMS:', err);
-        });
-      }
     }
 
     // Create viewers only if there are any

@@ -15,7 +15,7 @@ import { useTranslations } from 'next-intl';
 
 type LeaveFilters = {
   status?: 'pending' | 'approved' | 'denied';
-  leaveType?: 'pto' | 'sick';
+  leaveType?: 'pto' | 'sick' | 'holiday';
 };
 
 export function useLeaveRequests(filters?: LeaveFilters) {
@@ -310,7 +310,7 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
   return {
     id: row.id as string,
     userId: row.user_id as string,
-    leaveType: row.leave_type as 'pto' | 'sick',
+    leaveType: row.leave_type as 'pto' | 'sick' | 'holiday',
     status: row.status as 'pending' | 'approved' | 'denied',
     startDate: row.start_date as string,
     endDate: row.end_date as string,

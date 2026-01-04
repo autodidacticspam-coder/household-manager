@@ -75,7 +75,7 @@ export default function ReportsPage() {
       ['Completion Rate', `${employeeReport.taskStats.completionRate}%`],
       [],
       ['Leave Statistics'],
-      ['PTO Taken', employeeReport.leaveStats.ptoTaken.toString()],
+      ['Vacation Taken', employeeReport.leaveStats.ptoTaken.toString()],
       ['Sick Days Taken', employeeReport.leaveStats.sickTaken.toString()],
       ['Total Days Off', employeeReport.leaveStats.totalDaysOff.toString()],
     ];

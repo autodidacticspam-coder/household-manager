@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
-import https from 'https';
+import http2 from 'http2';
 import * as jose from 'jose';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// APNS Configuration - set these in your environment variables
-const APNS_KEY_ID = process.env.APNS_KEY_ID!;
-const APNS_TEAM_ID = process.env.APNS_TEAM_ID!;
-const APNS_PRIVATE_KEY = process.env.APNS_PRIVATE_KEY!; // The .p8 file contents
+// APNS Configuration
+const APNS_KEY_ID = process.env.APNS_KEY_ID?.trim() || '';
+const APNS_TEAM_ID = process.env.APNS_TEAM_ID?.trim() || '';
+const APNS_PRIVATE_KEY = process.env.APNS_PRIVATE_KEY?.trim() || '';
 const APNS_BUNDLE_ID = 'com.household.manager';
 const APNS_PRODUCTION = process.env.NODE_ENV === 'production';
 
@@ -26,27 +26,27 @@ type PushResult = {
   error?: string;
 };
 
-// Cache for APNS token (valid for 1 hour, we refresh every 50 minutes)
+// Cache for APNS JWT token (valid for 1 hour, we refresh every 50 minutes)
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
 // Generate JWT for APNS authentication
 async function generateAPNSToken(): Promise<string> {
-  // Return cached token if still valid
   if (cachedToken && Date.now() < cachedToken.expiresAt) {
     return cachedToken.token;
   }
 
-  // The private key needs newlines restored if stored as single line
-  const privateKeyPem = APNS_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
+  let privateKeyPem = APNS_PRIVATE_KEY;
+  if (privateKeyPem.includes('\\n')) {
+    privateKeyPem = privateKeyPem.replace(/\\n/g, '\n');
+  }
 
+  const privateKey = await jose.importPKCS8(privateKeyPem, 'ES256');
   const token = await new jose.SignJWT({})
     .setProtectedHeader({ alg: 'ES256', kid: APNS_KEY_ID })
     .setIssuer(APNS_TEAM_ID)
     .setIssuedAt()
     .sign(privateKey);
 
-  // Cache for 50 minutes (APNS tokens are valid for 1 hour)
   cachedToken = {
     token,
     expiresAt: Date.now() + 50 * 60 * 1000,
@@ -55,7 +55,7 @@ async function generateAPNSToken(): Promise<string> {
   return token;
 }
 
-// Send push notification to a single device
+// Send push notification to a single device using HTTP/2
 async function sendPushToDevice(
   deviceToken: string,
   notification: PushNotification
@@ -77,51 +77,72 @@ async function sendPushToDevice(
     ...notification.data,
   };
 
-  const token = await generateAPNSToken();
+  try {
+    const jwtToken = await generateAPNSToken();
 
-  return new Promise((resolve) => {
-    const options = {
-      hostname: host,
-      port: 443,
-      path: `/3/device/${deviceToken}`,
-      method: 'POST',
-      headers: {
-        'authorization': `bearer ${token}`,
+    return new Promise((resolve) => {
+      const client = http2.connect(`https://${host}`);
+
+      client.on('error', (err) => {
+        console.error('[PUSH] HTTP/2 error:', err.message);
+        client.close();
+        resolve({ success: false, token: deviceToken, error: err.message });
+      });
+
+      const headers = {
+        ':method': 'POST',
+        ':path': `/3/device/${deviceToken}`,
+        'authorization': `bearer ${jwtToken}`,
         'apns-topic': APNS_BUNDLE_ID,
         'apns-push-type': 'alert',
         'apns-priority': '10',
         'content-type': 'application/json',
-      },
-    };
+      };
 
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => {
-        data += chunk;
+      const req = client.request(headers);
+
+      let responseData = '';
+      let statusCode: number | undefined;
+
+      req.on('response', (headers) => {
+        statusCode = headers[':status'] as number;
       });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
+
+      req.on('data', (chunk) => {
+        responseData += chunk;
+      });
+
+      req.on('end', () => {
+        client.close();
+
+        if (statusCode === 200) {
           resolve({ success: true, token: deviceToken });
         } else {
-          let errorMessage = `HTTP ${res.statusCode}`;
+          let errorMessage = `HTTP ${statusCode}`;
           try {
-            const errorData = JSON.parse(data);
+            const errorData = JSON.parse(responseData);
             errorMessage = errorData.reason || errorMessage;
           } catch {
-            // ignore parse errors
+            // Use raw error if JSON parsing fails
           }
+          console.error('[PUSH] APNS error:', errorMessage);
           resolve({ success: false, token: deviceToken, error: errorMessage });
         }
       });
-    });
 
-    req.on('error', (error) => {
-      resolve({ success: false, token: deviceToken, error: error.message });
-    });
+      req.on('error', (err) => {
+        console.error('[PUSH] Request error:', err.message);
+        client.close();
+        resolve({ success: false, token: deviceToken, error: err.message });
+      });
 
-    req.write(JSON.stringify(apnsPayload));
-    req.end();
-  });
+      req.write(JSON.stringify(apnsPayload));
+      req.end();
+    });
+  } catch (err) {
+    console.error('[PUSH] Error sending to device:', err);
+    return { success: false, token: deviceToken, error: String(err) };
+  }
 }
 
 // Get push tokens for specific users
@@ -137,7 +158,7 @@ export async function getUserPushTokens(userIds: string[]): Promise<{ userId: st
     .eq('platform', 'ios');
 
   if (error) {
-    console.error('Error fetching push tokens:', error);
+    console.error('[PUSH] Error fetching tokens:', error);
     return [];
   }
 
@@ -149,23 +170,15 @@ export async function sendPushToUsers(
   userIds: string[],
   notification: PushNotification
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
-  console.log('[PUSH] sendPushToUsers called for userIds:', userIds);
-
-  // Check if APNS is configured
   if (!APNS_KEY_ID || !APNS_TEAM_ID || !APNS_PRIVATE_KEY) {
-    console.warn('[PUSH] APNS not configured - skipping push notifications');
-    console.log('[PUSH] APNS_KEY_ID:', APNS_KEY_ID ? 'set' : 'missing');
-    console.log('[PUSH] APNS_TEAM_ID:', APNS_TEAM_ID ? 'set' : 'missing');
-    console.log('[PUSH] APNS_PRIVATE_KEY:', APNS_PRIVATE_KEY ? 'set' : 'missing');
+    console.error('[PUSH] APNS not configured');
     return { sent: 0, failed: 0, errors: ['APNS not configured'] };
   }
 
   const tokens = await getUserPushTokens(userIds);
-  console.log('[PUSH] Found tokens:', tokens.length);
 
   if (tokens.length === 0) {
-    console.log('[PUSH] No tokens found for users');
-    return { sent: 0, failed: 0, errors: [] };
+    return { sent: 0, failed: 0, errors: ['No tokens found'] };
   }
 
   const results = await Promise.all(
@@ -177,11 +190,6 @@ export async function sendPushToUsers(
   const errors = results
     .filter((r) => !r.success && r.error)
     .map((r) => `${r.token.slice(0, 8)}...: ${r.error}`);
-
-  console.log('[PUSH] Results - sent:', sent, 'failed:', failed);
-  if (errors.length > 0) {
-    console.log('[PUSH] Errors:', errors);
-  }
 
   // Remove invalid tokens from database
   const invalidTokens = results
@@ -204,21 +212,47 @@ export async function sendTaskAssignedPush(
   userIds: string[],
   taskTitle: string,
   taskId: string,
-  priority: string
-): Promise<void> {
-  const priorityEmoji = {
+  priority: string,
+  description?: string | null,
+  dueDate?: string | null,
+  dueTime?: string | null
+): Promise<{ sent: number; failed: number; errors: string[] }> {
+  const priorityLabels: Record<string, string> = {
+    low: 'Low Priority',
+    medium: 'Medium Priority',
+    high: 'High Priority',
+    urgent: 'URGENT',
+  };
+
+  const priorityEmoji: Record<string, string> = {
     low: '📋',
     medium: '📌',
     high: '⚠️',
     urgent: '🚨',
-  }[priority] || '📋';
+  };
 
-  await sendPushToUsers(userIds, {
-    title: `${priorityEmoji} New Task Assigned`,
-    body: taskTitle,
+  const emoji = priorityEmoji[priority] || '📋';
+  const label = priorityLabels[priority] || priority;
+
+  let body = `[${label}] ${taskTitle}`;
+  if (description) {
+    const truncatedDesc = description.length > 100
+      ? description.slice(0, 100) + '...'
+      : description;
+    body += `\n${truncatedDesc}`;
+  }
+
+  return sendPushToUsers(userIds, {
+    title: `${emoji} New Task Assigned`,
+    body,
     data: {
       taskId,
       type: 'task_assigned',
+      title: taskTitle,
+      description: description || '',
+      priority,
+      dueDate: dueDate || '',
+      dueTime: dueTime || '',
     },
   });
 }
@@ -228,18 +262,51 @@ export async function sendTaskReminderPush(
   userIds: string[],
   taskTitle: string,
   taskId: string,
-  dueTime?: string
-): Promise<void> {
-  const body = dueTime
-    ? `"${taskTitle}" is due at ${dueTime}`
-    : `"${taskTitle}" is due soon`;
+  priority: string,
+  description?: string | null,
+  dueDate?: string | null,
+  dueTime?: string | null
+): Promise<{ sent: number; failed: number; errors: string[] }> {
+  const priorityLabels: Record<string, string> = {
+    low: 'Low Priority',
+    medium: 'Medium Priority',
+    high: 'High Priority',
+    urgent: 'URGENT',
+  };
 
-  await sendPushToUsers(userIds, {
-    title: '⏰ Task Reminder',
+  const label = priorityLabels[priority] || priority;
+
+  let formattedTime = '';
+  if (dueTime) {
+    const [hours, minutes] = dueTime.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const hour12 = hour % 12 || 12;
+    formattedTime = `${hour12}:${minutes} ${ampm}`;
+  }
+
+  let body = `⚠️ Only 15 minutes left!\n[${label}] ${taskTitle}`;
+  if (formattedTime) {
+    body += ` - Due at ${formattedTime}`;
+  }
+  if (description) {
+    const truncatedDesc = description.length > 60
+      ? description.slice(0, 60) + '...'
+      : description;
+    body += `\n${truncatedDesc}`;
+  }
+
+  return sendPushToUsers(userIds, {
+    title: '⏰ 15 Minutes Left!',
     body,
     data: {
       taskId,
       type: 'task_reminder',
+      title: taskTitle,
+      description: description || '',
+      priority,
+      dueDate: dueDate || '',
+      dueTime: dueTime || '',
     },
   });
 }

@@ -1,10 +1,36 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 
 // Check if we're running in Capacitor
 const isCapacitor = typeof window !== 'undefined' && 'Capacitor' in window;
+
+// Event for notification popup
+type NotificationData = {
+  taskId: string;
+  title: string;
+  description?: string;
+  priority: string;
+  dueDate?: string;
+  dueTime?: string;
+  type: string;
+};
+
+// Global event emitter for notification popups
+const notificationListeners: ((data: NotificationData) => void)[] = [];
+
+export function onNotificationTap(callback: (data: NotificationData) => void) {
+  notificationListeners.push(callback);
+  return () => {
+    const index = notificationListeners.indexOf(callback);
+    if (index > -1) notificationListeners.splice(index, 1);
+  };
+}
+
+function emitNotificationTap(data: NotificationData) {
+  notificationListeners.forEach(listener => listener(data));
+}
 
 type PushNotificationStatus = 'prompt' | 'granted' | 'denied' | 'unsupported';
 
@@ -90,7 +116,16 @@ export function usePushNotifications() {
           console.log('[PUSH_HOOK] Notification action performed:', notification);
           const data = notification.notification.data;
           if (data?.taskId) {
-            window.location.href = `/tasks/${data.taskId}`;
+            // Emit event to show popup with task details
+            emitNotificationTap({
+              taskId: data.taskId,
+              title: data.title || '',
+              description: data.description || '',
+              priority: data.priority || 'medium',
+              dueDate: data.dueDate || '',
+              dueTime: data.dueTime || '',
+              type: data.type || 'task_assigned',
+            });
           }
         });
 

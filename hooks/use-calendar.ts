@@ -301,9 +301,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
           if (isHoliday) {
             displayType = 'Holiday';
             color = '#f59e0b'; // amber for holidays
-          } else if (l.leave_type === 'pto') {
-            displayType = 'PTO';
-            color = '#3b82f6'; // blue for PTO
+          } else if (l.leave_type === 'vacation' || l.leave_type === 'pto') {
+            displayType = 'Vacation';
+            color = '#3b82f6'; // blue for vacation
           } else {
             displayType = 'Sick';
             color = '#10b981'; // green for sick

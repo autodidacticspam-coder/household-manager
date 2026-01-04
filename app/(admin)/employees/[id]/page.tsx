@@ -415,7 +415,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary">
-                            {request.leaveType === 'pto' ? 'PTO' : request.leaveType === 'holiday' ? 'Holiday' : 'Sick'}
+                            {(request.leaveType === 'vacation' || request.leaveType === 'pto') ? t('leave.pto') : request.leaveType === 'holiday' ? t('leave.holiday') : t('leave.sick')}
                           </Badge>
                           <Badge variant={
                             request.status === 'approved' ? 'default' :
@@ -561,9 +561,9 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                       <span>{format(day.date, 'EEE, MMM d, yyyy')}</span>
                       <Badge
                         variant="secondary"
-                        className={day.leaveType === 'sick' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}
+                        className={day.leaveType === 'sick' ? 'bg-orange-100 text-orange-700' : day.leaveType === 'holiday' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}
                       >
-                        {day.leaveType === 'sick' ? t('leave.sick') : 'PTO'}
+                        {(day.leaveType === 'vacation' || day.leaveType === 'pto') ? t('leave.pto') : day.leaveType === 'holiday' ? t('leave.holiday') : t('leave.sick')}
                       </Badge>
                     </div>
                   ))}

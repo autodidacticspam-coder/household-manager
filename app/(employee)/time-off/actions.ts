@@ -132,7 +132,7 @@ export async function approveLeaveRequest(
     .single();
 
   if (balance) {
-    const updateField = request.leave_type === 'pto' ? 'pto_used' : 'sick_used';
+    const updateField = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? 'pto_used' : 'sick_used';
     const currentUsed = parseFloat(balance[updateField]);
     const newUsed = currentUsed + parseFloat(request.total_days);
 
@@ -142,7 +142,7 @@ export async function approveLeaveRequest(
       .eq('id', balance.id);
   } else {
     // Create balance entry if it doesn't exist
-    const ptoUsed = request.leave_type === 'pto' ? parseFloat(request.total_days) : 0;
+    const ptoUsed = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? parseFloat(request.total_days) : 0;
     const sickUsed = request.leave_type === 'sick' ? parseFloat(request.total_days) : 0;
 
     await supabase
@@ -271,7 +271,7 @@ export async function cancelLeaveRequest(requestId: string): Promise<ActionState
       .single();
 
     if (balance) {
-      const updateField = request.leave_type === 'pto' ? 'pto_used' : 'sick_used';
+      const updateField = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? 'pto_used' : 'sick_used';
       const currentUsed = parseFloat(balance[updateField]);
       const newUsed = Math.max(0, currentUsed - parseFloat(request.total_days));
 
