@@ -8,15 +8,18 @@ export function parseLocalDate(dateStr: string): Date {
 }
 
 /**
- * Format a date to YYYY-MM-DD string
+ * Format a date to YYYY-MM-DD string in local timezone
  */
 export function formatDateString(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
- * Get today's date as YYYY-MM-DD string
+ * Get today's date as YYYY-MM-DD string in local timezone
  */
 export function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  return formatDateString(new Date());
 }

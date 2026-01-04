@@ -7,6 +7,7 @@ import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
 import { parseISO, isBefore, getDay } from 'date-fns';
+import { getTodayString } from '@/lib/date-utils';
 
 type SupportedLocale = 'en' | 'es' | 'zh';
 
@@ -98,7 +99,7 @@ export function useTasks(filters?: TaskFilters) {
     queryKey: ['tasks', filters, locale],
     queryFn: async () => {
       // Get today's date for checking recurring task completions
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayString();
 
       let query = supabase
         .from('tasks')
@@ -237,7 +238,7 @@ export function useMyTasks(userId?: string) {
       if (!userId) return [];
 
       // Get today's date for checking recurring task completions
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayString();
 
       // Get user's role
       const { data: userData } = await supabase
@@ -544,7 +545,7 @@ export function usePendingTasks() {
 
 export function useOverdueTasks() {
   const supabase = createClient();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayString();
 
   return useQuery({
     queryKey: ['overdue-tasks'],

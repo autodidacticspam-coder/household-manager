@@ -3,6 +3,7 @@
 import { createClient, getAdminClient, type ActionState } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { getTodayString } from '@/lib/date-utils';
 
 // Re-exported from lib/supabase/server
 export type { ActionState };
@@ -84,7 +85,7 @@ export async function createEmployee(input: z.infer<typeof createEmployeeSchema>
     .insert({
       user_id: authData.user.id,
       phone: phone || null,
-      hire_date: new Date().toISOString().split('T')[0],
+      hire_date: getTodayString(),
     });
 
   if (profileError) {

@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { DateRange } from '@/types';
+import { getTodayString } from '@/lib/date-utils';
 
 type SimpleEmployeeReport = {
   employee: {
@@ -40,7 +41,7 @@ export function useTeamStats(dateRange: DateRange) {
         .in('role', ['employee', 'admin']);
 
       // Get staff on leave today
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayString();
       const { count: onLeaveToday } = await supabase
         .from('leave_requests')
         .select('*', { count: 'exact', head: true })

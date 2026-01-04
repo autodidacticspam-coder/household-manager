@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTaskReminderPush } from '@/lib/notifications/push-service';
+import { formatDateString } from '@/lib/date-utils';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = formatDateString(now);
 
     // Calculate time 15 minutes from now
     const targetTime = new Date(now.getTime() + 15 * 60 * 1000);

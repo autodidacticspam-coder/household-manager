@@ -12,6 +12,7 @@ import {
 import type { CreateLeaveRequestInput } from '@/lib/validators/leave';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { getTodayString } from '@/lib/date-utils';
 
 type LeaveFilters = {
   status?: 'pending' | 'approved' | 'denied';
@@ -153,7 +154,7 @@ export function useUpcomingLeave() {
   return useQuery({
     queryKey: ['upcoming-leave'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayString();
 
       const { data, error } = await supabase
         .from('leave_requests')
@@ -179,7 +180,7 @@ export function useCurrentlyOnLeave() {
   return useQuery({
     queryKey: ['currently-on-leave'],
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayString();
 
       // First, find users who are currently on leave (today falls within their date range)
       const { data: currentLeave, error: currentError } = await supabase
