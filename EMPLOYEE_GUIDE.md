@@ -16,10 +16,9 @@ Welcome to Household Manager! This guide will help you get started with the app 
 5. [My Calendar](#my-calendar)
 6. [Time-Off Requests](#time-off-requests)
 7. [Supply Requests](#supply-requests)
-8. [Menu & Food Ratings](#menu--food-ratings)
-9. [My Profile](#my-profile)
-10. [Settings](#settings)
-11. [Tips & Troubleshooting](#tips--troubleshooting)
+8. [My Profile](#my-profile)
+9. [Settings](#settings)
+10. [Tips & Troubleshooting](#tips--troubleshooting)
 
 ---
 
@@ -115,7 +114,6 @@ After logging in, you'll see the Employee Portal with these main sections:
 | **My Calendar** | Calendar | See your schedule and time-off |
 | **Time-Off** | Calendar with clock | Request vacation or sick days |
 | **Supplies** | Shopping bag | Request supplies or items |
-| **Menu** | Utensils | View weekly menus and rate meals |
 | **Profile** | Person icon | Update your personal information |
 | **Settings** | Gear | Change language preferences |
 
@@ -132,9 +130,8 @@ This is where you'll spend most of your time - viewing and completing tasks assi
 ### Viewing Tasks
 
 1. Tap **My Tasks** in the navigation
-2. You'll see three tabs at the top:
-   - **Pending** - Tasks waiting to be started
-   - **In Progress** - Tasks you've started but not finished
+2. You'll see two tabs at the top:
+   - **Assigned** - Tasks you need to complete
    - **Completed** - Finished tasks
 
 3. Each task card shows:
@@ -144,18 +141,11 @@ This is where you'll spend most of your time - viewing and completing tasks assi
    - Due date/time
    - Description (tap to expand)
 
-### Starting a Task
-
-1. Find the task in the **Pending** tab
-2. Tap the **Start** button on the task card
-3. The task moves to the **In Progress** tab
-
 ### Completing a Task
 
-1. Go to the **In Progress** tab
-2. Find the task you've finished
-3. Tap the **Complete** button (checkmark icon)
-4. The task moves to the **Completed** tab
+1. Find the task in the **Assigned** tab
+2. Tap the **Complete** button (checkmark icon)
+3. The task moves to the **Completed** tab
 
 ### Viewing Task Details
 
@@ -171,7 +161,7 @@ This is where you'll spend most of your time - viewing and completing tasks assi
 Made a mistake? You can undo a completed task:
 1. Go to the **Completed** tab
 2. Find the task
-3. Tap **Undo** to move it back to In Progress
+3. Tap **Undo** to move it back to Assigned
 
 ---
 
@@ -214,7 +204,7 @@ Request vacation days, sick leave, or other time off.
 1. Tap **Time-Off** in the navigation
 2. Tap the **+ New Request** button
 3. Fill out the form:
-   - **Type:** Select PTO (vacation) or Sick Leave
+   - **Type:** Select Vacation or Sick Leave
    - **Start Date:** First day of your time off
    - **End Date:** Last day of your time off
    - **Full Day or Partial:**
@@ -271,40 +261,6 @@ Need supplies for your work? Request them here.
 1. Find your pending request
 2. Tap **Cancel**
 3. Confirm cancellation
-
----
-
-## Menu & Food Ratings
-
-View the weekly meal menu and rate dishes.
-
-### Viewing the Menu
-
-1. Tap **Menu** in the navigation
-2. You'll see the current week's menu organized by:
-   - Day of the week
-   - Meal type (Breakfast, Lunch, Dinner, Snacks)
-3. Use the **arrows** to navigate between weeks
-
-### Rating a Meal
-
-After eating a meal, you can rate it:
-1. Find the meal on the menu
-2. Tap the **Rate** button (star icon)
-3. Select a rating from **1-10**:
-   - 1-3 = Needs improvement
-   - 4-6 = Average
-   - 7-8 = Good
-   - 9-10 = Excellent
-4. Add a comment (optional) - helpful feedback for the chef
-5. Tap **Submit Rating**
-
-### Requesting a Dish
-
-Want something specific on the menu?
-1. Tap the **Request** button
-2. Enter the dish name and any details
-3. Submit your request
 
 ---
 
@@ -447,7 +403,7 @@ Contact your manager if you experience:
 ### Time-Off Types
 | Type | Use For |
 |------|---------|
-| PTO | Vacation, personal days |
+| Vacation | Vacation, personal days |
 | Sick Leave | Illness, medical appointments |
 
 ---
