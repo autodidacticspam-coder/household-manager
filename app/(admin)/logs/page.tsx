@@ -730,7 +730,7 @@ export default function UnifiedLogPage() {
                             type="button"
                             onClick={() => setStartAmPm('AM')}
                             className={`px-3 py-2 text-sm font-medium transition-colors ${
-                              startAmPm === 'AM'
+                              startTime && startAmPm === 'AM'
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-background hover:bg-muted'
                             }`}
@@ -741,7 +741,7 @@ export default function UnifiedLogPage() {
                             type="button"
                             onClick={() => setStartAmPm('PM')}
                             className={`px-3 py-2 text-sm font-medium transition-colors ${
-                              startAmPm === 'PM'
+                              startTime && startAmPm === 'PM'
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-background hover:bg-muted'
                             }`}
@@ -774,7 +774,7 @@ export default function UnifiedLogPage() {
                             type="button"
                             onClick={() => setEndAmPm('AM')}
                             className={`px-3 py-2 text-sm font-medium transition-colors ${
-                              endAmPm === 'AM'
+                              endTime && endAmPm === 'AM'
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-background hover:bg-muted'
                             }`}
@@ -785,7 +785,7 @@ export default function UnifiedLogPage() {
                             type="button"
                             onClick={() => setEndAmPm('PM')}
                             className={`px-3 py-2 text-sm font-medium transition-colors ${
-                              endAmPm === 'PM'
+                              endTime && endAmPm === 'PM'
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-background hover:bg-muted'
                             }`}
@@ -821,7 +821,7 @@ export default function UnifiedLogPage() {
                           type="button"
                           onClick={() => setLogAmPm('AM')}
                           className={`px-3 py-2 text-sm font-medium transition-colors ${
-                            logAmPm === 'AM'
+                            logTimeInput && logAmPm === 'AM'
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-background hover:bg-muted'
                           }`}
@@ -832,7 +832,7 @@ export default function UnifiedLogPage() {
                           type="button"
                           onClick={() => setLogAmPm('PM')}
                           className={`px-3 py-2 text-sm font-medium transition-colors ${
-                            logAmPm === 'PM'
+                            logTimeInput && logAmPm === 'PM'
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-background hover:bg-muted'
                           }`}
