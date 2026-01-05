@@ -676,7 +676,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
               start: `${dateStr}T${schedule.start_time}`,
               end: `${dateStr}T${schedule.end_time}`,
               allDay: false,
-              color: '#06b6d4', // cyan for one-off schedules (different from regular schedules)
+              color: '#8b5cf6', // violet - same as regular schedules
               resourceId: schedule.id,
               extendedProps: {
                 oneOffScheduleId: schedule.id,
