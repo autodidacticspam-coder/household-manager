@@ -151,10 +151,16 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const [selectedViewerUsers, setSelectedViewerUsers] = useState<string[]>([]);
 
-  // New repeat system state
-  const [repeatEnabled, setRepeatEnabled] = useState(false);
-  const [selectedDays, setSelectedDays] = useState<number[]>([]); // 0=Sun, 1=Mon, ..., 6=Sat
-  const [repeatInterval, setRepeatInterval] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
+  // New repeat system state - initialize from template if available
+  const [repeatEnabled, setRepeatEnabled] = useState(
+    () => !!(template?.repeatDays && template.repeatDays.length > 0)
+  );
+  const [selectedDays, setSelectedDays] = useState<number[]>(
+    () => template?.repeatDays || []
+  ); // 0=Sun, 1=Mon, ..., 6=Sat
+  const [repeatInterval, setRepeatInterval] = useState<'weekly' | 'biweekly' | 'monthly'>(
+    () => (template?.repeatInterval as 'weekly' | 'biweekly' | 'monthly') || 'weekly'
+  );
   const [repeatEndDate, setRepeatEndDate] = useState<string>('');
 
   // Time input state (12-hour format with AM/PM)
