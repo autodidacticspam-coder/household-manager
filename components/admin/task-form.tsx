@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { getTodayString } from '@/lib/date-utils';
+import { format, addYears } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -161,7 +162,9 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
   const [repeatInterval, setRepeatInterval] = useState<'weekly' | 'biweekly' | 'monthly'>(
     () => (template?.repeatInterval as 'weekly' | 'biweekly' | 'monthly') || 'weekly'
   );
-  const [repeatEndDate, setRepeatEndDate] = useState<string>('');
+  const [repeatEndDate, setRepeatEndDate] = useState<string>(
+    () => format(addYears(new Date(), 1), 'yyyy-MM-dd')
+  );
 
   // Time input state (12-hour format with AM/PM)
   const parse24To12 = (time24: string | null | undefined): { time: string; ampm: 'AM' | 'PM' } => {
