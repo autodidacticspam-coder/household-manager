@@ -162,3 +162,13 @@ export interface TaskTemplate {
   category?: TaskCategory | null;
   videos?: TemplateVideo[];
 }
+
+// Input type for creating/updating videos
+export interface VideoInput {
+  videoType: TaskVideoType;
+  url: string;
+  title?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+}

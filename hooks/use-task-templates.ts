@@ -2,18 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { TaskTemplate, TemplateAssignment, TemplateVideo, TaskVideoType } from '@/types';
+import type { TaskTemplate, TemplateAssignment, TemplateVideo, TaskVideoType, VideoInput } from '@/types';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
-export type VideoInput = {
-  videoType: TaskVideoType;
-  url: string;
-  title?: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
-};
+// Re-export VideoInput for consumers that import from this file
+export type { VideoInput };
 
 type CreateTemplateInput = {
   name: string;

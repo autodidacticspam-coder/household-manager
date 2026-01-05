@@ -23,9 +23,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    console.log('[PUSH_REGISTER] Registering token for user:', user.id);
-    console.log('[PUSH_REGISTER] Token preview:', token.slice(0, 20) + '...');
-
     // Use service role to bypass RLS
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -45,7 +42,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save token: ' + error.message }, { status: 500 });
     }
 
-    console.log('[PUSH_REGISTER] Token saved successfully!');
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[PUSH_REGISTER] Error:', err);

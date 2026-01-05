@@ -3,7 +3,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
-import type { TaskVideo, TaskVideoType } from '@/types/task';
+import type { TaskVideo, TaskVideoType, VideoInput } from '@/types/task';
+
+// Re-export VideoInput for consumers that import from this file
+export type { VideoInput };
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024; // 5 GB
 const ALLOWED_VIDEO_TYPES = [
@@ -75,15 +78,6 @@ export function getVideoThumbnail(url: string, videoType: TaskVideoType): string
   }
   return null;
 }
-
-export type VideoInput = {
-  videoType: TaskVideoType;
-  url: string;
-  title?: string;
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
-};
 
 // Upload a video file using signed URL (bypasses RLS)
 export function useUploadTaskVideo() {

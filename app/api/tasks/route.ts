@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine dates for task creation
-    let taskDates: string[] = [];
+    let taskDates: (string | null)[] = [];
 
     if (repeatDays && repeatDays.length > 0 && repeatInterval && repeatEndDate && taskData.dueDate) {
       // Generate multiple dates using the repeat system
@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      // Single task - use the due date
-      taskDates = taskData.dueDate ? [taskData.dueDate] : [null as unknown as string];
+      // Single task - use the due date (null is valid for tasks without a due date)
+      taskDates = [taskData.dueDate || null];
     }
 
     // Create tasks for each date
@@ -177,20 +177,18 @@ export async function POST(request: NextRequest) {
       const isHighPriority = taskData.priority === 'high' || taskData.priority === 'urgent';
 
       if (assignedUserIds.length > 0 && isHighPriority) {
-        console.log('[TASK] Sending push notification for high/urgent task:', task.id);
         try {
           await sendTaskAssignedPush(
             [...new Set(assignedUserIds)], // Deduplicate
             taskData.title,
             task.id,
-            taskData.priority!, // Already checked in isHighPriority
+            taskData.priority!,
             taskData.description,
             taskData.dueDate,
             taskData.dueTime
           );
-          console.log('[TASK] Push notification sent successfully');
         } catch (err) {
-          console.error('[TASK] Failed to send task assignment push:', err);
+          console.error('Failed to send task assignment push:', err);
         }
       }
 

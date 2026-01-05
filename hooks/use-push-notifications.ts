@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 
 // Check if we're running in Capacitor
@@ -45,7 +45,6 @@ export function usePushNotifications() {
   // Save token when user becomes available
   useEffect(() => {
     if (user && pendingTokenRef.current && !tokenSavedRef.current) {
-      console.log('[PUSH_HOOK] User now available, saving pending token');
       saveTokenToDatabase(pendingTokenRef.current);
     }
   }, [user]);
@@ -59,12 +58,8 @@ export function usePushNotifications() {
 
     const initPushNotifications = async () => {
       try {
-        // Dynamically import Capacitor plugins only when in Capacitor environment
         const { PushNotifications } = await import('@capacitor/push-notifications');
-
-        // Check current permission status
         const permStatus = await PushNotifications.checkPermissions();
-        console.log('[PUSH_HOOK] Permission status:', permStatus.receive);
 
         if (permStatus.receive === 'prompt') {
           setStatus('prompt');
@@ -75,7 +70,7 @@ export function usePushNotifications() {
           setStatus('denied');
         }
       } catch (error) {
-        console.error('[PUSH_HOOK] Error initializing push notifications:', error);
+        console.error('Error initializing push notifications:', error);
         setStatus('unsupported');
       } finally {
         setIsLoading(false);
@@ -86,37 +81,26 @@ export function usePushNotifications() {
       try {
         const { PushNotifications } = await import('@capacitor/push-notifications');
 
-        // Set up listeners BEFORE calling register
         PushNotifications.addListener('registration', async (pushToken) => {
-          console.log('[PUSH_HOOK] Registration success, token:', pushToken.value.slice(0, 20) + '...');
           setToken(pushToken.value);
           pendingTokenRef.current = pushToken.value;
 
-          // Save token to database for the current user
           if (user) {
-            console.log('[PUSH_HOOK] Saving token for user:', user.id);
             await saveTokenToDatabase(pushToken.value);
-          } else {
-            console.log('[PUSH_HOOK] No user yet, token saved to pending');
           }
         });
 
-        // Listen for registration errors
         PushNotifications.addListener('registrationError', (error) => {
-          console.error('[PUSH_HOOK] Registration error:', error);
+          console.error('Push registration error:', error);
         });
 
-        // Listen for incoming notifications when app is open
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('[PUSH_HOOK] Notification received:', notification);
+        PushNotifications.addListener('pushNotificationReceived', () => {
+          // Notification received while app is open - can show in-app UI if needed
         });
 
-        // Listen for notification tap/action
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-          console.log('[PUSH_HOOK] Notification action performed:', notification);
           const data = notification.notification.data;
           if (data?.taskId) {
-            // Emit event to show popup with task details
             emitNotificationTap({
               taskId: data.taskId,
               title: data.title || '',
@@ -129,18 +113,14 @@ export function usePushNotifications() {
           }
         });
 
-        // Now call register AFTER listeners are set up
-        console.log('[PUSH_HOOK] Calling PushNotifications.register()...');
         await PushNotifications.register();
-        console.log('[PUSH_HOOK] Register called successfully');
       } catch (error) {
-        console.error('[PUSH_HOOK] Error registering for push:', error);
+        console.error('Error registering for push:', error);
       }
     };
 
     initPushNotifications();
 
-    // Cleanup listeners on unmount
     return () => {
       if (isCapacitor) {
         import('@capacitor/push-notifications').then(({ PushNotifications }) => {
@@ -152,12 +132,7 @@ export function usePushNotifications() {
   }, [user?.id]);
 
   const saveTokenToDatabase = async (pushToken: string) => {
-    if (tokenSavedRef.current) {
-      console.log('[PUSH_HOOK] saveTokenToDatabase: Token already saved, skipping');
-      return;
-    }
-
-    console.log('[PUSH_HOOK] saveTokenToDatabase: Saving token via API...');
+    if (tokenSavedRef.current) return;
 
     try {
       const response = await fetch('/api/push-tokens/register', {
@@ -169,14 +144,13 @@ export function usePushNotifications() {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('[PUSH_HOOK] API error:', data.error);
+        console.error('Error saving push token:', data.error);
         return;
       }
 
-      console.log('[PUSH_HOOK] Token saved successfully via API!');
       tokenSavedRef.current = true;
     } catch (error) {
-      console.error('[PUSH_HOOK] Error saving push token:', error);
+      console.error('Error saving push token:', error);
     }
   };
 
@@ -185,18 +159,13 @@ export function usePushNotifications() {
 
     try {
       const { PushNotifications } = await import('@capacitor/push-notifications');
-
       const permStatus = await PushNotifications.requestPermissions();
 
       if (permStatus.receive === 'granted') {
         setStatus('granted');
 
-        // Set up listener for registration before calling register
         PushNotifications.addListener('registration', async (pushToken) => {
-          console.log('Push registration success, token:', pushToken.value);
           setToken(pushToken.value);
-
-          // Save token to database for the current user
           if (user) {
             await saveTokenToDatabase(pushToken.value);
           }
@@ -206,9 +175,7 @@ export function usePushNotifications() {
           console.error('Push registration error:', error);
         });
 
-        // Listen for notification tap/action
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-          console.log('Push notification action performed:', notification);
           const data = notification.notification.data;
           if (data?.taskId) {
             window.location.href = `/tasks/${data.taskId}`;
@@ -231,32 +198,23 @@ export function usePushNotifications() {
     if (!isCapacitor) return;
 
     try {
-      console.log('[PUSH_HOOK] Manual register triggered');
       const { PushNotifications } = await import('@capacitor/push-notifications');
-
-      // Remove old listeners first
       await PushNotifications.removeAllListeners();
 
-      // Set up fresh listener
       PushNotifications.addListener('registration', async (pushToken) => {
-        console.log('[PUSH_HOOK] Manual registration success, token:', pushToken.value.slice(0, 20) + '...');
         setToken(pushToken.value);
         pendingTokenRef.current = pushToken.value;
-        tokenSavedRef.current = false; // Reset so it saves again
+        tokenSavedRef.current = false;
         await saveTokenToDatabase(pushToken.value);
       });
 
       PushNotifications.addListener('registrationError', (error) => {
-        console.error('[PUSH_HOOK] Manual registration error:', error);
-        alert('Registration error: ' + JSON.stringify(error));
+        console.error('Push registration error:', error);
       });
 
-      console.log('[PUSH_HOOK] Calling register...');
       await PushNotifications.register();
-      console.log('[PUSH_HOOK] Register called');
     } catch (error) {
-      console.error('[PUSH_HOOK] Manual register error:', error);
-      alert('Error: ' + String(error));
+      console.error('Manual push register error:', error);
     }
   };
 

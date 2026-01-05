@@ -492,9 +492,6 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
     }),
     videos: (() => {
       const rawVideos = row.videos as Array<{ id: string; task_id: string; url: string; title: string | null; video_type: 'upload' | 'link'; file_name: string | null; file_size: number | null; mime_type: string | null; created_at: string; created_by: string | null }> | null;
-      if (rawVideos && rawVideos.length > 0) {
-        console.log('Task videos found:', row.id, rawVideos);
-      }
       return (rawVideos || []).map(v => ({
         id: v.id,
         taskId: v.task_id,
