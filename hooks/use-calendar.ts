@@ -6,6 +6,16 @@ import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
 import { addDays, addWeeks, addMonths, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
 
+// Type for Supabase user join results
+type UserJoinResult = { id: string; full_name: string; avatar_url?: string | null } | null;
+
+// Helper to safely extract user from Supabase join (handles array or single object)
+function extractUser(rawUser: unknown): UserJoinResult {
+  if (!rawUser) return null;
+  if (Array.isArray(rawUser)) return rawUser[0] as UserJoinResult;
+  return rawUser as UserJoinResult;
+}
+
 
 export type CalendarFilters = {
   startDate: string;
@@ -294,6 +304,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
           // Check if this is a holiday (by leave_type or reason)
           const isHoliday = l.leave_type === 'holiday' || l.reason?.startsWith('Holiday:') || false;
           const holidayName = isHoliday && l.reason ? l.reason.replace('Holiday: ', '') : null;
+          const leaveUser = extractUser(l.user);
 
           // Determine display type and color
           let displayType: string;
@@ -310,8 +321,8 @@ export function useCalendarEvents(filters: CalendarFilters) {
           }
 
           const title = isHoliday
-            ? `${(l.user as any)?.full_name || 'Employee'} - ${holidayName}`
-            : `${(l.user as any)?.full_name || 'Employee'} - ${displayType}`;
+            ? `${leaveUser?.full_name || 'Employee'} - ${holidayName}`
+            : `${leaveUser?.full_name || 'Employee'} - ${displayType}`;
 
           const baseEventProps = {
             type: 'leave' as const,
@@ -322,7 +333,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
             extendedProps: {
               leaveType: isHoliday ? 'holiday' : l.leave_type,
               userId: l.user_id,
-              userName: (l.user as any)?.full_name,
+              userName: leaveUser?.full_name,
               totalDays: l.total_days,
               isHoliday,
               holidayName,
@@ -415,6 +426,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
         for (const log of childLogs || []) {
           const emoji = logEmojis[log.category] || '';
           const title = `${emoji} ${log.child} - ${log.category.charAt(0).toUpperCase() + log.category.slice(1)}`;
+          const loggedByUser = extractUser(log.logged_by_user);
 
           // For sleep, use start_time and end_time if available
           let eventStart = log.log_date + 'T' + log.log_time;
@@ -427,7 +439,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
           events.push({
             id: 'log-' + log.id,
-            type: 'log' as any,
+            type: 'log',
             title,
             start: eventStart,
             end: eventEnd,
@@ -438,7 +450,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
               logCategory: log.category,
               child: log.child,
               description: log.description,
-              loggedBy: (log.logged_by_user as any)?.full_name,
+              loggedBy: loggedByUser?.full_name,
               startTime: log.start_time,
               endTime: log.end_time,
             },
@@ -482,7 +494,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                     (isBefore(eventDate, rangeEnd) || isEqual(eventDate, rangeEnd))) {
                   events.push({
                     id: `important-${user.id}-${d.date}-${year}`,
-                    type: 'important_date' as any,
+                    type: 'important_date',
                     title: `🎂 ${d.label} (${user.full_name})`,
                     start: eventDateStr,
                     end: eventDateStr,
@@ -602,7 +614,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
               events.push({
                 id: `schedule-${schedule.id}-${dateStr}`,
-                type: 'schedule' as any,
+                type: 'schedule',
                 title: `${user.full_name}`,
                 start: `${dateStr}T${startTime}`,
                 end: `${dateStr}T${endTime}`,
@@ -659,7 +671,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
             events.push({
               id: `one-off-schedule-${schedule.id}`,
-              type: 'schedule' as any,
+              type: 'schedule',
               title: `${user.full_name}`,
               start: `${dateStr}T${schedule.start_time}`,
               end: `${dateStr}T${schedule.end_time}`,

@@ -305,7 +305,7 @@ export function TaskCard({
         {/* Assignees section */}
         {assignees.length > 0 && (
           <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-2">Assigned to:</p>
+            <p className="text-xs text-muted-foreground mb-2">{t('tasks.assignedTo')}:</p>
             <div className="flex flex-wrap gap-2">
               {assignees.map((assignee, i) => (
                 <div key={i} className="flex items-center text-sm">
