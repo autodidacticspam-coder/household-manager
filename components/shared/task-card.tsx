@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, startOfDay, isBefore } from 'date-fns';
+import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { formatTime12h } from '@/lib/format-time';
-import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, Repeat, Undo2, UserPlus, Loader2, Video, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, CheckCircle, Clock, AlertCircle, Calendar, Users, Undo2, UserPlus, Loader2, Video, ExternalLink } from 'lucide-react';
 import { useEmployees, useQuickAssign } from '@/hooks/use-tasks';
 import type { TaskWithRelations } from '@/types';
 
@@ -85,19 +85,13 @@ export function TaskCard({
   const availableEmployees = employees?.filter(e => !assignedUserIds.includes(e.id)) || [];
 
   // Check if task is overdue
-  // For recurring tasks, don't show as overdue if due date is from a previous day
   const isOverdue = (() => {
     if (!task.dueDate || task.status === 'completed') return false;
 
     const dueDate = parseLocalDate(task.dueDate);
     const now = new Date();
 
-    // If the task is recurring and the due date is before today, don't show as overdue
-    if (task.isRecurring && isBefore(startOfDay(dueDate), startOfDay(now))) {
-      return false;
-    }
-
-    // Otherwise, show as overdue if due date has passed
+    // Show as overdue if due date has passed
     return dueDate < now;
   })();
 
@@ -166,12 +160,6 @@ export function TaskCard({
                 <StatusIcon className="h-3 w-3 mr-1" />
                 {t(`tasks.${task.status}`)}
               </Badge>
-              {task.isRecurring && (
-                <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                  <Repeat className="h-3 w-3 mr-1" />
-                  Recurring
-                </Badge>
-              )}
               {isOverdue && (
                 <Badge variant="destructive">
                   {t('tasks.overdue')}

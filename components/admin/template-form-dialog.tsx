@@ -44,14 +44,17 @@ type FormState = {
   isAllDay: boolean;
   defaultTime: string;
   defaultTimeAmPm: 'AM' | 'PM';
-  isRecurring: boolean;
-  recurrencePreset: string;
+  repeatEnabled: boolean;
+  selectedDays: number[];
+  repeatInterval: 'weekly' | 'biweekly' | 'monthly';
   assignments: TemplateAssignment[];
   assignType: AssignmentTargetType;
   assignTarget: string;
   pendingVideos: VideoInput[];
   existingVideos: TemplateVideo[];
 };
+
+const DAYS_OF_WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function getInitialFormState(template?: TaskTemplate | null): FormState {
   if (!template) {
@@ -64,8 +67,9 @@ function getInitialFormState(template?: TaskTemplate | null): FormState {
       isAllDay: false,
       defaultTime: '',
       defaultTimeAmPm: 'AM',
-      isRecurring: false,
-      recurrencePreset: 'daily',
+      repeatEnabled: false,
+      selectedDays: [],
+      repeatInterval: 'weekly',
       assignments: [],
       assignType: 'user',
       assignTarget: '',
@@ -94,8 +98,9 @@ function getInitialFormState(template?: TaskTemplate | null): FormState {
     isAllDay: template.isAllDay,
     defaultTime,
     defaultTimeAmPm,
-    isRecurring: template.isRecurring,
-    recurrencePreset: template.recurrenceRule || 'daily',
+    repeatEnabled: (template.repeatDays && template.repeatDays.length > 0) || false,
+    selectedDays: template.repeatDays || [],
+    repeatInterval: (template.repeatInterval as 'weekly' | 'biweekly' | 'monthly') || 'weekly',
     assignments: template.defaultAssignments,
     assignType: 'user',
     assignTarget: '',
@@ -126,7 +131,7 @@ function TemplateFormContent({
   // Destructure for easier access
   const {
     name, title, description, categoryId, priority, isAllDay,
-    defaultTime, defaultTimeAmPm, isRecurring, recurrencePreset,
+    defaultTime, defaultTimeAmPm, repeatEnabled, selectedDays, repeatInterval,
     assignments, assignType, assignTarget, pendingVideos, existingVideos
   } = formState;
 
@@ -197,6 +202,13 @@ function TemplateFormContent({
     }
   };
 
+  const toggleDay = (dayIndex: number) => {
+    const newDays = selectedDays.includes(dayIndex)
+      ? selectedDays.filter((d) => d !== dayIndex)
+      : [...selectedDays, dayIndex].sort((a, b) => a - b);
+    updateField('selectedDays', newDays);
+  };
+
   const handleSubmit = async () => {
     const time24 = defaultTime && !isAllDay ? formatTime24h(`${defaultTime} ${defaultTimeAmPm}`) : null;
 
@@ -211,8 +223,8 @@ function TemplateFormContent({
       isActivity: false,
       startTime: null,
       endTime: null,
-      isRecurring,
-      recurrenceRule: isRecurring ? recurrencePreset : null,
+      repeatDays: repeatEnabled && selectedDays.length > 0 ? selectedDays : null,
+      repeatInterval: repeatEnabled && selectedDays.length > 0 ? repeatInterval : null,
       defaultAssignments: assignments,
       videos: pendingVideos,
     };
@@ -310,11 +322,11 @@ function TemplateFormContent({
           </div>
           <div className="flex items-center gap-2">
             <Checkbox
-              id="recurring"
-              checked={isRecurring}
-              onCheckedChange={(checked) => updateField('isRecurring', checked as boolean)}
+              id="repeat"
+              checked={repeatEnabled}
+              onCheckedChange={(checked) => updateField('repeatEnabled', checked as boolean)}
             />
-            <Label htmlFor="recurring">{t('tasks.recurring')}</Label>
+            <Label htmlFor="repeat">{t('tasks.repeat')}</Label>
           </div>
         </div>
 
@@ -364,20 +376,40 @@ function TemplateFormContent({
           </div>
         )}
 
-        {isRecurring && (
-          <div className="space-y-2">
-            <Label>{t('tasks.recurrence')}</Label>
-            <Select value={recurrencePreset} onValueChange={(v) => updateField('recurrencePreset', v)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="FREQ=DAILY">{t('tasks.recurrenceOptions.daily')}</SelectItem>
-                <SelectItem value="FREQ=WEEKLY">{t('tasks.recurrenceOptions.weekly')}</SelectItem>
-                <SelectItem value="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">{t('tasks.recurrenceOptions.weekdays')}</SelectItem>
-                <SelectItem value="FREQ=MONTHLY">{t('tasks.recurrenceOptions.monthly')}</SelectItem>
-              </SelectContent>
-            </Select>
+        {repeatEnabled && (
+          <div className="space-y-3 p-3 border rounded-lg bg-muted/30">
+            <div className="space-y-2">
+              <Label>{t('tasks.selectDays')}</Label>
+              <div className="flex flex-wrap gap-2">
+                {DAYS_OF_WEEK_LABELS.map((day, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => toggleDay(index)}
+                    className={`w-10 h-10 rounded-full text-sm font-medium transition-colors
+                      ${selectedDays.includes(index)
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background border hover:bg-muted'
+                      }`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>{t('tasks.repeatInterval')}</Label>
+              <Select value={repeatInterval} onValueChange={(v) => updateField('repeatInterval', v as 'weekly' | 'biweekly' | 'monthly')}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="weekly">{t('tasks.repeatOptions.weekly')}</SelectItem>
+                  <SelectItem value="biweekly">{t('tasks.repeatOptions.biweekly')}</SelectItem>
+                  <SelectItem value="monthly">{t('tasks.repeatOptions.monthly')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         )}
 

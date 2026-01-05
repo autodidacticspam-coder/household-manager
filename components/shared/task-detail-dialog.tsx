@@ -18,7 +18,6 @@ import {
   Calendar,
   Clock,
   Users,
-  Repeat,
   Video,
   ExternalLink,
   Play,
@@ -163,12 +162,6 @@ export function TaskDetailDialog({
               <StatusIcon className="h-3 w-3 mr-1" />
               {t(`tasks.${task.status}`)}
             </Badge>
-            {task.isRecurring && (
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                <Repeat className="h-3 w-3 mr-1" />
-                {t('tasks.recurring')}
-              </Badge>
-            )}
             {task.category && (
               <Badge variant="secondary">{task.category.name}</Badge>
             )}

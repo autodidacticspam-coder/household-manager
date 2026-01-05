@@ -26,8 +26,8 @@ type CreateTemplateInput = {
   isActivity?: boolean;
   startTime?: string | null;
   endTime?: string | null;
-  isRecurring?: boolean;
-  recurrenceRule?: string | null;
+  repeatDays?: number[] | null;
+  repeatInterval?: 'weekly' | 'biweekly' | 'monthly' | null;
   defaultAssignments?: TemplateAssignment[];
   videos?: VideoInput[];
 };
@@ -63,8 +63,8 @@ function transformTemplate(row: Record<string, unknown>): TaskTemplate {
     isActivity: row.is_activity as boolean,
     startTime: row.start_time as string | null,
     endTime: row.end_time as string | null,
-    isRecurring: row.is_recurring as boolean,
-    recurrenceRule: row.recurrence_rule as string | null,
+    repeatDays: row.repeat_days as number[] | null,
+    repeatInterval: row.repeat_interval as TaskTemplate['repeatInterval'],
     defaultAssignments: (row.default_assignments as TemplateAssignment[]) || [],
     createdBy: row.created_by as string | null,
     createdAt: row.created_at as string,
@@ -146,8 +146,8 @@ export function useCreateTaskTemplate() {
           is_activity: input.isActivity || false,
           start_time: input.startTime || null,
           end_time: input.endTime || null,
-          is_recurring: input.isRecurring || false,
-          recurrence_rule: input.recurrenceRule || null,
+          repeat_days: input.repeatDays || null,
+          repeat_interval: input.repeatInterval || null,
           default_assignments: input.defaultAssignments || [],
           created_by: user.id,
         })
@@ -213,8 +213,8 @@ export function useUpdateTaskTemplate() {
           is_activity: input.isActivity || false,
           start_time: input.startTime || null,
           end_time: input.endTime || null,
-          is_recurring: input.isRecurring || false,
-          recurrence_rule: input.recurrenceRule || null,
+          repeat_days: input.repeatDays || null,
+          repeat_interval: input.repeatInterval || null,
           default_assignments: input.defaultAssignments || [],
         })
         .eq('id', id)

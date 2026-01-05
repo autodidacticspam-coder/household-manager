@@ -1,18 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/contexts/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
-import { useMyTasks, useCompleteTask, useUpdateTaskStatus, useCompleteTaskInstance, useUncompleteTaskInstance } from '@/hooks/use-tasks';
+import { useMyTasks, useCompleteTask, useUpdateTaskStatus } from '@/hooks/use-tasks';
 import { CheckSquare, Clock, Loader2 } from 'lucide-react';
 import { TaskDetailDialog } from '@/components/shared/task-detail-dialog';
 import type { TaskWithRelations } from '@/types';
-import { getTodayString } from '@/lib/date-utils';
-
 export default function MyTasksPage() {
   const t = useTranslations();
   const { user } = useAuth();
@@ -21,33 +19,18 @@ export default function MyTasksPage() {
 
   const { data: tasks, isLoading } = useMyTasks(user?.id);
   const completeTask = useCompleteTask();
-  const completeTaskInstance = useCompleteTaskInstance();
-  const uncompleteTaskInstance = useUncompleteTaskInstance();
   const updateTaskStatus = useUpdateTaskStatus();
-
-  // Use memoized today to avoid recalculating on every render
-  const today = useMemo(() => getTodayString(), []);
 
   const pendingTasks = tasks?.filter((task) => task.status === 'pending') || [];
   const inProgressTasks = tasks?.filter((task) => task.status === 'in_progress') || [];
   const completedTasks = tasks?.filter((task) => task.status === 'completed') || [];
 
   const handleComplete = async (id: string) => {
-    const task = tasks?.find(t => t.id === id);
-    if (task?.isRecurring) {
-      await completeTaskInstance.mutateAsync({ taskId: id, completionDate: today });
-    } else {
-      await completeTask.mutateAsync(id);
-    }
+    await completeTask.mutateAsync(id);
   };
 
   const handleUndo = async (id: string) => {
-    const task = tasks?.find(t => t.id === id);
-    if (task?.isRecurring) {
-      await uncompleteTaskInstance.mutateAsync({ taskId: id, completionDate: today });
-    } else {
-      await updateTaskStatus.mutateAsync({ id, status: 'pending' });
-    }
+    await updateTaskStatus.mutateAsync({ id, status: 'pending' });
   };
 
   const handleStartTask = async (id: string) => {

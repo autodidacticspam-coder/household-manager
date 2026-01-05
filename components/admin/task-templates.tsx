@@ -103,7 +103,7 @@ export function TaskTemplates({ onUseTemplate, onCreateTemplate, onEditTemplate 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-medium truncate">{template.name}</span>
-                      {template.isRecurring && (
+                      {template.repeatDays && template.repeatDays.length > 0 && (
                         <Repeat className="h-3 w-3 text-muted-foreground" />
                       )}
                     </div>

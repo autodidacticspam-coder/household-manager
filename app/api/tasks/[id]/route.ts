@@ -100,8 +100,6 @@ export async function PUT(
     if (taskData.isActivity !== undefined) updateData.is_activity = taskData.isActivity;
     if (taskData.startTime !== undefined) updateData.start_time = taskData.startTime;
     if (taskData.endTime !== undefined) updateData.end_time = taskData.endTime;
-    if (taskData.isRecurring !== undefined) updateData.is_recurring = taskData.isRecurring;
-    if (taskData.recurrenceRule !== undefined) updateData.recurrence_rule = taskData.recurrenceRule;
     if (taskData.syncToCalendar !== undefined) updateData.sync_to_calendar = taskData.syncToCalendar;
 
     if (Object.keys(updateData).length > 0) {

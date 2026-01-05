@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
 import { TaskTemplates } from '@/components/admin/task-templates';
 import { TemplateFormDialog } from '@/components/admin/template-form-dialog';
-import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask, useCompleteTaskInstance } from '@/hooks/use-tasks';
-import { getTodayString } from '@/lib/date-utils';
+import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask } from '@/hooks/use-tasks';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,17 +55,9 @@ export default function TasksPage() {
 
   const deleteTask = useDeleteTask();
   const completeTask = useCompleteTask();
-  const completeTaskInstance = useCompleteTaskInstance();
-
-  const today = useMemo(() => getTodayString(), []);
 
   const handleComplete = async (id: string) => {
-    const task = tasks?.find(t => t.id === id);
-    if (task?.isRecurring) {
-      await completeTaskInstance.mutateAsync({ taskId: id, completionDate: today });
-    } else {
-      await completeTask.mutateAsync(id);
-    }
+    await completeTask.mutateAsync(id);
   };
 
   const handleEdit = (id: string) => {

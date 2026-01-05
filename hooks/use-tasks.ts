@@ -6,7 +6,6 @@ import type { TaskWithRelations, TaskVideo } from '@/types';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
-import { parseISO, isBefore, getDay } from 'date-fns';
 import { getTodayString } from '@/lib/date-utils';
 
 type SupportedLocale = 'en' | 'es' | 'zh';
@@ -18,79 +17,6 @@ type TaskFilters = {
   search?: string;
 };
 
-// Parse date string as local date (not UTC) to avoid timezone issues
-function parseLocalDate(dateStr: string): Date {
-  return parseISO(dateStr + 'T12:00:00');
-}
-
-// Check if a recurring task is due on a specific date
-function isRecurringTaskDueOnDate(
-  task: { due_date: string | null; recurrence_rule: string | null },
-  targetDate: string
-): boolean {
-  if (!task.due_date || !task.recurrence_rule) return false;
-
-  const taskStartDate = parseLocalDate(task.due_date);
-  const target = parseLocalDate(targetDate);
-  const rule = task.recurrence_rule;
-
-  // Task can't be due before its start date
-  if (isBefore(target, taskStartDate)) return false;
-
-  const freqMatch = rule.match(/FREQ=(\w+)/);
-  const byDayMatch = rule.match(/BYDAY=([A-Z,]+)/);
-  const intervalMatch = rule.match(/INTERVAL=(\d+)/);
-
-  if (!freqMatch) return false;
-
-  const freq = freqMatch[1];
-  const interval = intervalMatch ? parseInt(intervalMatch[1], 10) : 1;
-  const byDays = byDayMatch ? byDayMatch[1].split(',') : null;
-  const dayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
-  const allowedDays = byDays ? byDays.map(d => dayMap[d]) : null;
-
-  if (freq === 'DAILY') {
-    // Check if target is on the correct interval from start
-    const daysDiff = Math.round((target.getTime() - taskStartDate.getTime()) / 86400000);
-    return daysDiff >= 0 && daysDiff % interval === 0;
-  }
-
-  if (freq === 'WEEKLY') {
-    if (allowedDays) {
-      // Check if target day of week is in allowed days
-      const targetDayOfWeek = getDay(target);
-      if (!allowedDays.includes(targetDayOfWeek)) return false;
-
-      // Check interval - we need to be in the correct week
-      const weeksDiff = Math.round((target.getTime() - taskStartDate.getTime()) / 604800000);
-      // For weekly with BYDAY, interval applies to weeks
-      return weeksDiff >= 0 && weeksDiff % interval === 0;
-    } else {
-      // Simple weekly - same day of week as start
-      const daysDiff = Math.round((target.getTime() - taskStartDate.getTime()) / 86400000);
-      return daysDiff >= 0 && daysDiff % (7 * interval) === 0;
-    }
-  }
-
-  if (freq === 'MONTHLY') {
-    // Check if same day of month and correct interval
-    if (target.getDate() !== taskStartDate.getDate()) return false;
-    const monthsDiff = (target.getFullYear() - taskStartDate.getFullYear()) * 12 +
-                       (target.getMonth() - taskStartDate.getMonth());
-    return monthsDiff >= 0 && monthsDiff % interval === 0;
-  }
-
-  if (freq === 'YEARLY') {
-    // Check if same month and day, and correct interval
-    if (target.getMonth() !== taskStartDate.getMonth() ||
-        target.getDate() !== taskStartDate.getDate()) return false;
-    const yearsDiff = target.getFullYear() - taskStartDate.getFullYear();
-    return yearsDiff >= 0 && yearsDiff % interval === 0;
-  }
-
-  return false;
-}
-
 export function useTasks(filters?: TaskFilters) {
   const supabase = createClient();
   const locale = useLocale() as SupportedLocale;
@@ -98,9 +24,6 @@ export function useTasks(filters?: TaskFilters) {
   return useQuery({
     queryKey: ['tasks', filters, locale],
     queryFn: async () => {
-      // Get today's date for checking recurring task completions
-      const today = getTodayString();
-
       let query = supabase
         .from('tasks')
         .select(`
@@ -117,11 +40,8 @@ export function useTasks(filters?: TaskFilters) {
         `)
         .order('created_at', { ascending: false });
 
-      // For status filter, we need special handling for recurring tasks
-      // Don't filter recurring tasks by status - we'll determine status from completions
       if (filters?.status) {
-        // Only apply status filter to non-recurring tasks
-        query = query.or(`and(is_recurring.eq.false,status.eq.${filters.status}),is_recurring.eq.true`);
+        query = query.eq('status', filters.status);
       }
 
       if (filters?.priority) {
@@ -140,52 +60,7 @@ export function useTasks(filters?: TaskFilters) {
 
       if (error) throw error;
 
-      // Filter recurring tasks to only those due today
-      const filteredData = (data || []).filter(task => {
-        if (!task.is_recurring) return true;
-        // Only show recurring tasks that are due today
-        return isRecurringTaskDueOnDate(
-          { due_date: task.due_date, recurrence_rule: task.recurrence_rule },
-          today
-        );
-      });
-
-      // Get today's completions for recurring tasks
-      const recurringTaskIds = filteredData
-        .filter(t => t.is_recurring)
-        .map(t => t.id);
-
-      let todayCompletions: Set<string> = new Set();
-      if (recurringTaskIds.length > 0) {
-        const { data: completions } = await supabase
-          .from('task_completions')
-          .select('task_id')
-          .in('task_id', recurringTaskIds)
-          .eq('completion_date', today);
-
-        todayCompletions = new Set((completions || []).map(c => c.task_id));
-      }
-
-      // Transform tasks and override status for recurring tasks based on today's completion
-      const transformedTasks = filteredData.map((row) => {
-        const task = transformTask(row, locale);
-
-        // For recurring tasks, check if today's instance is completed
-        if (task.isRecurring) {
-          const isTodayCompleted = todayCompletions.has(task.id);
-          // Override the status based on today's completion
-          task.status = isTodayCompleted ? 'completed' : 'pending';
-        }
-
-        return task;
-      });
-
-      // Now filter by status if specified (for recurring tasks, status was computed above)
-      if (filters?.status) {
-        return transformedTasks.filter(task => task.status === filters.status);
-      }
-
-      return transformedTasks;
+      return (data || []).map((row) => transformTask(row, locale));
     },
   });
 }
@@ -237,9 +112,6 @@ export function useMyTasks(userId?: string) {
     queryFn: async () => {
       if (!userId) return [];
 
-      // Get today's date for checking recurring task completions
-      const today = getTodayString();
-
       // Get user's role
       const { data: userData } = await supabase
         .from('users')
@@ -257,7 +129,7 @@ export function useMyTasks(userId?: string) {
 
       const groupIds = (userGroups || []).map((g) => g.group_id);
 
-      // Get tasks - for recurring tasks, don't filter by status (we'll check completions separately)
+      // Get tasks
       const { data, error } = await supabase
         .from('tasks')
         .select(`
@@ -288,45 +160,7 @@ export function useMyTasks(userId?: string) {
         });
       });
 
-      // Filter recurring tasks to only those due today
-      const filteredTasks = assignedTasks.filter(task => {
-        if (!task.is_recurring) return true;
-        // Only show recurring tasks that are due today
-        return isRecurringTaskDueOnDate(
-          { due_date: task.due_date, recurrence_rule: task.recurrence_rule },
-          today
-        );
-      });
-
-      // Get today's completions for recurring tasks that are due today
-      const recurringTaskIds = filteredTasks
-        .filter(t => t.is_recurring)
-        .map(t => t.id);
-
-      let todayCompletions: Set<string> = new Set();
-      if (recurringTaskIds.length > 0) {
-        const { data: completions } = await supabase
-          .from('task_completions')
-          .select('task_id')
-          .in('task_id', recurringTaskIds)
-          .eq('completion_date', today);
-
-        todayCompletions = new Set((completions || []).map(c => c.task_id));
-      }
-
-      // Transform tasks and override status for recurring tasks based on today's completion
-      return filteredTasks.map((row) => {
-        const task = transformTask(row, locale);
-
-        // For recurring tasks, check if today's instance is completed
-        if (task.isRecurring) {
-          const isTodayCompleted = todayCompletions.has(task.id);
-          // Override the status based on today's completion
-          task.status = isTodayCompleted ? 'completed' : 'pending';
-        }
-
-        return task;
-      });
+      return assignedTasks.map((row) => transformTask(row, locale));
     },
     enabled: !!userId,
   });
@@ -552,10 +386,9 @@ export function useOverdueTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, status, priority, due_date, is_recurring')
+        .select('id, title, status, priority, due_date')
         .in('status', ['pending', 'in_progress'])
         .lt('due_date', today)
-        .eq('is_recurring', false) // Don't show recurring tasks from previous days as overdue
         .order('due_date', { ascending: true });
 
       if (error) throw error;
@@ -600,8 +433,6 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
     isActivity: row.is_activity as boolean,
     startTime: row.start_time as string | null,
     endTime: row.end_time as string | null,
-    isRecurring: row.is_recurring as boolean,
-    recurrenceRule: row.recurrence_rule as string | null,
     googleCalendarEventId: row.google_calendar_event_id as string | null,
     syncToCalendar: row.sync_to_calendar as boolean,
     createdBy: row.created_by as string | null,
@@ -718,95 +549,7 @@ export function useQuickAssign() {
   });
 }
 
-// Complete a specific instance of a recurring task
-export function useCompleteTaskInstance() {
-  const queryClient = useQueryClient();
-  const t = useTranslations();
-
-  return useMutation({
-    mutationFn: async ({ taskId, completionDate }: { taskId: string; completionDate: string }) => {
-      const response = await fetch(`/api/tasks/${taskId}/complete-instance`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ completionDate }),
-      });
-      const result = await response.json();
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Failed to complete task instance');
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      toast.success(t('tasks.taskCompleted'));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-}
-
-// Uncomplete a specific instance of a recurring task
-export function useUncompleteTaskInstance() {
-  const queryClient = useQueryClient();
-  const t = useTranslations();
-
-  return useMutation({
-    mutationFn: async ({ taskId, completionDate }: { taskId: string; completionDate: string }) => {
-      const response = await fetch(`/api/tasks/${taskId}/complete-instance?completionDate=${completionDate}`, {
-        method: 'DELETE',
-      });
-      const result = await response.json();
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Failed to uncomplete task instance');
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      toast.success(t('tasks.taskUncompleted'));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-}
-
-// Skip a specific instance of a recurring task
-export function useSkipTaskInstance() {
-  const queryClient = useQueryClient();
-  const t = useTranslations();
-
-  return useMutation({
-    mutationFn: async ({ taskId, skipDate }: { taskId: string; skipDate: string }) => {
-      const response = await fetch(`/api/tasks/${taskId}/skip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skipDate }),
-      });
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to skip task instance');
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      toast.success(t('tasks.instanceSkipped'));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-}
-
-// Update task date/time (for drag and drop of regular tasks)
+// Update task date/time (for drag and drop)
 export function useUpdateTaskDateTime() {
   const queryClient = useQueryClient();
   const t = useTranslations();
@@ -847,43 +590,3 @@ export function useUpdateTaskDateTime() {
   });
 }
 
-// Override time for a specific instance of a recurring task (for drag and drop)
-export function useOverrideTaskInstanceTime() {
-  const queryClient = useQueryClient();
-  const t = useTranslations();
-
-  return useMutation({
-    mutationFn: async ({
-      taskId,
-      instanceDate,
-      overrideTime,
-      overrideStartTime,
-      overrideEndTime,
-    }: {
-      taskId: string;
-      instanceDate: string;
-      overrideTime: string | null;
-      overrideStartTime?: string | null;
-      overrideEndTime?: string | null;
-    }) => {
-      const response = await fetch(`/api/tasks/${taskId}/override-time`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ instanceDate, overrideTime, overrideStartTime, overrideEndTime }),
-      });
-      const result = await response.json();
-      if (!response.ok || result.error) {
-        throw new Error(result.error || 'Failed to override task instance time');
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      toast.success(t('tasks.taskMoved'));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
-  });
-}

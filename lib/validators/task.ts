@@ -47,6 +47,9 @@ export const videoInputSchema = z.object({
   mimeType: z.string().optional(),
 });
 
+// Repeat interval for task generation
+export const repeatIntervalSchema = z.enum(['weekly', 'biweekly', 'monthly']).nullable().optional();
+
 export const createTaskSchema = z.object({
   title: z.string().min(1, 'Title is required').max(255),
   description: z.string().max(5000).nullable().optional(),
@@ -58,12 +61,14 @@ export const createTaskSchema = z.object({
   isActivity: z.boolean().optional(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
-  isRecurring: z.boolean().optional(),
-  recurrenceRule: z.string().nullable().optional(),
   syncToCalendar: z.boolean().optional(),
   assignments: z.array(taskAssignmentSchema).optional(),
   viewers: z.array(taskViewerSchema).optional(),
   videos: z.array(videoInputSchema).optional(),
+  // New repeat system - generates multiple task instances
+  repeatDays: z.array(z.number().min(0).max(6)).optional(), // 0=Sun, 1=Mon, ..., 6=Sat
+  repeatInterval: repeatIntervalSchema,
+  repeatEndDate: z.string().nullable().optional(), // Required when repeatInterval is set
 });
 
 export const updateTaskSchema = createTaskSchema.partial().extend({

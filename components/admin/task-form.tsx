@@ -29,7 +29,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, X, Plus, Users, User, CalendarClock, UserPlus } from 'lucide-react';
+import { Loader2, X, Plus, Users, User, CalendarClock, UserPlus, Repeat } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -144,10 +144,11 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const [selectedViewerUsers, setSelectedViewerUsers] = useState<string[]>([]);
 
-  // Custom recurrence state
-  const [recurrenceType, setRecurrenceType] = useState<'preset' | 'custom'>('preset');
-  const [customDays, setCustomDays] = useState<string[]>([]);
-  const [weekInterval, setWeekInterval] = useState<number>(1);
+  // New repeat system state
+  const [repeatEnabled, setRepeatEnabled] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]); // 0=Sun, 1=Mon, ..., 6=Sat
+  const [repeatInterval, setRepeatInterval] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
+  const [repeatEndDate, setRepeatEndDate] = useState<string>('');
 
   // Time input state (12-hour format with AM/PM)
   const parse24To12 = (time24: string | null | undefined): { time: string; ampm: 'AM' | 'PM' } => {
@@ -180,26 +181,15 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
   const [endTimeInput, setEndTimeInput] = useState(endTimeInit.time);
   const [endTimeAmPm, setEndTimeAmPm] = useState<'AM' | 'PM'>(endTimeInit.ampm);
 
-  const DAYS_OF_WEEK = [
-    { value: 'MO', label: 'Mon' },
-    { value: 'TU', label: 'Tue' },
-    { value: 'WE', label: 'Wed' },
-    { value: 'TH', label: 'Thu' },
-    { value: 'FR', label: 'Fri' },
-    { value: 'SA', label: 'Sat' },
-    { value: 'SU', label: 'Sun' },
-  ];
+  // Days of week for the selector (starting with Sunday = 0)
+  const DAYS_OF_WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const toggleDay = (day: string) => {
-    setCustomDays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+  const toggleRepeatDay = (dayIndex: number) => {
+    setSelectedDays(prev =>
+      prev.includes(dayIndex)
+        ? prev.filter(d => d !== dayIndex)
+        : [...prev, dayIndex]
     );
-  };
-
-  const buildCustomRecurrenceRule = () => {
-    if (customDays.length === 0) return '';
-    const interval = weekInterval > 1 ? `;INTERVAL=${weekInterval}` : '';
-    return `FREQ=WEEKLY${interval};BYDAY=${customDays.join(',')}`;
   };
 
   const today = useMemo(() => getTodayString(), []);
@@ -217,8 +207,6 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
       isActivity: task?.isActivity ?? template?.isActivity ?? false,
       startTime: task?.startTime || template?.startTime || undefined,
       endTime: task?.endTime || template?.endTime || undefined,
-      isRecurring: task?.isRecurring ?? template?.isRecurring ?? false,
-      recurrenceRule: task?.recurrenceRule || template?.recurrenceRule || undefined,
       syncToCalendar: task?.syncToCalendar ?? false,
       assignments: assignments,
     },
@@ -444,6 +432,12 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
       assignments: finalAssignments,
       viewers: finalViewers,
       videos: [...existingVideosToKeep, ...pendingVideos],
+      // New repeat system - only include if enabled and not editing existing task
+      ...(repeatEnabled && !task && {
+        repeatDays: selectedDays,
+        repeatInterval: repeatInterval,
+        repeatEndDate: repeatEndDate,
+      }),
     };
 
     if (task) {
@@ -800,145 +794,88 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="isRecurring"
-                render={({ field }) => (
-                  <FormItem className="flex items-center space-x-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormLabel className="!mt-0">Recurring Task</FormLabel>
-                  </FormItem>
-                )}
-              />
-
-              {form.watch('isRecurring') && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Recurrence Type</Label>
-                    <div className="flex gap-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id="preset"
-                          name="recurrenceType"
-                          checked={recurrenceType === 'preset'}
-                          onChange={() => setRecurrenceType('preset')}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="preset" className="font-normal">Preset</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          id="custom"
-                          name="recurrenceType"
-                          checked={recurrenceType === 'custom'}
-                          onChange={() => setRecurrenceType('custom')}
-                          className="h-4 w-4"
-                        />
-                        <Label htmlFor="custom" className="font-normal">Custom</Label>
-                      </div>
-                    </div>
+              {/* New Repeat System - only show when creating new task */}
+              {!task && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="repeatEnabled"
+                      checked={repeatEnabled}
+                      onCheckedChange={(checked) => setRepeatEnabled(!!checked)}
+                    />
+                    <Label htmlFor="repeatEnabled" className="flex items-center gap-2 cursor-pointer">
+                      <Repeat className="h-4 w-4" />
+                      Create Repeating Tasks
+                    </Label>
                   </div>
 
-                  {recurrenceType === 'preset' ? (
-                    <FormField
-                      control={form.control}
-                      name="recurrenceRule"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Repeat</FormLabel>
-                          <Select
-                            value={field.value || ''}
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select frequency" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="FREQ=DAILY">Daily</SelectItem>
-                              <SelectItem value="FREQ=WEEKLY">Weekly</SelectItem>
-                              <SelectItem value="FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR">Weekdays</SelectItem>
-                              <SelectItem value="FREQ=MONTHLY">Monthly</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  ) : (
-                    <div className="space-y-4">
+                  {repeatEnabled && (
+                    <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                      {/* Day Selector */}
                       <div className="space-y-2">
                         <Label>Select Days</Label>
-                        <div className="flex flex-wrap gap-2">
-                          {DAYS_OF_WEEK.map((day) => (
-                            <Button
-                              key={day.value}
+                        <div className="flex flex-wrap gap-1">
+                          {DAYS_OF_WEEK_LABELS.map((dayLabel, index) => (
+                            <button
+                              key={index}
                               type="button"
-                              variant={customDays.includes(day.value) ? 'default' : 'outline'}
-                              size="sm"
-                              onClick={() => {
-                                toggleDay(day.value);
-                                const newDays = customDays.includes(day.value)
-                                  ? customDays.filter(d => d !== day.value)
-                                  : [...customDays, day.value];
-                                if (newDays.length > 0) {
-                                  const interval = weekInterval > 1 ? `;INTERVAL=${weekInterval}` : '';
-                                  form.setValue('recurrenceRule', `FREQ=WEEKLY${interval};BYDAY=${newDays.join(',')}`);
-                                } else {
-                                  form.setValue('recurrenceRule', '');
-                                }
-                              }}
-                              className="w-12"
+                              onClick={() => toggleRepeatDay(index)}
+                              className={`w-10 h-10 rounded-full text-xs font-semibold transition-colors ${
+                                selectedDays.includes(index)
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                              }`}
                             >
-                              {day.label}
-                            </Button>
+                              {dayLabel}
+                            </button>
                           ))}
                         </div>
                       </div>
 
+                      {/* Repeat Interval */}
                       <div className="space-y-2">
-                        <Label>Repeat Every</Label>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={String(weekInterval)}
-                            onValueChange={(v) => {
-                              const newInterval = parseInt(v, 10);
-                              setWeekInterval(newInterval);
-                              if (customDays.length > 0) {
-                                const interval = newInterval > 1 ? `;INTERVAL=${newInterval}` : '';
-                                form.setValue('recurrenceRule', `FREQ=WEEKLY${interval};BYDAY=${customDays.join(',')}`);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="w-20">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="1">1</SelectItem>
-                              <SelectItem value="2">2</SelectItem>
-                              <SelectItem value="3">3</SelectItem>
-                              <SelectItem value="4">4</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <span className="text-sm text-muted-foreground">
-                            week{weekInterval > 1 ? 's' : ''}
-                          </span>
-                        </div>
+                        <Label>Repeat Frequency</Label>
+                        <Select
+                          value={repeatInterval}
+                          onValueChange={(v) => setRepeatInterval(v as 'weekly' | 'biweekly' | 'monthly')}
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="weekly">Weekly</SelectItem>
+                            <SelectItem value="biweekly">Bi-weekly (every 2 weeks)</SelectItem>
+                            <SelectItem value="monthly">Monthly (same week pattern)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      {customDays.length > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          Repeats on {customDays.map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label).join(', ')}
-                          {weekInterval > 1 ? ` every ${weekInterval} weeks` : ' every week'}
+                      {/* End Date */}
+                      <div className="space-y-2">
+                        <Label>Repeat Until</Label>
+                        <Input
+                          type="date"
+                          value={repeatEndDate}
+                          onChange={(e) => setRepeatEndDate(e.target.value)}
+                          min={form.watch('dueDate') || today}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Individual tasks will be created for each occurrence until this date
                         </p>
+                      </div>
+
+                      {/* Preview */}
+                      {selectedDays.length > 0 && repeatEndDate && (
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <p className="text-sm text-muted-foreground">
+                            <span className="font-medium text-foreground">Preview: </span>
+                            Tasks will be created on{' '}
+                            {selectedDays.sort((a, b) => a - b).map(d => DAYS_OF_WEEK_LABELS[d]).join(', ')}
+                            {repeatInterval === 'weekly' && ' every week'}
+                            {repeatInterval === 'biweekly' && ' every 2 weeks'}
+                            {repeatInterval === 'monthly' && ' each month (same week pattern)'}
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}

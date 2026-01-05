@@ -91,8 +91,6 @@ export interface Task {
   isActivity: boolean;
   startTime: string | null;
   endTime: string | null;
-  isRecurring: boolean;
-  recurrenceRule: string | null;
   syncToCalendar: boolean;
   googleCalendarEventId: string | null;
   createdBy: string | null;
@@ -106,18 +104,6 @@ export interface Task {
     id: string;
     fullName: string;
   };
-}
-
-export interface TaskInstance {
-  id: string;
-  parentTaskId: string;
-  instanceDate: string;
-  status: TaskStatus;
-  completedBy: string | null;
-  completedAt: string | null;
-  titleOverride: string | null;
-  descriptionOverride: string | null;
-  parentTask?: Task;
 }
 
 export interface TaskFilters {
@@ -146,14 +132,7 @@ export type TaskWithRelations = Omit<Task, 'category' | 'createdByUser' | 'assig
   videos?: TaskVideo[];
 };
 
-export interface RecurrencePattern {
-  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
-  interval: number;
-  byWeekday?: number[];
-  byMonthDay?: number[];
-  until?: string;
-  count?: number;
-}
+export type RepeatInterval = 'weekly' | 'biweekly' | 'monthly';
 
 export interface TemplateAssignment {
   targetType: AssignmentTargetType;
@@ -173,8 +152,8 @@ export interface TaskTemplate {
   isActivity: boolean;
   startTime: string | null;
   endTime: string | null;
-  isRecurring: boolean;
-  recurrenceRule: string | null;
+  repeatDays: number[] | null; // 0=Sun, 1=Mon, ..., 6=Sat
+  repeatInterval: RepeatInterval | null;
   defaultAssignments: TemplateAssignment[];
   createdBy: string | null;
   createdAt: string;
