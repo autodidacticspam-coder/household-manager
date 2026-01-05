@@ -301,7 +301,13 @@
     "ptoDays": "仅休假",
     "dayMissed": "天缺勤",
     "daysMissedLabel": "天缺勤",
-    "noDaysMissed": "此期间没有缺勤记录"
+    "noDaysMissed": "此期间没有缺勤记录",
+    "addSchedule": "添加日程",
+    "scheduleFor": "{day}的日程",
+    "repeatsWeekly": "每周重复",
+    "selectEmployee": "选择员工",
+    "startTime": "开始时间",
+    "endTime": "结束时间"
   },
   "profile": {
     "viewAndManage": "查看和管理您的个人资料",

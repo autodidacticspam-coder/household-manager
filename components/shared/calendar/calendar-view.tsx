@@ -29,11 +29,74 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask, useDeleteTask, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
-import { useUpsertScheduleOverride, useDeleteScheduleOverride } from '@/hooks/use-schedules';
+import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateSchedule } from '@/hooks/use-schedules';
+import { useEmployeesList } from '@/hooks/use-employees';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, subWeeks, addWeeks } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus } from 'lucide-react';
+
+// Helper function to handle time input formatting
+// Handles cases like: "0200" -> "2:00", "930" -> "9:30", backspacing, etc.
+function formatTimeInput(value: string, previousValue: string): string {
+  // Remove non-digit and non-colon characters
+  let cleaned = value.replace(/[^\d:]/g, '');
+
+  // If user is backspacing and the current value has a colon but cleaned doesn't have the colon at the end
+  // Allow normal backspace behavior
+  if (cleaned.length < previousValue.length) {
+    // If the previous value had a colon and user is deleting, allow it
+    if (previousValue.includes(':') && !cleaned.includes(':')) {
+      // User deleted through the colon, just return digits
+      return cleaned.replace(':', '');
+    }
+    return cleaned;
+  }
+
+  // Remove any existing colons for processing
+  const digitsOnly = cleaned.replace(/:/g, '');
+
+  // Limit to 4 digits total (HHMM)
+  const limited = digitsOnly.slice(0, 4);
+
+  if (limited.length === 0) {
+    return '';
+  }
+
+  if (limited.length <= 2) {
+    // Just hours or partial hours
+    return limited;
+  }
+
+  // 3 or 4 digits: format as H:MM or HH:MM
+  if (limited.length === 3) {
+    // Could be H:MM (e.g., 930 -> 9:30)
+    return `${limited[0]}:${limited.slice(1)}`;
+  }
+
+  // 4 digits: HH:MM (e.g., 0930 -> 09:30, but 0200 -> 2:00)
+  const hours = limited.slice(0, 2);
+  const minutes = limited.slice(2);
+
+  // Remove leading zero for hours display (02 -> 2)
+  const displayHours = hours.replace(/^0/, '') || '0';
+
+  return `${displayHours}:${minutes}`;
+}
 
 type CalendarViewProps = {
   userId?: string;
@@ -159,6 +222,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const updateTaskStatus = useUpdateTaskStatus();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
+  const createSchedule = useCreateSchedule();
+  const { data: employees } = useEmployeesList();
 
   // Task delete confirmation state
   const [deleteTaskDialog, setDeleteTaskDialog] = useState<{
@@ -174,6 +239,18 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [editEndTime, setEditEndTime] = useState('');
   const [editEndAmPm, setEditEndAmPm] = useState<'AM' | 'PM'>('PM');
 
+  // Add schedule dialog state
+  const [addScheduleDialog, setAddScheduleDialog] = useState<{
+    open: boolean;
+    date: Date;
+    dayOfWeek: number;
+  } | null>(null);
+  const [newScheduleEmployee, setNewScheduleEmployee] = useState('');
+  const [newScheduleStartTime, setNewScheduleStartTime] = useState('');
+  const [newScheduleStartAmPm, setNewScheduleStartAmPm] = useState<'AM' | 'PM'>('AM');
+  const [newScheduleEndTime, setNewScheduleEndTime] = useState('');
+  const [newScheduleEndAmPm, setNewScheduleEndAmPm] = useState<'AM' | 'PM'>('PM');
+
   // Helper to parse time and set edit state
   const initScheduleEdit = (startTime: string, endTime: string) => {
     const start12 = formatTime12h(startTime);
@@ -186,6 +263,70 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setEditEndTime(endTimeStr);
     setEditEndAmPm(endPeriod as 'AM' | 'PM');
     setEditingSchedule(true);
+  };
+
+  // Handle clicking on empty time slot to add schedule
+  const handleDateClick = (info: { date: Date; dateStr: string; allDay: boolean }) => {
+    if (isEmployee) return; // Only admins can add schedules
+
+    const clickedDate = info.date;
+    const dayOfWeek = clickedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+    // Pre-fill start time from clicked time slot if not all-day click
+    let defaultStartTime = '9:00';
+    let defaultStartAmPm: 'AM' | 'PM' = 'AM';
+
+    if (!info.allDay) {
+      const hours = clickedDate.getHours();
+      const minutes = clickedDate.getMinutes();
+      const isPm = hours >= 12;
+      const h12 = hours % 12 || 12;
+      defaultStartTime = `${h12}:${minutes.toString().padStart(2, '0')}`;
+      defaultStartAmPm = isPm ? 'PM' : 'AM';
+    }
+
+    // Default end time is 1 hour after start
+    let defaultEndTime = '10:00';
+    let defaultEndAmPm: 'AM' | 'PM' = 'AM';
+
+    if (!info.allDay) {
+      const endDate = new Date(clickedDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+      const hours = endDate.getHours();
+      const minutes = endDate.getMinutes();
+      const isPm = hours >= 12;
+      const h12 = hours % 12 || 12;
+      defaultEndTime = `${h12}:${minutes.toString().padStart(2, '0')}`;
+      defaultEndAmPm = isPm ? 'PM' : 'AM';
+    }
+
+    setNewScheduleEmployee('');
+    setNewScheduleStartTime(defaultStartTime);
+    setNewScheduleStartAmPm(defaultStartAmPm);
+    setNewScheduleEndTime(defaultEndTime);
+    setNewScheduleEndAmPm(defaultEndAmPm);
+    setAddScheduleDialog({
+      open: true,
+      date: clickedDate,
+      dayOfWeek,
+    });
+  };
+
+  // Handle creating new schedule
+  const handleCreateSchedule = async () => {
+    if (!addScheduleDialog || !newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime) return;
+
+    const startTime24 = formatTime24h(`${newScheduleStartTime} ${newScheduleStartAmPm}`);
+    const endTime24 = formatTime24h(`${newScheduleEndTime} ${newScheduleEndAmPm}`);
+
+    await createSchedule.mutateAsync({
+      userId: newScheduleEmployee,
+      dayOfWeek: addScheduleDialog.dayOfWeek,
+      startTime: startTime24,
+      endTime: endTime24,
+    });
+
+    setAddScheduleDialog(null);
+    refetch();
   };
 
   // Track if user manually changed the view (don't auto-switch after manual selection)
@@ -624,6 +765,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 };
               }) || []}
               eventClick={handleEventClick}
+              dateClick={handleDateClick}
+              selectable={!isEmployee}
               datesSet={(dateInfo) => {
                 // Update visible range when calendar navigates
                 setVisibleRange({ start: dateInfo.start, end: dateInfo.end });
@@ -942,11 +1085,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                           type="text"
                           inputMode="numeric"
                           value={editStartTime}
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/[^\d:]/g, '');
-                            if (val.length === 2 && !val.includes(':')) val = val + ':';
-                            if (val.length <= 5) setEditStartTime(val);
-                          }}
+                          onChange={(e) => setEditStartTime(formatTimeInput(e.target.value, editStartTime))}
                           placeholder="9:00"
                           className="w-20"
                         />
@@ -981,11 +1120,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                           type="text"
                           inputMode="numeric"
                           value={editEndTime}
-                          onChange={(e) => {
-                            let val = e.target.value.replace(/[^\d:]/g, '');
-                            if (val.length === 2 && !val.includes(':')) val = val + ':';
-                            if (val.length <= 5) setEditEndTime(val);
-                          }}
+                          onChange={(e) => setEditEndTime(formatTimeInput(e.target.value, editEndTime))}
                           placeholder="5:00"
                           className="w-20"
                         />
@@ -1077,6 +1212,137 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Schedule Dialog */}
+      <Dialog open={!!addScheduleDialog?.open} onOpenChange={(open) => !open && setAddScheduleDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5" />
+              {t('employees.addSchedule')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {addScheduleDialog && (
+              <p className="text-sm text-muted-foreground">
+                {t('employees.scheduleFor', {
+                  day: format(addScheduleDialog.date, 'EEEE'),
+                })}
+                {' '}
+                <span className="text-xs">
+                  ({t('employees.repeatsWeekly')})
+                </span>
+              </p>
+            )}
+
+            <div className="space-y-2">
+              <Label>{t('employees.selectEmployee')}</Label>
+              <Select value={newScheduleEmployee} onValueChange={setNewScheduleEmployee}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('common.select')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees?.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t('employees.startTime')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={newScheduleStartTime}
+                  onChange={(e) => setNewScheduleStartTime(formatTimeInput(e.target.value, newScheduleStartTime))}
+                  placeholder="9:00"
+                  className="w-24"
+                />
+                <div className="flex rounded-md border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setNewScheduleStartAmPm('AM')}
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      newScheduleStartAmPm === 'AM'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted'
+                    }`}
+                  >
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewScheduleStartAmPm('PM')}
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      newScheduleStartAmPm === 'PM'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted'
+                    }`}
+                  >
+                    PM
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t('employees.endTime')}</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={newScheduleEndTime}
+                  onChange={(e) => setNewScheduleEndTime(formatTimeInput(e.target.value, newScheduleEndTime))}
+                  placeholder="5:00"
+                  className="w-24"
+                />
+                <div className="flex rounded-md border overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setNewScheduleEndAmPm('AM')}
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      newScheduleEndAmPm === 'AM'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted'
+                    }`}
+                  >
+                    AM
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewScheduleEndAmPm('PM')}
+                    className={`px-3 py-2 text-sm font-medium transition-colors ${
+                      newScheduleEndAmPm === 'PM'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-background hover:bg-muted'
+                    }`}
+                  >
+                    PM
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddScheduleDialog(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={handleCreateSchedule}
+              disabled={!newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createSchedule.isPending}
+            >
+              {createSchedule.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <style jsx global>{`
         .calendar-wrapper .fc {

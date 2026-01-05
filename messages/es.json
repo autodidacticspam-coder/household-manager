@@ -301,7 +301,13 @@
     "ptoDays": "Solo Vacaciones",
     "dayMissed": "Día Perdido",
     "daysMissedLabel": "Días Perdidos",
-    "noDaysMissed": "No hay días perdidos en este período"
+    "noDaysMissed": "No hay días perdidos en este período",
+    "addSchedule": "Agregar Horario",
+    "scheduleFor": "Horario para {day}",
+    "repeatsWeekly": "se repite semanalmente",
+    "selectEmployee": "Seleccionar Empleado",
+    "startTime": "Hora de Inicio",
+    "endTime": "Hora de Fin"
   },
   "profile": {
     "viewAndManage": "Ver y gestionar tu información de perfil",

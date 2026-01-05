@@ -301,7 +301,13 @@
     "ptoDays": "Vacation Only",
     "dayMissed": "Day Missed",
     "daysMissedLabel": "Days Missed",
-    "noDaysMissed": "No days missed in this period"
+    "noDaysMissed": "No days missed in this period",
+    "addSchedule": "Add Schedule",
+    "scheduleFor": "Schedule for {day}",
+    "repeatsWeekly": "repeats weekly",
+    "selectEmployee": "Select Employee",
+    "startTime": "Start Time",
+    "endTime": "End Time"
   },
   "profile": {
     "viewAndManage": "View and manage your profile information",
