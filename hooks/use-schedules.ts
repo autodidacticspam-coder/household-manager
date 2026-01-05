@@ -298,3 +298,167 @@ export function useDeleteScheduleOverride() {
     },
   });
 }
+
+// ============================================
+// One-Off Schedule Hooks (for single-day schedules)
+// ============================================
+
+export type OneOffSchedule = {
+  id: string;
+  userId: string;
+  scheduleDate: string;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+  createdBy: string | null;
+  user?: {
+    id: string;
+    fullName: string;
+    avatarUrl: string | null;
+  };
+};
+
+// Fetch one-off schedules for a date range
+export function useOneOffSchedules(startDate: string, endDate: string) {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ['one-off-schedules', startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('schedule_one_offs')
+        .select(`
+          *,
+          user:users(id, full_name, avatar_url)
+        `)
+        .gte('schedule_date', startDate)
+        .lte('schedule_date', endDate)
+        .order('schedule_date', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map((row): OneOffSchedule => ({
+        id: row.id,
+        userId: row.user_id,
+        scheduleDate: row.schedule_date,
+        startTime: row.start_time,
+        endTime: row.end_time,
+        createdAt: row.created_at,
+        createdBy: row.created_by,
+        user: row.user ? {
+          id: row.user.id,
+          fullName: row.user.full_name,
+          avatarUrl: row.user.avatar_url,
+        } : undefined,
+      }));
+    },
+    enabled: !!startDate && !!endDate,
+  });
+}
+
+// Create a one-off schedule
+export function useCreateOneOffSchedule() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async (data: {
+      userId: string;
+      scheduleDate: string;
+      startTime: string;
+      endTime: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: result, error } = await supabase
+        .from('schedule_one_offs')
+        .insert({
+          user_id: data.userId,
+          schedule_date: data.scheduleDate,
+          start_time: data.startTime,
+          end_time: data.endTime,
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('common.saved'));
+    },
+    onError: (error) => {
+      console.error('Error creating one-off schedule:', error);
+      toast.error(t('errors.saveFailed'));
+    },
+  });
+}
+
+// Update a one-off schedule
+export function useUpdateOneOffSchedule() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      startTime: string;
+      endTime: string;
+    }) => {
+      const { data: result, error } = await supabase
+        .from('schedule_one_offs')
+        .update({
+          start_time: data.startTime,
+          end_time: data.endTime,
+        })
+        .eq('id', data.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('common.saved'));
+    },
+    onError: (error) => {
+      console.error('Error updating one-off schedule:', error);
+      toast.error(t('errors.saveFailed'));
+    },
+  });
+}
+
+// Delete a one-off schedule
+export function useDeleteOneOffSchedule() {
+  const supabase = createClient();
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('schedule_one_offs')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('common.deleted'));
+    },
+    onError: (error) => {
+      console.error('Error deleting one-off schedule:', error);
+      toast.error(t('errors.deleteFailed'));
+    },
+  });
+}

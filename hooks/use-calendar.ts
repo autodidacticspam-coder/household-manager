@@ -626,6 +626,59 @@ export function useCalendarEvents(filters: CalendarFilters) {
             currentDate = addDays(currentDate, 1);
           }
         }
+
+        // Fetch one-off schedules (single day schedules)
+        let oneOffQuery = supabase
+          .from('schedule_one_offs')
+          .select(`
+            *,
+            user:users!schedule_one_offs_user_id_fkey(id, full_name, avatar_url)
+          `)
+          .gte('schedule_date', filters.startDate)
+          .lte('schedule_date', filters.endDate);
+
+        if (filters.userId) {
+          oneOffQuery = oneOffQuery.eq('user_id', filters.userId);
+        }
+
+        const { data: oneOffSchedules, error: oneOffError } = await oneOffQuery;
+
+        if (oneOffError) {
+          console.error('Error fetching one-off schedules:', oneOffError);
+        } else {
+          for (const schedule of oneOffSchedules || []) {
+            const user = schedule.user as { id: string; full_name: string; avatar_url: string | null } | null;
+            if (!user) continue;
+
+            const dateStr = schedule.schedule_date;
+
+            // Skip if employee has approved leave for this day
+            if (leaveDaysSet.has(`${schedule.user_id}-${dateStr}`)) {
+              continue;
+            }
+
+            events.push({
+              id: `one-off-schedule-${schedule.id}`,
+              type: 'schedule' as any,
+              title: `${user.full_name}`,
+              start: `${dateStr}T${schedule.start_time}`,
+              end: `${dateStr}T${schedule.end_time}`,
+              allDay: false,
+              color: '#06b6d4', // cyan for one-off schedules (different from regular schedules)
+              resourceId: schedule.id,
+              extendedProps: {
+                oneOffScheduleId: schedule.id,
+                scheduleDate: dateStr,
+                userId: schedule.user_id,
+                userName: user.full_name,
+                avatarUrl: user.avatar_url,
+                isOneOff: true,
+                startTime: schedule.start_time,
+                endTime: schedule.end_time,
+              },
+            });
+          }
+        }
       }
 
       return events;

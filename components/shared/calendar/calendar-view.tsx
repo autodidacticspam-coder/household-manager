@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask, useDeleteTask, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
-import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateSchedule } from '@/hooks/use-schedules';
+import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule, useUpdateOneOffSchedule, useDeleteOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
 import {
   Select,
@@ -222,7 +222,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const updateTaskStatus = useUpdateTaskStatus();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
-  const createSchedule = useCreateSchedule();
+  const createOneOffSchedule = useCreateOneOffSchedule();
+  const updateOneOffSchedule = useUpdateOneOffSchedule();
+  const deleteOneOffSchedule = useDeleteOneOffSchedule();
   const { data: employees } = useEmployeesList();
 
   // Task delete confirmation state
@@ -311,16 +313,17 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     });
   };
 
-  // Handle creating new schedule
+  // Handle creating new one-off schedule
   const handleCreateSchedule = async () => {
     if (!addScheduleDialog || !newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime) return;
 
     const startTime24 = formatTime24h(`${newScheduleStartTime} ${newScheduleStartAmPm}`);
     const endTime24 = formatTime24h(`${newScheduleEndTime} ${newScheduleEndAmPm}`);
+    const scheduleDate = format(addScheduleDialog.date, 'yyyy-MM-dd');
 
-    await createSchedule.mutateAsync({
+    await createOneOffSchedule.mutateAsync({
       userId: newScheduleEmployee,
-      dayOfWeek: addScheduleDialog.dayOfWeek,
+      scheduleDate,
       startTime: startTime24,
       endTime: endTime24,
     });
@@ -1226,12 +1229,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             {addScheduleDialog && (
               <p className="text-sm text-muted-foreground">
                 {t('employees.scheduleFor', {
-                  day: format(addScheduleDialog.date, 'EEEE'),
+                  day: format(addScheduleDialog.date, 'EEEE, MMMM d, yyyy'),
                 })}
-                {' '}
-                <span className="text-xs">
-                  ({t('employees.repeatsWeekly')})
-                </span>
               </p>
             )}
 
@@ -1333,9 +1332,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             </Button>
             <Button
               onClick={handleCreateSchedule}
-              disabled={!newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createSchedule.isPending}
+              disabled={!newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createOneOffSchedule.isPending}
             >
-              {createSchedule.isPending ? (
+              {createOneOffSchedule.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
               {t('common.save')}
