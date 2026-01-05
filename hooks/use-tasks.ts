@@ -244,6 +244,7 @@ export function useCreateTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
       toast.success(t('tasks.taskCreated'));
     },
     onError: (error: Error) => {
@@ -275,6 +276,7 @@ export function useUpdateTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
       toast.success(t('tasks.taskUpdated'));
     },
     onError: (error: Error) => {
@@ -302,6 +304,7 @@ export function useDeleteTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
       toast.success(t('tasks.taskDeleted'));
     },
     onError: (error: Error) => {
@@ -329,6 +332,7 @@ export function useCompleteTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
       toast.success(t('tasks.taskCompleted'));
     },
     onError: (error: Error) => {
@@ -357,6 +361,7 @@ export function useUpdateTaskStatus() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -366,18 +371,74 @@ export function useUpdateTaskStatus() {
 
 export function usePendingTasks() {
   const supabase = createClient();
+  const today = getTodayString();
 
   return useQuery({
     queryKey: ['pending-tasks'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, status, priority, due_date')
+        .select('id, title, status, priority, due_date, created_at')
         .in('status', ['pending', 'in_progress'])
         .order('due_date', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
-      return data || [];
+
+      // Group tasks by title + created_at to identify repeat batches
+      // (tasks created from the same repeat batch have identical title and created_at)
+      const taskBatches = new Map<string, typeof data>();
+
+      for (const task of data || []) {
+        // Create a batch key using title and created_at (truncated to second for safety)
+        const createdAtTruncated = task.created_at?.slice(0, 19) || '';
+        const batchKey = `${task.title}|${createdAtTruncated}`;
+
+        if (!taskBatches.has(batchKey)) {
+          taskBatches.set(batchKey, []);
+        }
+        taskBatches.get(batchKey)!.push(task);
+      }
+
+      // For each batch, keep only the next occurrence (earliest due_date >= today)
+      const filteredTasks: typeof data = [];
+
+      for (const [, batchTasks] of taskBatches) {
+        if (batchTasks.length === 1) {
+          // Single task, not part of a repeat batch
+          filteredTasks.push(batchTasks[0]);
+        } else {
+          // Multiple tasks - find the next occurrence (earliest due_date >= today)
+          // First, filter to future tasks
+          const futureTasks = batchTasks.filter(t => !t.due_date || t.due_date >= today);
+
+          if (futureTasks.length > 0) {
+            // Sort by due_date ascending and take the first one
+            futureTasks.sort((a, b) => {
+              if (!a.due_date) return 1;
+              if (!b.due_date) return -1;
+              return a.due_date.localeCompare(b.due_date);
+            });
+            filteredTasks.push(futureTasks[0]);
+          } else {
+            // All tasks are in the past - show the most recent one
+            batchTasks.sort((a, b) => {
+              if (!a.due_date) return 1;
+              if (!b.due_date) return -1;
+              return b.due_date.localeCompare(a.due_date);
+            });
+            filteredTasks.push(batchTasks[0]);
+          }
+        }
+      }
+
+      // Sort final list by due_date
+      filteredTasks.sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      });
+
+      return filteredTasks;
     },
   });
 }
