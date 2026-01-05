@@ -20,6 +20,7 @@ type TaskFilters = {
 export function useTasks(filters?: TaskFilters) {
   const supabase = createClient();
   const locale = useLocale() as SupportedLocale;
+  const today = getTodayString();
 
   return useQuery({
     queryKey: ['tasks', filters, locale],
@@ -59,6 +60,62 @@ export function useTasks(filters?: TaskFilters) {
       const { data, error } = await query;
 
       if (error) throw error;
+
+      // For pending/in_progress tasks, filter to show only next occurrence of repeating tasks
+      const shouldFilterRepeats = !filters?.status || filters.status === 'pending' || filters.status === 'in_progress';
+
+      if (shouldFilterRepeats && data) {
+        // Group tasks by title + created_at to identify repeat batches
+        const taskBatches = new Map<string, typeof data>();
+
+        for (const task of data) {
+          const createdAtTruncated = task.created_at?.slice(0, 19) || '';
+          const batchKey = `${task.title}|${createdAtTruncated}`;
+
+          if (!taskBatches.has(batchKey)) {
+            taskBatches.set(batchKey, []);
+          }
+          taskBatches.get(batchKey)!.push(task);
+        }
+
+        // For each batch, keep only the next occurrence
+        const filteredData: typeof data = [];
+
+        for (const [, batchTasks] of taskBatches) {
+          if (batchTasks.length === 1) {
+            filteredData.push(batchTasks[0]);
+          } else {
+            // Multiple tasks - find the next occurrence (earliest due_date >= today)
+            const futureTasks = batchTasks.filter(t => !t.due_date || t.due_date >= today);
+
+            if (futureTasks.length > 0) {
+              futureTasks.sort((a, b) => {
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return a.due_date.localeCompare(b.due_date);
+              });
+              filteredData.push(futureTasks[0]);
+            } else {
+              // All tasks are in the past - show the most recent one
+              batchTasks.sort((a, b) => {
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return b.due_date.localeCompare(a.due_date);
+              });
+              filteredData.push(batchTasks[0]);
+            }
+          }
+        }
+
+        // Sort by due_date for display
+        filteredData.sort((a, b) => {
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return a.due_date.localeCompare(b.due_date);
+        });
+
+        return filteredData.map((row) => transformTask(row, locale));
+      }
 
       return (data || []).map((row) => transformTask(row, locale));
     },
