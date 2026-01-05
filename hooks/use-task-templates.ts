@@ -29,6 +29,7 @@ type CreateTemplateInput = {
   repeatDays?: number[] | null;
   repeatInterval?: 'weekly' | 'biweekly' | 'monthly' | null;
   defaultAssignments?: TemplateAssignment[];
+  defaultViewers?: TemplateAssignment[];
   videos?: VideoInput[];
 };
 
@@ -66,6 +67,7 @@ function transformTemplate(row: Record<string, unknown>): TaskTemplate {
     repeatDays: row.repeat_days as number[] | null,
     repeatInterval: row.repeat_interval as TaskTemplate['repeatInterval'],
     defaultAssignments: (row.default_assignments as TemplateAssignment[]) || [],
+    defaultViewers: (row.default_viewers as TemplateAssignment[]) || [],
     createdBy: row.created_by as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -149,6 +151,7 @@ export function useCreateTaskTemplate() {
           repeat_days: input.repeatDays || null,
           repeat_interval: input.repeatInterval || null,
           default_assignments: input.defaultAssignments || [],
+          default_viewers: input.defaultViewers || [],
           created_by: user.id,
         })
         .select()
@@ -216,6 +219,7 @@ export function useUpdateTaskTemplate() {
           repeat_days: input.repeatDays || null,
           repeat_interval: input.repeatInterval || null,
           default_assignments: input.defaultAssignments || [],
+          default_viewers: input.defaultViewers || [],
         })
         .eq('id', id)
         .select()

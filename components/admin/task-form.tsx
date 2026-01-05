@@ -80,13 +80,20 @@ export function TaskForm({ task, template, onSuccess }: TaskFormProps) {
 
   const [assignments, setAssignments] = useState<TaskAssignmentInput[]>(getInitialAssignments());
 
-  // Initialize viewers from task
+  // Initialize viewers from task or template
   const getInitialViewers = (): TaskViewerInput[] => {
     if (task?.viewers) {
       return task.viewers.map((v) => ({
         targetType: v.targetType,
         targetUserId: v.targetUserId,
         targetGroupId: v.targetGroupId,
+      }));
+    }
+    if (template?.defaultViewers) {
+      return template.defaultViewers.map((v) => ({
+        targetType: v.targetType,
+        targetUserId: v.targetUserId || undefined,
+        targetGroupId: v.targetGroupId || undefined,
       }));
     }
     return [];

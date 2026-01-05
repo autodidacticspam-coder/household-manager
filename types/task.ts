@@ -155,6 +155,7 @@ export interface TaskTemplate {
   repeatDays: number[] | null; // 0=Sun, 1=Mon, ..., 6=Sat
   repeatInterval: RepeatInterval | null;
   defaultAssignments: TemplateAssignment[];
+  defaultViewers: TemplateAssignment[];
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;

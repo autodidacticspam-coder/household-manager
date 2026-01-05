@@ -243,6 +243,7 @@ export function useCreateTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('tasks.taskCreated'));
     },
     onError: (error: Error) => {
@@ -273,6 +274,7 @@ export function useUpdateTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('tasks.taskUpdated'));
     },
     onError: (error: Error) => {
@@ -299,6 +301,7 @@ export function useDeleteTask() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('tasks.taskDeleted'));
     },
     onError: (error: Error) => {
@@ -325,6 +328,7 @@ export function useCompleteTask() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('tasks.taskCompleted'));
     },
     onError: (error: Error) => {
@@ -352,6 +356,7 @@ export function useUpdateTaskStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
     },
     onError: (error: Error) => {
       toast.error(error.message);
