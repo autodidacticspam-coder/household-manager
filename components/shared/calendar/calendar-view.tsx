@@ -31,6 +31,8 @@ import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask, useDeleteTask, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
+import { useDeleteChildLog } from '@/hooks/use-child-logs';
+import { useCancelLeaveRequest } from '@/hooks/use-leave';
 import {
   Select,
   SelectContent,
@@ -223,12 +225,28 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
   const createOneOffSchedule = useCreateOneOffSchedule();
+  const deleteChildLog = useDeleteChildLog();
+  const cancelLeaveRequest = useCancelLeaveRequest();
   const { data: employees } = useEmployeesList();
 
   // Task delete confirmation state
   const [deleteTaskDialog, setDeleteTaskDialog] = useState<{
     open: boolean;
     taskId: string;
+    title: string;
+  } | null>(null);
+
+  // Log delete confirmation state
+  const [deleteLogDialog, setDeleteLogDialog] = useState<{
+    open: boolean;
+    logId: string;
+    title: string;
+  } | null>(null);
+
+  // Leave cancel confirmation state
+  const [cancelLeaveDialog, setCancelLeaveDialog] = useState<{
+    open: boolean;
+    leaveId: string;
     title: string;
   } | null>(null);
 
@@ -407,6 +425,64 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       taskId,
       title,
     });
+  };
+
+  // Child log handlers
+  const extractLogId = (eventId: string): string => {
+    return eventId.replace('log-', '');
+  };
+
+  const handleEditLog = (eventId: string) => {
+    const logId = extractLogId(eventId);
+    setSelectedEvent(null);
+    router.push(`/logs?edit=${logId}`);
+  };
+
+  const handleDeleteLog = async () => {
+    if (!deleteLogDialog) return;
+
+    await deleteChildLog.mutateAsync(deleteLogDialog.logId);
+    setDeleteLogDialog(null);
+    setSelectedEvent(null);
+    refetch();
+  };
+
+  const openDeleteLogDialog = (eventId: string, title: string) => {
+    const logId = extractLogId(eventId);
+    setDeleteLogDialog({
+      open: true,
+      logId,
+      title,
+    });
+  };
+
+  // Leave request handlers
+  const extractLeaveId = (eventId: string): string => {
+    return eventId.replace('leave-', '');
+  };
+
+  const handleCancelLeave = async () => {
+    if (!cancelLeaveDialog) return;
+
+    await cancelLeaveRequest.mutateAsync(cancelLeaveDialog.leaveId);
+    setCancelLeaveDialog(null);
+    setSelectedEvent(null);
+    refetch();
+  };
+
+  const openCancelLeaveDialog = (eventId: string, title: string) => {
+    const leaveId = extractLeaveId(eventId);
+    setCancelLeaveDialog({
+      open: true,
+      leaveId,
+      title,
+    });
+  };
+
+  // Important date handler - navigate to employee edit
+  const handleEditImportantDate = (employeeId: string) => {
+    setSelectedEvent(null);
+    router.push(`/employees/${employeeId}/edit`);
   };
 
   // Handle drag and drop for calendar events
@@ -1024,7 +1100,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             )}
 
             {selectedEvent.type === 'leave' && (
-              <div className="mt-3">
+              <div className="mt-3 space-y-3">
                 <Badge
                   variant="secondary"
                   className={Boolean(selectedEvent.extendedProps.isHoliday) ? 'bg-amber-100 text-amber-700' : ''}
@@ -1040,14 +1116,26 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                     {String(selectedEvent.extendedProps.holidayName)}
                   </p>
                 ) : null}
-                <p className="text-sm text-muted-foreground mt-2">
+                <p className="text-sm text-muted-foreground">
                   {String(selectedEvent.extendedProps.totalDays)} {t('common.days')}
                 </p>
+                {/* Cancel button for pending leave requests (not holidays) */}
+                {!isEmployee && !Boolean(selectedEvent.extendedProps.isHoliday) && String(selectedEvent.extendedProps.status) === 'approved' && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full text-destructive hover:text-destructive"
+                    onClick={() => openCancelLeaveDialog(selectedEvent.id, selectedEvent.title)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {t('leave.cancel')}
+                  </Button>
+                )}
               </div>
             )}
 
             {selectedEvent.type === 'log' && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 space-y-3">
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
                     {String(selectedEvent.extendedProps.child)}
@@ -1067,11 +1155,34 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                     {t('childLogs.loggedBy')}: {String(selectedEvent.extendedProps.loggedBy)}
                   </p>
                 )}
+                {/* Edit and Delete buttons for logs (Admin only) */}
+                {!isEmployee && (
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleEditLog(selectedEvent.id)}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      {t('common.edit')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-destructive hover:text-destructive"
+                      onClick={() => openDeleteLogDialog(selectedEvent.id, selectedEvent.title)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t('common.delete')}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
             {selectedEvent.type === 'important_date' && (
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 space-y-3">
                 <Badge variant="secondary" className="bg-pink-100 text-pink-700">
                   {String(selectedEvent.extendedProps.label)}
                 </Badge>
@@ -1081,6 +1192,18 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 <p className="text-xs text-muted-foreground">
                   Recurring annually
                 </p>
+                {/* Edit button to navigate to employee profile (Admin only) */}
+                {!isEmployee && !!selectedEvent.extendedProps.employeeId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => handleEditImportantDate(String(selectedEvent.extendedProps.employeeId))}
+                  >
+                    <Pencil className="h-4 w-4 mr-2" />
+                    {t('common.edit')}
+                  </Button>
+                )}
               </div>
             )}
 
@@ -1289,6 +1412,56 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
               {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Log Confirmation Dialog */}
+      <AlertDialog open={!!deleteLogDialog?.open} onOpenChange={(open) => !open && setDeleteLogDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('childLogs.deleteLog')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('childLogs.deleteConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteLog}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteChildLog.isPending}
+            >
+              {deleteChildLog.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              {t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Leave Confirmation Dialog */}
+      <AlertDialog open={!!cancelLeaveDialog?.open} onOpenChange={(open) => !open && setCancelLeaveDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('leave.cancelLeave')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('leave.cancelConfirmation')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelLeave}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancelLeaveRequest.isPending}
+            >
+              {cancelLeaveRequest.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              {t('leave.cancel')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -386,10 +386,11 @@ export function useCompleteTask() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
+      // Force immediate refetch of all task-related queries
+      queryClient.refetchQueries({ queryKey: ['tasks'] });
+      queryClient.refetchQueries({ queryKey: ['my-tasks'] });
+      queryClient.refetchQueries({ queryKey: ['calendar-events'] });
+      queryClient.refetchQueries({ queryKey: ['pending-tasks'] });
       toast.success(t('tasks.taskCompleted'));
     },
     onError: (error: Error) => {
@@ -415,10 +416,11 @@ export function useUpdateTaskStatus() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['my-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
+      // Force immediate refetch of all task-related queries
+      queryClient.refetchQueries({ queryKey: ['tasks'] });
+      queryClient.refetchQueries({ queryKey: ['my-tasks'] });
+      queryClient.refetchQueries({ queryKey: ['calendar-events'] });
+      queryClient.refetchQueries({ queryKey: ['pending-tasks'] });
     },
     onError: (error: Error) => {
       toast.error(error.message);
