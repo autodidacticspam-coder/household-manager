@@ -190,7 +190,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="vacation">{t('leave.vacation')}</SelectItem>
+                      <SelectItem value="vacation">{t('leave.pto')}</SelectItem>
                       <SelectItem value="sick">{t('leave.sick')}</SelectItem>
                     </SelectContent>
                   </Select>

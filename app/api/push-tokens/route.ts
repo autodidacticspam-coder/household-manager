@@ -33,17 +33,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch tokens' }, { status: 500 });
     }
 
+    // Type for Supabase user join result (returns array or single object)
+    type UserJoin = { full_name: string | null; email: string | null } | null;
+
+    // Helper to extract user from Supabase join (handles array or single object)
+    function extractUser(rawUser: unknown): UserJoin {
+      if (!rawUser) return null;
+      if (Array.isArray(rawUser)) return rawUser[0] as UserJoin;
+      return rawUser as UserJoin;
+    }
+
     return NextResponse.json({
       count: tokens?.length || 0,
-      tokens: tokens?.map(t => ({
-        id: t.id,
-        userId: t.user_id,
-        userName: (t.users as any)?.full_name || 'Unknown',
-        email: (t.users as any)?.email || 'Unknown',
-        tokenPreview: t.token.slice(0, 20) + '...',
-        platform: t.platform,
-        updatedAt: t.updated_at,
-      }))
+      tokens: tokens?.map(t => {
+        const user = extractUser(t.users);
+        return {
+          id: t.id,
+          userId: t.user_id,
+          userName: user?.full_name || 'Unknown',
+          email: user?.email || 'Unknown',
+          tokenPreview: t.token.slice(0, 20) + '...',
+          platform: t.platform,
+          updatedAt: t.updated_at,
+        };
+      })
     });
   } catch (err) {
     const { error, status } = handleApiError(err);
