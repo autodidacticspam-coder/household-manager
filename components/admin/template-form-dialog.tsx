@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, X, CalendarClock, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTaskCategories, useEmployees, useEmployeeGroups } from '@/hooks/use-tasks';
 import { useCreateTaskTemplate, useUpdateTaskTemplate, useDeleteTemplateVideo, type VideoInput } from '@/hooks/use-task-templates';
 import type { TaskTemplate, TemplateAssignment, TemplateVideo, AssignmentTargetType } from '@/types';
@@ -266,35 +267,54 @@ function TemplateFormContent({
   };
 
   const handleSubmit = async () => {
-    // For activities, use startTime/endTime; otherwise use defaultTime
-    const time24 = !isActivity && defaultTime && !isAllDay ? formatTime24h(`${defaultTime} ${defaultTimeAmPm}`) : null;
-    const startTime24 = isActivity && startTime && !isAllDay ? formatTime24h(`${startTime} ${startTimeAmPm}`) : null;
-    const endTime24 = isActivity && endTime && !isAllDay ? formatTime24h(`${endTime} ${endTimeAmPm}`) : null;
+    try {
+      // For activities, use startTime/endTime; otherwise use defaultTime
+      const time24 = !isActivity && defaultTime && !isAllDay ? formatTime24h(`${defaultTime} ${defaultTimeAmPm}`) : null;
+      const startTime24 = isActivity && startTime && !isAllDay ? formatTime24h(`${startTime} ${startTimeAmPm}`) : null;
+      const endTime24 = isActivity && endTime && !isAllDay ? formatTime24h(`${endTime} ${endTimeAmPm}`) : null;
 
-    const data = {
-      name,
-      title,
-      description: description || null,
-      categoryId: categoryId || null,
-      priority,
-      isAllDay,
-      isActivity,
-      defaultTime: time24,
-      startTime: startTime24,
-      endTime: endTime24,
-      repeatDays: repeatEnabled && selectedDays.length > 0 ? selectedDays : null,
-      repeatInterval: repeatEnabled && selectedDays.length > 0 ? repeatInterval : null,
-      defaultAssignments: assignments,
-      defaultViewers: viewers,
-      videos: pendingVideos,
-    };
+      // Validate time format if time was provided
+      if (defaultTime && !isAllDay && !isActivity && time24 === null) {
+        toast.error('Invalid time format. Please use format like 9:00 or 10:30');
+        return;
+      }
+      if (isActivity && startTime && !isAllDay && startTime24 === null) {
+        toast.error('Invalid start time format. Please use format like 9:00 or 10:30');
+        return;
+      }
+      if (isActivity && endTime && !isAllDay && endTime24 === null) {
+        toast.error('Invalid end time format. Please use format like 9:00 or 10:30');
+        return;
+      }
 
-    if (template) {
-      await updateTemplate.mutateAsync({ id: template.id, ...data });
-    } else {
-      await createTemplate.mutateAsync(data);
+      const data = {
+        name,
+        title,
+        description: description || null,
+        categoryId: categoryId || null,
+        priority,
+        isAllDay,
+        isActivity,
+        defaultTime: time24,
+        startTime: startTime24,
+        endTime: endTime24,
+        repeatDays: repeatEnabled && selectedDays.length > 0 ? selectedDays : null,
+        repeatInterval: repeatEnabled && selectedDays.length > 0 ? repeatInterval : null,
+        defaultAssignments: assignments,
+        defaultViewers: viewers,
+        videos: pendingVideos,
+      };
+
+      if (template) {
+        await updateTemplate.mutateAsync({ id: template.id, ...data });
+      } else {
+        await createTemplate.mutateAsync(data);
+      }
+      onClose();
+    } catch (error) {
+      console.error('Failed to save template:', error);
+      // Error toast is handled by the mutation's onError
     }
-    onClose();
   };
 
   const isPending = createTemplate.isPending || updateTemplate.isPending;
@@ -748,17 +768,19 @@ function TemplateFormContent({
   );
 }
 
-// Wrapper component - uses key to force remount when template/open changes
+// Wrapper component - only renders content when open to ensure fresh state
 export function TemplateFormDialog({ open, onClose, template }: TemplateFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        {/* Key forces remount when dialog opens or template changes, resetting form state */}
-        <TemplateFormContent
-          key={`${template?.id ?? 'new'}-${open}`}
-          template={template}
-          onClose={onClose}
-        />
+        {/* Only render when open to ensure form state is properly initialized */}
+        {open && (
+          <TemplateFormContent
+            key={template?.id ?? 'new'}
+            template={template}
+            onClose={onClose}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );

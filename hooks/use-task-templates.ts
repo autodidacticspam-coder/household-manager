@@ -245,8 +245,9 @@ export function useUpdateTaskTemplate() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['task-templates'] });
+      queryClient.invalidateQueries({ queryKey: ['task-template', variables.id] });
       toast.success(t('templates.updated'));
     },
     onError: (error: Error) => {

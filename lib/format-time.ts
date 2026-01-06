@@ -12,14 +12,40 @@ export function formatTime12h(time: string | null | undefined): string {
 
 /**
  * Converts 12-hour time (h:mm AM/PM) to 24-hour format (HH:mm)
+ * Handles edge cases like missing minutes (e.g., "9 AM" → "09:00")
+ * Returns null if input is invalid
  */
-export function formatTime24h(time12h: string): string {
-  const match = time12h.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return time12h;
+export function formatTime24h(time12h: string): string | null {
+  if (!time12h || !time12h.trim()) return null;
+
+  // Try standard format first: "h:mm AM/PM"
+  let match = time12h.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  // Try format without minutes: "h AM/PM" (treat as h:00)
+  if (!match) {
+    match = time12h.match(/^(\d{1,2})\s*(AM|PM)$/i);
+    if (match) {
+      // Insert '00' for minutes
+      match = [match[0], match[1], '00', match[2]];
+    }
+  }
+
+  // Try format with partial minutes: "h:m AM/PM" (single digit minute)
+  if (!match) {
+    const partialMatch = time12h.match(/^(\d{1,2}):(\d)\s*(AM|PM)$/i);
+    if (partialMatch) {
+      match = [partialMatch[0], partialMatch[1], '0' + partialMatch[2], partialMatch[3]];
+    }
+  }
+
+  if (!match) return null;
 
   let hours = parseInt(match[1], 10);
   const minutes = match[2];
   const period = match[3].toUpperCase();
+
+  // Validate hours
+  if (hours < 1 || hours > 12) return null;
 
   if (period === 'PM' && hours !== 12) {
     hours += 12;

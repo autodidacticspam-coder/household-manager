@@ -56,6 +56,9 @@ export function ScheduleEditor({ userId, userName }: ScheduleEditorProps) {
     const startTime24 = formatTime24h(`${newStartTime} ${newStartAmPm}`);
     const endTime24 = formatTime24h(`${newEndTime} ${newEndAmPm}`);
 
+    // Validate time format
+    if (!startTime24 || !endTime24) return;
+
     // Create schedule for each selected day
     for (const dayOfWeek of selectedDays) {
       await createSchedule.mutateAsync({

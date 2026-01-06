@@ -319,6 +319,10 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
     const startTime24 = formatTime24h(`${newScheduleStartTime} ${newScheduleStartAmPm}`);
     const endTime24 = formatTime24h(`${newScheduleEndTime} ${newScheduleEndAmPm}`);
+
+    // Validate time format
+    if (!startTime24 || !endTime24) return;
+
     const scheduleDate = format(addScheduleDialog.date, 'yyyy-MM-dd');
 
     await createOneOffSchedule.mutateAsync({
@@ -1235,6 +1239,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                         onClick={async () => {
                           const startTime24 = formatTime24h(`${editStartTime} ${editStartAmPm}`);
                           const endTime24 = formatTime24h(`${editEndTime} ${editEndAmPm}`);
+                          // Validate time format
+                          if (!startTime24 || !endTime24) return;
                           await upsertOverride.mutateAsync({
                             scheduleId: String(selectedEvent.extendedProps.scheduleId),
                             overrideDate: String(selectedEvent.extendedProps.scheduleDate),
