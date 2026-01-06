@@ -482,6 +482,79 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     }
   };
 
+  // Handle resize for calendar events (dragging the bottom edge)
+  const handleEventResize = async (info: {
+    event: {
+      id: string;
+      start: Date | null;
+      end: Date | null;
+      extendedProps: Record<string, unknown>;
+    };
+    revert: () => void;
+  }) => {
+    const eventId = info.event.id;
+    const start = info.event.start;
+    const newEnd = info.event.end;
+
+    if (!start || !newEnd) {
+      info.revert();
+      return;
+    }
+
+    // Handle schedule events - only update end time
+    if (eventId.startsWith('schedule-')) {
+      const scheduleId = info.event.extendedProps.scheduleId as string;
+      const scheduleDate = info.event.extendedProps.scheduleDate as string;
+      const startTime = format(start, 'HH:mm:ss');
+      const newEndTime = format(newEnd, 'HH:mm:ss');
+
+      try {
+        await upsertOverride.mutateAsync({
+          scheduleId,
+          overrideDate: scheduleDate,
+          startTime: startTime,
+          endTime: newEndTime,
+        });
+        refetch();
+      } catch {
+        info.revert();
+      }
+      return;
+    }
+
+    // Handle task events - only update end time for activities
+    if (!eventId.startsWith('task-')) {
+      info.revert();
+      return;
+    }
+
+    const taskId = extractTaskId(eventId);
+    const isActivity = !!info.event.extendedProps.isActivity;
+
+    // Only activities have meaningful end times
+    if (!isActivity) {
+      info.revert();
+      return;
+    }
+
+    const dueDate = format(start, 'yyyy-MM-dd');
+    const startTime = format(start, 'HH:mm:ss');
+    const newEndTime = format(newEnd, 'HH:mm:ss');
+
+    try {
+      await updateTaskDateTime.mutateAsync({
+        taskId,
+        dueDate,
+        dueTime: startTime,
+        startTime: startTime,
+        endTime: newEndTime,
+      });
+      refetch();
+    } catch {
+      info.revert();
+    }
+  };
+
   const handlePrev = () => {
     calendarRef.current?.getApi().prev();
     // datesSet callback will update currentDate and visibleRange
@@ -778,8 +851,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               }}
               editable={!isEmployee}
               eventDrop={handleEventDrop}
+              eventResize={handleEventResize}
               eventStartEditable={!isEmployee}
-              eventDurationEditable={false}
+              eventDurationEditable={!isEmployee}
               droppable={false}
               height="auto"
               dayMaxEvents={3}
