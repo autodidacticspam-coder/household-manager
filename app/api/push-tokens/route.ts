@@ -6,7 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 // GET - List all push tokens (admin only, for debugging)
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     await requireApiAdminRole();
 

@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request: NextRequest) {
   try {
-    const { fileName, mimeType } = await request.json();
+    const { fileName } = await request.json();
 
     if (!fileName) {
       return NextResponse.json(

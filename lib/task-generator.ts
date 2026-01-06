@@ -8,12 +8,9 @@ import {
   addWeeks,
   addMonths,
   getDay,
-  startOfMonth,
   getDate,
   isBefore,
   isAfter,
-  isSameDay,
-  differenceInWeeks,
 } from 'date-fns';
 import { parseLocalDate, formatDateString } from './date-utils';
 
@@ -188,7 +185,7 @@ export function generateTaskDates(input: TaskGenerationInput): string[] {
 export function getRepeatDescription(
   selectedDays: number[],
   repeatInterval: RepeatInterval,
-  t: (key: string) => string
+  _t: (key: string) => string
 ): string {
   if (!repeatInterval || selectedDays.length === 0) {
     return '';

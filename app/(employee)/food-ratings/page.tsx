@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -61,7 +60,6 @@ function getRatingColor(rating: number): string {
 }
 
 export default function FoodRatingsPage() {
-  const t = useTranslations();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDish, setSelectedDish] = useState<string | null>(null);
   const [showRequestDialog, setShowRequestDialog] = useState(false);

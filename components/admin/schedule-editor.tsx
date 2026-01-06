@@ -26,7 +26,7 @@ type ScheduleEditorProps = {
   userName: string;
 };
 
-export function ScheduleEditor({ userId, userName }: ScheduleEditorProps) {
+export function ScheduleEditor({ userId }: ScheduleEditorProps) {
   const t = useTranslations();
   const { data: schedules, isLoading } = useEmployeeSchedules(userId);
   const createSchedule = useCreateSchedule();

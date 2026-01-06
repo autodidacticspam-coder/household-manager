@@ -65,7 +65,7 @@ function LoginContent() {
         setIsLoggingIn(true);
         await handleEmployeeLogin();
       }
-    } catch (err) {
+    } catch {
       setError(t('errors.network'));
       setIsCheckingRole(false);
     }

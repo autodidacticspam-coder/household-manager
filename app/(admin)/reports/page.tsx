@@ -25,7 +25,6 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  Calendar,
   Download,
 } from 'lucide-react';
 import {
@@ -57,7 +56,7 @@ export default function ReportsPage() {
   });
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 
-  const { data: employees, isLoading: employeesLoading } = useEmployeesList();
+  const { data: employees } = useEmployeesList();
   const { data: teamStats, isLoading: teamStatsLoading } = useTeamStats(dateRange);
   const { data: employeeReport, isLoading: reportLoading } = useEmployeeReport(selectedEmployeeId, dateRange);
   const { data: completionTrend } = useTaskCompletionTrend(dateRange);

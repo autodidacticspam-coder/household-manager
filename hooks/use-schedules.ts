@@ -101,7 +101,7 @@ export function useUpdateSchedule() {
   const t = useTranslations();
 
   return useMutation({
-    mutationFn: async ({ id, userId, ...data }: ScheduleFormData & { id: string; userId: string }) => {
+    mutationFn: async ({ id, ...data }: ScheduleFormData & { id: string; userId: string }) => {
       const { data: result, error } = await supabase
         .from('employee_schedules')
         .update({
@@ -135,7 +135,7 @@ export function useDeleteSchedule() {
   const t = useTranslations();
 
   return useMutation({
-    mutationFn: async ({ id, userId }: { id: string; userId: string }) => {
+    mutationFn: async ({ id }: { id: string; userId: string }) => {
       const { error } = await supabase
         .from('employee_schedules')
         .delete()

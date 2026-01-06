@@ -157,13 +157,13 @@ export default function UnifiedLogPage() {
   });
 
   // Redirect after log preference - use lazy initializer to avoid setState in effect
-  const [redirectAfterLog, setRedirectAfterLog] = useState(() => {
+  const [redirectAfterLog] = useState(() => {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('logs-redirect-after-entry') === 'true';
   });
 
   // Time prepopulate preferences (default to true) - use lazy initializer
-  const [prepopulateSettings, setPrepopulateSettings] = useState<Record<ChildLogCategory, boolean>>(() => {
+  const [prepopulateSettings] = useState<Record<ChildLogCategory, boolean>>(() => {
     if (typeof window === 'undefined') {
       return { sleep: true, food: true, poop: true, shower: true };
     }

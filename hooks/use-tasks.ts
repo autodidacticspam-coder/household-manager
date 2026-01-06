@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
-import type { TaskWithRelations, TaskVideo } from '@/types';
+import type { TaskWithRelations } from '@/types';
 import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';

@@ -66,12 +66,6 @@ function getChildColor(child: string): string {
   }
 }
 
-type LogsSectionProps = {
-  openDialog: boolean;
-  onOpenDialog: () => void;
-  onCloseDialog: () => void;
-};
-
 export function LogsTopCard({ onClick }: { onClick: () => void }) {
   const t = useTranslations();
   const { data: canAccessLogs } = useCanAccessChildLogs();

@@ -4,8 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import {
   createLeaveRequestSchema,
-  approveLeaveRequestSchema,
-  denyLeaveRequestSchema,
   calculateTotalDays,
   type CreateLeaveRequestInput,
 } from '@/lib/validators/leave';

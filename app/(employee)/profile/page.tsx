@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Pencil, Calendar, Phone, UserCircle, AlertCircle } from 'lucide-react';
+import { Pencil, Calendar, Phone, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/date-utils';
 import Link from 'next/link';

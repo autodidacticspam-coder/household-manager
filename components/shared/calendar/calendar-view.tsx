@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask, useDeleteTask, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
-import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule, useUpdateOneOffSchedule, useDeleteOneOffSchedule } from '@/hooks/use-schedules';
+import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
 import {
   Select,
@@ -47,14 +47,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, subWeeks, addWeeks } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subWeeks, addWeeks } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus } from 'lucide-react';
 
 // Helper function to handle time input formatting
 // Handles cases like: "0200" -> "2:00", "930" -> "9:30", backspacing, etc.
 function formatTimeInput(value: string, previousValue: string): string {
   // Remove non-digit and non-colon characters
-  let cleaned = value.replace(/[^\d:]/g, '');
+  const cleaned = value.replace(/[^\d:]/g, '');
 
   // If user is backspacing and the current value has a colon but cleaned doesn't have the colon at the end
   // Allow normal backspace behavior
@@ -223,8 +223,6 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
   const createOneOffSchedule = useCreateOneOffSchedule();
-  const updateOneOffSchedule = useUpdateOneOffSchedule();
-  const deleteOneOffSchedule = useDeleteOneOffSchedule();
   const { data: employees } = useEmployeesList();
 
   // Task delete confirmation state

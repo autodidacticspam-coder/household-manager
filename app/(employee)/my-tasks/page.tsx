@@ -33,10 +33,6 @@ export default function MyTasksPage() {
     await updateTaskStatus.mutateAsync({ id, status: 'pending' });
   };
 
-  const handleStartTask = async (id: string) => {
-    await updateTaskStatus.mutateAsync({ id, status: 'in_progress' });
-  };
-
   const getTasksByTab = () => {
     switch (activeTab) {
       case 'pending':
