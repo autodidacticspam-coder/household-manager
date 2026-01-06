@@ -54,11 +54,14 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, X, Plus, Users, User, CalendarClock, UserPlus, Repeat, Save, FolderOpen, Trash2 } from 'lucide-react';
+import { Loader2, X, Plus, Users, User, CalendarClock, UserPlus, Repeat, Save, FolderOpen, Trash2, Folder } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -644,39 +647,44 @@ export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFor
                     {t('templates.loadTemplate')}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64 max-h-80 overflow-y-auto">
+                <DropdownMenuContent className="w-56">
                   {templates && templates.length > 0 ? (
-                    Object.entries(templatesByCategory).map(([categoryName, categoryTemplates]) => (
-                      <div key={categoryName}>
-                        <DropdownMenuLabel className="text-xs text-muted-foreground uppercase">
-                          {categoryName === 'uncategorized' ? t('common.uncategorized') : categoryName}
-                        </DropdownMenuLabel>
-                        {categoryTemplates.map((template) => (
-                          <DropdownMenuItem
-                            key={template.id}
-                            className="flex items-center justify-between group"
-                          >
-                            <span
-                              className="flex-1 cursor-pointer"
-                              onClick={() => handleLoadTemplate(template)}
-                            >
-                              {template.name}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteTemplateId(template.id);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </DropdownMenuItem>
-                        ))}
-                        <DropdownMenuSeparator />
-                      </div>
-                    ))
+                    <>
+                      <DropdownMenuLabel>{t('templates.selectCategory')}</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {Object.entries(templatesByCategory).map(([categoryName, categoryTemplates]) => (
+                        <DropdownMenuSub key={categoryName}>
+                          <DropdownMenuSubTrigger className="gap-2">
+                            <Folder className="h-4 w-4" />
+                            <span>{categoryName === 'uncategorized' ? t('common.uncategorized') : categoryName}</span>
+                            <Badge variant="secondary" className="ml-auto text-xs">
+                              {categoryTemplates.length}
+                            </Badge>
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent className="w-56 max-h-64 overflow-y-auto">
+                            {categoryTemplates.map((template) => (
+                              <DropdownMenuItem
+                                key={template.id}
+                                className="flex items-center justify-between group cursor-pointer"
+                                onClick={() => handleLoadTemplate(template)}
+                              >
+                                <span className="flex-1 truncate">{template.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteTemplateId(template.id);
+                                  }}
+                                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive ml-2"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      ))}
+                    </>
                   ) : (
                     <div className="px-2 py-4 text-center text-sm text-muted-foreground">
                       {t('templates.noTemplates')}

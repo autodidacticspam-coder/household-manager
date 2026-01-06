@@ -593,6 +593,7 @@
     "confirmDelete": "¿Estás seguro de que quieres eliminar esta plantilla?",
     "usingTemplate": "Usando plantilla: {name}",
     "loadTemplate": "Cargar Plantilla",
+    "selectCategory": "Seleccionar Categoría",
     "saveDescription": "Guarda la configuración actual de la tarea como una plantilla reutilizable",
     "templateName": "Nombre de Plantilla",
     "enterTemplateName": "Ingresa un nombre para esta plantilla",

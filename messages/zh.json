@@ -593,6 +593,7 @@
     "confirmDelete": "确定要删除此模板吗？",
     "usingTemplate": "使用模板：{name}",
     "loadTemplate": "加载模板",
+    "selectCategory": "选择类别",
     "saveDescription": "将当前任务配置保存为可重用的模板",
     "templateName": "模板名称",
     "enterTemplateName": "输入此模板的名称",

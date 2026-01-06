@@ -593,6 +593,7 @@
     "confirmDelete": "Are you sure you want to delete this template?",
     "usingTemplate": "Using template: {name}",
     "loadTemplate": "Load Template",
+    "selectCategory": "Select Category",
     "saveDescription": "Save the current task configuration as a reusable template",
     "templateName": "Template Name",
     "enterTemplateName": "Enter a name for this template",
