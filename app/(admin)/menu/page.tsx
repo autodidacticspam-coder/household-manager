@@ -23,7 +23,7 @@ import {
 import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
-import { useMenuRatings, useRateMenuItem, useDeleteMenuRating, type MenuRating } from '@/hooks/use-menu-ratings';
+import { useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
 import { useAuth } from '@/contexts/auth-context';
 import type { DayMeals, DayOfWeek } from '@/types';
@@ -313,6 +313,7 @@ export default function MenuPage() {
   const updateMenu = useUpdateMenu(weekStartStr);
   const { data: canEdit } = useCanEditMenu();
   const { data: ratings } = useMenuRatings(weekStartStr);
+  const { data: canAccessRatings } = useCanAccessFoodRatings();
   const { isAdmin } = useAuth();
 
   // Auto-scroll to today when menu loads (only once per page load)
@@ -608,29 +609,30 @@ export default function MenuPage() {
                                     )}>
                                       {line}
                                     </p>
-                                    {/* Rating selector and request button for admins - each line item */}
+                                    {/* Rating selector for admins and chefs */}
+                                    {canAccessRatings && trimmedLine && !isKidsLine && (
+                                      <RatingSelector
+                                        menuItem={trimmedLine}
+                                        weekStart={weekStartStr}
+                                        dayOfWeek={dayMeal.day}
+                                        mealType={key}
+                                        currentRating={getRating(dayMeal.day, key, trimmedLine)}
+                                      />
+                                    )}
+                                    {/* Food request button for admins only */}
                                     {isAdmin && trimmedLine && !isKidsLine && (
-                                      <>
-                                        <RatingSelector
-                                          menuItem={trimmedLine}
-                                          weekStart={weekStartStr}
-                                          dayOfWeek={dayMeal.day}
-                                          mealType={key}
-                                          currentRating={getRating(dayMeal.day, key, trimmedLine)}
-                                        />
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
-                                          onClick={() => {
-                                            setRequestFoodName(trimmedLine);
-                                            setShowRequestDialog(true);
-                                          }}
-                                          title="Request this dish"
-                                        >
-                                          <Send className="h-3.5 w-3.5" />
-                                        </Button>
-                                      </>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
+                                        onClick={() => {
+                                          setRequestFoodName(trimmedLine);
+                                          setShowRequestDialog(true);
+                                        }}
+                                        title="Request this dish"
+                                      >
+                                        <Send className="h-3.5 w-3.5" />
+                                      </Button>
                                     )}
                                   </div>
                                 );
