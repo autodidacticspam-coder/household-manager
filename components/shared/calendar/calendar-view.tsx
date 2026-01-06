@@ -1128,7 +1128,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                     onClick={() => openCancelLeaveDialog(selectedEvent.id, selectedEvent.title)}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    {t('leave.cancel')}
+                    {t('leave.cancelLeave')}
                   </Button>
                 )}
               </div>
@@ -1461,7 +1461,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               {cancelLeaveRequest.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
-              {t('leave.cancel')}
+              {t('common.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
