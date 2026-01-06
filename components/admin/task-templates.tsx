@@ -2,20 +2,9 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,13 +15,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Loader2, Plus, MoreHorizontal, Pencil, Trash2, Zap, FileText, Repeat, Users } from 'lucide-react';
+import { Loader2, Zap, FileText, Repeat, Users, Trash2 } from 'lucide-react';
 import { useTaskTemplates, useDeleteTaskTemplate } from '@/hooks/use-task-templates';
 import type { TaskTemplate } from '@/types';
 import { formatTime12h } from '@/lib/format-time';
@@ -46,11 +29,9 @@ const priorityColors: Record<string, string> = {
 
 type TaskTemplatesProps = {
   onUseTemplate: (template: TaskTemplate) => void;
-  onCreateTemplate: () => void;
-  onEditTemplate: (template: TaskTemplate) => void;
 };
 
-export function TaskTemplates({ onUseTemplate, onCreateTemplate, onEditTemplate }: TaskTemplatesProps) {
+export function TaskTemplates({ onUseTemplate }: TaskTemplatesProps) {
   const t = useTranslations();
   const { data: templates, isLoading } = useTaskTemplates();
   const deleteTemplate = useDeleteTaskTemplate();
@@ -82,15 +63,14 @@ export function TaskTemplates({ onUseTemplate, onCreateTemplate, onEditTemplate 
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             {t('templates.title')}
           </CardTitle>
-          <Button size="sm" onClick={onCreateTemplate}>
-            <Plus className="h-4 w-4 mr-1" />
-            {t('common.new')}
-          </Button>
+          <p className="text-sm text-muted-foreground">
+            {t('templates.createFirst')}
+          </p>
         </CardHeader>
         <CardContent>
           {templates && templates.length > 0 ? (
@@ -136,26 +116,14 @@ export function TaskTemplates({ onUseTemplate, onCreateTemplate, onEditTemplate 
                       <Zap className="h-4 w-4 mr-1" />
                       {t('templates.use')}
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => onEditTemplate(template)}>
-                          <Pencil className="h-4 w-4 mr-2" />
-                          {t('templates.edit')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => setDeleteId(template.id)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          {t('templates.delete')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteId(template.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               ))}

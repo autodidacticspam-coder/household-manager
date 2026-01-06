@@ -40,7 +40,8 @@
     "hours": "horas",
     "error": "Algo salió mal",
     "until": "Hasta",
-    "viewAll": "Ver Todo"
+    "viewAll": "Ver Todo",
+    "uncategorized": "Sin categoría"
   },
   "dashboard": {
     "noOneOnLeave": "Nadie está de permiso actualmente",
@@ -590,6 +591,14 @@
     "createFirst": "Crea tu primera plantilla para ahorrar tiempo en tareas recurrentes",
     "saveAsTemplate": "Guardar como Plantilla",
     "confirmDelete": "¿Estás seguro de que quieres eliminar esta plantilla?",
-    "usingTemplate": "Usando plantilla: {name}"
+    "usingTemplate": "Usando plantilla: {name}",
+    "loadTemplate": "Cargar Plantilla",
+    "saveDescription": "Guarda la configuración actual de la tarea como una plantilla reutilizable",
+    "templateName": "Nombre de Plantilla",
+    "enterTemplateName": "Ingresa un nombre para esta plantilla",
+    "templateExists": "Ya existe una plantilla con este nombre. Guardar la sobrescribirá.",
+    "overwrite": "Sobrescribir",
+    "deleteTemplate": "Eliminar Plantilla",
+    "deleteConfirmation": "¿Estás seguro de que quieres eliminar esta plantilla? Esta acción no se puede deshacer."
   }
 }

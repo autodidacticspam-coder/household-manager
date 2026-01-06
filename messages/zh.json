@@ -40,7 +40,8 @@
     "hours": "小时",
     "error": "出错了",
     "until": "至",
-    "viewAll": "查看全部"
+    "viewAll": "查看全部",
+    "uncategorized": "未分类"
   },
   "dashboard": {
     "noOneOnLeave": "目前没有人休假",
@@ -590,6 +591,14 @@
     "createFirst": "创建您的第一个模板，节省重复任务的时间",
     "saveAsTemplate": "保存为模板",
     "confirmDelete": "确定要删除此模板吗？",
-    "usingTemplate": "使用模板：{name}"
+    "usingTemplate": "使用模板：{name}",
+    "loadTemplate": "加载模板",
+    "saveDescription": "将当前任务配置保存为可重用的模板",
+    "templateName": "模板名称",
+    "enterTemplateName": "输入此模板的名称",
+    "templateExists": "已存在同名模板。保存将覆盖它。",
+    "overwrite": "覆盖",
+    "deleteTemplate": "删除模板",
+    "deleteConfirmation": "确定要删除此模板吗？此操作无法撤消。"
   }
 }

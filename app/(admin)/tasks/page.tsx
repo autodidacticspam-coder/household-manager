@@ -15,7 +15,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
 import { TaskTemplates } from '@/components/admin/task-templates';
-import { TemplateFormDialog } from '@/components/admin/template-form-dialog';
 import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask } from '@/hooks/use-tasks';
 import {
   AlertDialog,
@@ -41,8 +40,6 @@ export default function TasksPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<TaskTemplate | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
 
   const { data: categories } = useTaskCategories();
@@ -75,21 +72,6 @@ export default function TasksPage() {
     router.push(`/tasks/new?template=${template.id}`);
   };
 
-  const handleCreateTemplate = () => {
-    setEditingTemplate(null);
-    setTemplateDialogOpen(true);
-  };
-
-  const handleEditTemplate = (template: TaskTemplate) => {
-    setEditingTemplate(template);
-    setTemplateDialogOpen(true);
-  };
-
-  const handleCloseTemplateDialog = () => {
-    setTemplateDialogOpen(false);
-    setEditingTemplate(null);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -111,11 +93,7 @@ export default function TasksPage() {
       </div>
 
       {showTemplates && (
-        <TaskTemplates
-          onUseTemplate={handleUseTemplate}
-          onCreateTemplate={handleCreateTemplate}
-          onEditTemplate={handleEditTemplate}
-        />
+        <TaskTemplates onUseTemplate={handleUseTemplate} />
       )}
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -212,12 +190,6 @@ export default function TasksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <TemplateFormDialog
-        open={templateDialogOpen}
-        onClose={handleCloseTemplateDialog}
-        template={editingTemplate}
-      />
 
       <TaskDetailDialog
         task={selectedTask}
