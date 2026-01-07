@@ -271,7 +271,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                 start: times.start,
                 end: times.end,
                 allDay: task.is_all_day,
-                color: task.category?.color || '#6366f1',
+                color: task.category?.color || '#60a5fa',
                 resourceId: task.id,
                 extendedProps: {
                   status: instanceStatus,
@@ -291,7 +291,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
             }
           } else {
             const times = getEventTimes(task.due_date);
-            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#6366f1', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, isViewOnly, assignees } });
+            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#60a5fa', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, isViewOnly, assignees } });
           }
         }
       }
@@ -311,13 +311,13 @@ export function useCalendarEvents(filters: CalendarFilters) {
           let color: string;
           if (isHoliday) {
             displayType = 'Holiday';
-            color = '#f59e0b'; // amber for holidays
+            color = '#fbbf24'; // soft gold for holidays
           } else if (l.leave_type === 'vacation' || l.leave_type === 'pto') {
             displayType = 'Vacation';
-            color = '#3b82f6'; // blue for vacation
+            color = '#67e8f9'; // soft cyan for vacation
           } else {
             displayType = 'Sick';
-            color = '#10b981'; // green for sick
+            color = '#fca5a5'; // soft coral for sick
           }
 
           const title = isHoliday
@@ -410,10 +410,10 @@ export function useCalendarEvents(filters: CalendarFilters) {
         if (logsError) throw logsError;
 
         const logColors: Record<string, string> = {
-          sleep: '#6366f1', // indigo
-          food: '#f97316', // orange
-          poop: '#d97706', // amber
-          shower: '#06b6d4', // cyan
+          sleep: '#c4b5fd', // lavender
+          food: '#fdba74', // peach
+          poop: '#d6d3d1', // tan
+          shower: '#6ee7b7', // mint
         };
 
         const logEmojis: Record<string, string> = {
@@ -499,7 +499,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                     start: eventDateStr,
                     end: eventDateStr,
                     allDay: true,
-                    color: '#ec4899', // pink
+                    color: '#f9a8d4', // soft pink
                     resourceId: user.id,
                     extendedProps: {
                       label: d.label,
@@ -619,7 +619,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                 start: `${dateStr}T${startTime}`,
                 end: `${dateStr}T${endTime}`,
                 allDay: false,
-                color: '#8b5cf6', // violet for all schedules
+                color: '#94a3b8', // soft gray for schedules
                 resourceId: schedule.id,
                 extendedProps: {
                   scheduleId: schedule.id,
@@ -676,7 +676,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
               start: `${dateStr}T${schedule.start_time}`,
               end: `${dateStr}T${schedule.end_time}`,
               allDay: false,
-              color: '#8b5cf6', // violet - same as regular schedules
+              color: '#94a3b8', // soft gray - same as regular schedules
               resourceId: schedule.id,
               extendedProps: {
                 oneOffScheduleId: schedule.id,
