@@ -21,7 +21,6 @@ import {
 } from '@/components/ui/form';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { useEmployeeGroups } from '@/hooks/use-tasks';
-import { createEmployee } from '../actions';
 import { toast } from 'sonner';
 
 const formSchema = z.object({
@@ -55,14 +54,20 @@ export default function NewEmployeePage() {
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     try {
-      const result = await createEmployee(data);
-      if (result.error) {
-        toast.error(result.error);
+      const response = await fetch('/api/employees/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        toast.error(result.error || 'Failed to create employee');
       } else {
         toast.success(t('employees.employeeCreated'));
         router.push('/employees');
       }
-    } catch {
+    } catch (err) {
+      console.error('Form submit error:', err);
       toast.error(t('common.error'));
     } finally {
       setIsSubmitting(false);
