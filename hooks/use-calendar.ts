@@ -138,7 +138,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
         userGroupIds = (userGroupsWithNames || []).map(g => g.group_id);
 
-        // Check if user is in Nanny or Teacher group
+        // Check if user is in Nanny or Teacher group (handles plural forms like "Nannies", "Teachers")
         const userGroupNames = (userGroupsWithNames || []).map(g => {
           const group = g.group as { id: string; name: string } | { id: string; name: string }[] | null;
           if (Array.isArray(group)) {
@@ -146,14 +146,17 @@ export function useCalendarEvents(filters: CalendarFilters) {
           }
           return group?.name?.toLowerCase() || '';
         });
-        const isNannyOrTeacher = userGroupNames.some(name => name === 'nanny' || name === 'teacher');
+        const isNannyOrTeacher = userGroupNames.some(name =>
+          name.includes('nanny') || name.includes('nannies') ||
+          name.includes('teacher') || name.includes('teachers')
+        );
 
         // If user is a nanny or teacher, get all users in both Nanny and Teacher groups
         if (isNannyOrTeacher) {
           const { data: nannyTeacherGroups } = await supabase
             .from('employee_groups')
             .select('id')
-            .or('name.ilike.nanny,name.ilike.teacher');
+            .or('name.ilike.%nanny%,name.ilike.%nannies%,name.ilike.%teacher%,name.ilike.%teachers%');
 
           if (nannyTeacherGroups && nannyTeacherGroups.length > 0) {
             const groupIds = nannyTeacherGroups.map(g => g.id);
