@@ -129,13 +129,16 @@ export function useCreateTaskTemplate() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Ensure categoryId is a valid UUID or null
+      const categoryId = input.categoryId && input.categoryId.length > 0 ? input.categoryId : null;
+
       const { data, error } = await supabase
         .from('task_templates')
         .insert({
           name: input.name,
           title: input.title,
           description: input.description || null,
-          category_id: input.categoryId || null,
+          category_id: categoryId,
           priority: input.priority || 'medium',
           is_all_day: input.isAllDay || false,
           default_time: input.defaultTime || null,
@@ -197,13 +200,16 @@ export function useUpdateTaskTemplate() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Ensure categoryId is a valid UUID or null
+      const categoryId = input.categoryId && input.categoryId.length > 0 ? input.categoryId : null;
+
       const { data, error } = await supabase
         .from('task_templates')
         .update({
           name: input.name,
           title: input.title,
           description: input.description || null,
-          category_id: input.categoryId || null,
+          category_id: categoryId,
           priority: input.priority || 'medium',
           is_all_day: input.isAllDay || false,
           default_time: input.defaultTime || null,
