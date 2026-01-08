@@ -88,11 +88,39 @@ export function TaskCard({
   const isOverdue = (() => {
     if (!task.dueDate || task.status === 'completed') return false;
 
-    const dueDate = parseLocalDate(task.dueDate);
     const now = new Date();
+    const dueDate = parseLocalDate(task.dueDate);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
 
-    // Show as overdue if due date has passed
-    return dueDate < now;
+    // If due date is in the future, not overdue
+    if (dueDateOnly > today) return false;
+
+    // If due date is in the past (before today), definitely overdue
+    if (dueDateOnly < today) return true;
+
+    // Due date is today - check time based on task type
+    if (task.isAllDay) {
+      // All-day tasks are only overdue the next day
+      return false;
+    }
+
+    if (task.isActivity && task.startTime) {
+      // Activities are overdue after their start time
+      const [hours, minutes] = task.startTime.split(':').map(Number);
+      const startDateTime = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), hours, minutes);
+      return now > startDateTime;
+    }
+
+    if (task.dueTime) {
+      // Tasks with a due time are overdue after that time
+      const [hours, minutes] = task.dueTime.split(':').map(Number);
+      const dueDateTime = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate(), hours, minutes);
+      return now > dueDateTime;
+    }
+
+    // Task without specific time - not overdue until end of day
+    return false;
   })();
 
   const getAllAssignees = (): Array<{ type: string; name: string; avatar?: string | null }> => {

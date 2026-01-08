@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { AuthProvider } from '@/contexts/auth-context';
 import { NotificationPopupProvider } from '@/contexts/notification-popup-context';
+import { LocaleSync } from '@/components/locale-sync';
 import { Toaster } from '@/components/ui/sonner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NotificationPopupProvider>
+          <LocaleSync />
           {children}
           <Toaster position="top-right" richColors closeButton />
         </NotificationPopupProvider>

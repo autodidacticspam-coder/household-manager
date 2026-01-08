@@ -23,6 +23,7 @@ import {
 import { ArrowLeft, Plus, Trash2, Save, Loader2, Calendar, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { getProfile, updateProfile, type UpdateProfileInput } from '../actions';
+import { useUser } from '@/hooks/use-user';
 import Link from 'next/link';
 
 const importantDateSchema = z.object({
@@ -57,6 +58,7 @@ type ProfileData = {
 export default function ProfileEditPage() {
   const t = useTranslations();
   const router = useRouter();
+  const { updateUser } = useUser();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -161,6 +163,9 @@ export default function ProfileEditPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ locale }),
     });
+
+    // Update user preference in database
+    updateUser({ preferredLocale: locale as 'en' | 'es' | 'zh' });
 
     setCurrentLocale(locale);
 

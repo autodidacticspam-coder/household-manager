@@ -120,6 +120,8 @@ export function useCalendarEvents(filters: CalendarFilters) {
       // If filtering by user, get their group memberships and role
       let userGroupIds: string[] = [];
       let isUserAdmin = false;
+      let nannyTeacherUserIds: string[] = []; // Users in Nanny or Teacher groups (for schedule visibility)
+
       if (filters.userId) {
         const { data: userData } = await supabase
           .from('users')
@@ -128,11 +130,41 @@ export function useCalendarEvents(filters: CalendarFilters) {
           .single();
         isUserAdmin = userData?.role === 'admin';
 
-        const { data: userGroups } = await supabase
+        // Get user's group memberships with group names
+        const { data: userGroupsWithNames } = await supabase
           .from('employee_group_memberships')
-          .select('group_id')
+          .select('group_id, group:employee_groups(id, name)')
           .eq('user_id', filters.userId);
-        userGroupIds = (userGroups || []).map(g => g.group_id);
+
+        userGroupIds = (userGroupsWithNames || []).map(g => g.group_id);
+
+        // Check if user is in Nanny or Teacher group
+        const userGroupNames = (userGroupsWithNames || []).map(g => {
+          const group = g.group as { id: string; name: string } | { id: string; name: string }[] | null;
+          if (Array.isArray(group)) {
+            return group[0]?.name?.toLowerCase() || '';
+          }
+          return group?.name?.toLowerCase() || '';
+        });
+        const isNannyOrTeacher = userGroupNames.some(name => name === 'nanny' || name === 'teacher');
+
+        // If user is a nanny or teacher, get all users in both Nanny and Teacher groups
+        if (isNannyOrTeacher) {
+          const { data: nannyTeacherGroups } = await supabase
+            .from('employee_groups')
+            .select('id')
+            .or('name.ilike.nanny,name.ilike.teacher');
+
+          if (nannyTeacherGroups && nannyTeacherGroups.length > 0) {
+            const groupIds = nannyTeacherGroups.map(g => g.id);
+            const { data: groupMembers } = await supabase
+              .from('employee_group_memberships')
+              .select('user_id')
+              .in('group_id', groupIds);
+
+            nannyTeacherUserIds = [...new Set((groupMembers || []).map(m => m.user_id))];
+          }
+        }
       }
 
       if (filters.showTasks !== false) {
@@ -526,7 +558,12 @@ export function useCalendarEvents(filters: CalendarFilters) {
           .eq('is_active', true);
 
         if (filters.userId) {
-          scheduleQuery = scheduleQuery.eq('user_id', filters.userId);
+          // If user is a nanny/teacher, show schedules for all nannies and teachers
+          if (nannyTeacherUserIds.length > 0) {
+            scheduleQuery = scheduleQuery.in('user_id', nannyTeacherUserIds);
+          } else {
+            scheduleQuery = scheduleQuery.eq('user_id', filters.userId);
+          }
         }
 
         const { data: schedules, error: schedulesError } = await scheduleQuery;
@@ -650,7 +687,12 @@ export function useCalendarEvents(filters: CalendarFilters) {
           .lte('schedule_date', filters.endDate);
 
         if (filters.userId) {
-          oneOffQuery = oneOffQuery.eq('user_id', filters.userId);
+          // If user is a nanny/teacher, show one-off schedules for all nannies and teachers
+          if (nannyTeacherUserIds.length > 0) {
+            oneOffQuery = oneOffQuery.in('user_id', nannyTeacherUserIds);
+          } else {
+            oneOffQuery = oneOffQuery.eq('user_id', filters.userId);
+          }
         }
 
         const { data: oneOffSchedules, error: oneOffError } = await oneOffQuery;
