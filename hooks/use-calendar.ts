@@ -133,36 +133,36 @@ export function useCalendarEvents(filters: CalendarFilters) {
         // Get user's group memberships with group names
         const { data: userGroupsWithNames } = await supabase
           .from('employee_group_memberships')
-          .select('group_id, group:employee_groups(id, name)')
+          .select('group_id, group:employee_groups!inner(id, name)')
           .eq('user_id', filters.userId);
 
         userGroupIds = (userGroupsWithNames || []).map(g => g.group_id);
 
-        // Check if user is in Nanny or Teacher group
-        const userGroupNames = (userGroupsWithNames || []).map(g => {
+        // Check if user is in Nanny or Teacher group (case-insensitive)
+        const allowedGroups = ['nanny', 'teacher'];
+        const isNannyOrTeacher = (userGroupsWithNames || []).some(g => {
           const group = g.group as { id: string; name: string } | { id: string; name: string }[] | null;
-          if (Array.isArray(group)) {
-            return group[0]?.name || '';
-          }
-          return group?.name || '';
+          if (!group) return false;
+          const groupName = Array.isArray(group) ? group[0]?.name : group.name;
+          return groupName && allowedGroups.includes(groupName.toLowerCase());
         });
-        const isNannyOrTeacher = userGroupNames.some(name =>
-          name === 'Nanny' || name === 'Teacher'
-        );
 
         // If user is a nanny or teacher, get all users in both Nanny and Teacher groups
         if (isNannyOrTeacher) {
-          const { data: nannyTeacherGroups } = await supabase
+          // First get all Nanny/Teacher group IDs (case-insensitive)
+          const { data: allGroups } = await supabase
             .from('employee_groups')
-            .select('id')
-            .in('name', ['Nanny', 'Teacher']);
+            .select('id, name');
 
-          if (nannyTeacherGroups && nannyTeacherGroups.length > 0) {
-            const groupIds = nannyTeacherGroups.map(g => g.id);
+          const nannyTeacherGroupIds = (allGroups || [])
+            .filter(g => allowedGroups.includes(g.name.toLowerCase()))
+            .map(g => g.id);
+
+          if (nannyTeacherGroupIds.length > 0) {
             const { data: groupMembers } = await supabase
               .from('employee_group_memberships')
               .select('user_id')
-              .in('group_id', groupIds);
+              .in('group_id', nannyTeacherGroupIds);
 
             nannyTeacherUserIds = [...new Set((groupMembers || []).map(m => m.user_id))];
           }
