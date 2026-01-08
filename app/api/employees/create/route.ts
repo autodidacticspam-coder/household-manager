@@ -13,22 +13,9 @@ const createEmployeeSchema = z.object({
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    console.log('[API] Starting employee creation...');
-
     const body = await request.json();
-    console.log('[API] Request body received');
-
     const supabase = await createClient();
-    console.log('[API] Supabase client created');
-
-    let supabaseAdmin;
-    try {
-      supabaseAdmin = getAdminClient();
-      console.log('[API] Admin client created');
-    } catch (adminError) {
-      console.error('[API] Admin client error:', adminError);
-      return NextResponse.json({ error: 'Failed to initialize admin client' }, { status: 500 });
-    }
+    const supabaseAdmin = getAdminClient();
 
     // Validate input
     const result = createEmployeeSchema.safeParse(body);
@@ -58,7 +45,6 @@ export async function POST(request: Request): Promise<Response> {
     // Check if email already exists
     const { data: existingUsers, error: listError } = await supabaseAdmin.auth.admin.listUsers();
     if (listError) {
-      console.error('[API] List users error:', listError);
       return NextResponse.json({ error: 'Failed to check existing users: ' + listError.message }, { status: 500 });
     }
 
@@ -75,7 +61,6 @@ export async function POST(request: Request): Promise<Response> {
     });
 
     if (authError) {
-      console.error('[API] Auth user creation error:', authError);
       return NextResponse.json({ error: authError.message }, { status: 500 });
     }
 
@@ -95,23 +80,18 @@ export async function POST(request: Request): Promise<Response> {
       });
 
     if (userError) {
-      console.error('[API] User record creation error:', userError);
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       return NextResponse.json({ error: 'Failed to create user record' }, { status: 500 });
     }
 
     // Create employee profile
-    const { error: profileError } = await supabaseAdmin
+    await supabaseAdmin
       .from('employee_profiles')
       .insert({
         user_id: authData.user.id,
         phone: phone || null,
         hire_date: getTodayString(),
       });
-
-    if (profileError) {
-      console.error('[API] Profile creation error:', profileError);
-    }
 
     // Add to groups if specified
     if (groupIds && groupIds.length > 0) {
@@ -120,13 +100,9 @@ export async function POST(request: Request): Promise<Response> {
         group_id: groupId,
       }));
 
-      const { error: groupError } = await supabaseAdmin
+      await supabaseAdmin
         .from('employee_group_memberships')
         .insert(groupMemberships);
-
-      if (groupError) {
-        console.error('[API] Group membership error:', groupError);
-      }
     }
 
     // Create leave balance for current year
@@ -142,10 +118,8 @@ export async function POST(request: Request): Promise<Response> {
         sick_used: 0,
       });
 
-    console.log('[API] Employee created successfully:', authData.user.id);
     return NextResponse.json({ success: true, data: { id: authData.user.id } });
   } catch (error) {
-    console.error('[API] Unexpected error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'An unexpected error occurred' },
       { status: 500 }

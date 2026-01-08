@@ -16,11 +16,6 @@ export function getAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    console.error('Missing Supabase env vars:', {
-      hasUrl: !!url,
-      hasKey: !!key,
-      keyLength: key?.length
-    });
     throw new Error('Supabase configuration is missing. Please check environment variables.');
   }
 
