@@ -61,8 +61,9 @@ export function useTasks(filters?: TaskFilters) {
 
       if (error) throw error;
 
-      // For pending/in_progress tasks, filter to show only next occurrence of repeating tasks
-      const shouldFilterRepeats = !filters?.status || filters.status === 'pending' || filters.status === 'in_progress';
+      // Filter repeating tasks - show only next occurrence for pending/in_progress
+      // Always filter unless specifically viewing only completed tasks
+      const shouldFilterRepeats = filters?.status !== 'completed';
 
       if (shouldFilterRepeats && data) {
         // Group tasks by title + created_at to identify repeat batches
@@ -78,31 +79,40 @@ export function useTasks(filters?: TaskFilters) {
           taskBatches.get(batchKey)!.push(task);
         }
 
-        // For each batch, keep only the next occurrence
+        // For each batch, filter based on status
         const filteredData: typeof data = [];
 
         for (const [, batchTasks] of taskBatches) {
           if (batchTasks.length === 1) {
             filteredData.push(batchTasks[0]);
           } else {
-            // Multiple tasks - find the next occurrence (earliest due_date >= today)
-            const futureTasks = batchTasks.filter(t => !t.due_date || t.due_date >= today);
+            // Multiple tasks - separate by status
+            const completedTasks = batchTasks.filter(t => t.status === 'completed');
+            const pendingInProgressTasks = batchTasks.filter(t => t.status !== 'completed');
 
-            if (futureTasks.length > 0) {
-              futureTasks.sort((a, b) => {
-                if (!a.due_date) return 1;
-                if (!b.due_date) return -1;
-                return a.due_date.localeCompare(b.due_date);
-              });
-              filteredData.push(futureTasks[0]);
-            } else {
-              // All tasks are in the past - show the most recent one
-              batchTasks.sort((a, b) => {
-                if (!a.due_date) return 1;
-                if (!b.due_date) return -1;
-                return b.due_date.localeCompare(a.due_date);
-              });
-              filteredData.push(batchTasks[0]);
+            // Add all completed tasks (no filtering for completed)
+            filteredData.push(...completedTasks);
+
+            // For pending/in_progress, show only the next occurrence
+            if (pendingInProgressTasks.length > 0) {
+              const futureTasks = pendingInProgressTasks.filter(t => !t.due_date || t.due_date >= today);
+
+              if (futureTasks.length > 0) {
+                futureTasks.sort((a, b) => {
+                  if (!a.due_date) return 1;
+                  if (!b.due_date) return -1;
+                  return a.due_date.localeCompare(b.due_date);
+                });
+                filteredData.push(futureTasks[0]);
+              } else {
+                // All tasks are in the past - show the most recent one
+                pendingInProgressTasks.sort((a, b) => {
+                  if (!a.due_date) return 1;
+                  if (!b.due_date) return -1;
+                  return b.due_date.localeCompare(a.due_date);
+                });
+                filteredData.push(pendingInProgressTasks[0]);
+              }
             }
           }
         }
@@ -163,6 +173,7 @@ export function useTask(id: string) {
 export function useMyTasks(userId?: string) {
   const supabase = createClient();
   const locale = useLocale() as SupportedLocale;
+  const today = getTodayString();
 
   return useQuery({
     queryKey: ['my-tasks', userId, locale],
@@ -217,7 +228,66 @@ export function useMyTasks(userId?: string) {
         });
       });
 
-      return assignedTasks.map((row) => transformTask(row, locale));
+      // Filter to show only next occurrence of repeating tasks (for pending/in_progress)
+      // Group tasks by title + created_at to identify repeat batches
+      const taskBatches = new Map<string, typeof assignedTasks>();
+
+      for (const task of assignedTasks) {
+        const createdAtTruncated = task.created_at?.slice(0, 19) || '';
+        const batchKey = `${task.title}|${createdAtTruncated}`;
+
+        if (!taskBatches.has(batchKey)) {
+          taskBatches.set(batchKey, []);
+        }
+        taskBatches.get(batchKey)!.push(task);
+      }
+
+      // For each batch, filter based on status
+      const filteredData: typeof assignedTasks = [];
+
+      for (const [, batchTasks] of taskBatches) {
+        if (batchTasks.length === 1) {
+          filteredData.push(batchTasks[0]);
+        } else {
+          // Multiple tasks - separate by status
+          const completedTasks = batchTasks.filter(t => t.status === 'completed');
+          const pendingInProgressTasks = batchTasks.filter(t => t.status !== 'completed');
+
+          // Add all completed tasks (no filtering for completed)
+          filteredData.push(...completedTasks);
+
+          // For pending/in_progress, show only the next occurrence
+          if (pendingInProgressTasks.length > 0) {
+            const futureTasks = pendingInProgressTasks.filter(t => !t.due_date || t.due_date >= today);
+
+            if (futureTasks.length > 0) {
+              futureTasks.sort((a, b) => {
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return a.due_date.localeCompare(b.due_date);
+              });
+              filteredData.push(futureTasks[0]);
+            } else {
+              // All tasks are in the past - show the most recent one
+              pendingInProgressTasks.sort((a, b) => {
+                if (!a.due_date) return 1;
+                if (!b.due_date) return -1;
+                return b.due_date.localeCompare(a.due_date);
+              });
+              filteredData.push(pendingInProgressTasks[0]);
+            }
+          }
+        }
+      }
+
+      // Sort by due_date for display
+      filteredData.sort((a, b) => {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+        return a.due_date.localeCompare(b.due_date);
+      });
+
+      return filteredData.map((row) => transformTask(row, locale));
     },
     enabled: !!userId,
   });

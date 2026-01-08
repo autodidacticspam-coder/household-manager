@@ -366,7 +366,7 @@ export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFor
       setTemplateName('');
       setOverwriteTemplateId(null);
     } catch (error) {
-      console.error('Failed to save template:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save template');
     }
   };
 
