@@ -800,31 +800,29 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   {t('calendar.showLeave')}
                 </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="show-schedules"
+                  checked={showSchedules}
+                  onCheckedChange={(checked) => updateFilter('showSchedules', !!checked)}
+                />
+                <Label htmlFor="show-schedules" className="flex items-center">
+                  <Briefcase className="h-4 w-4 mr-2 text-violet-500" />
+                  {t('calendar.showSchedules')}
+                </Label>
+              </div>
               {!isEmployee && (
-                <>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="show-important-dates"
-                      checked={showImportantDates}
-                      onCheckedChange={(checked) => updateFilter('showImportantDates', !!checked)}
-                    />
-                    <Label htmlFor="show-important-dates" className="flex items-center">
-                      <Gift className="h-4 w-4 mr-2 text-pink-500" />
-                      {t('calendar.showImportantDates')}
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="show-schedules"
-                      checked={showSchedules}
-                      onCheckedChange={(checked) => updateFilter('showSchedules', !!checked)}
-                    />
-                    <Label htmlFor="show-schedules" className="flex items-center">
-                      <Briefcase className="h-4 w-4 mr-2 text-violet-500" />
-                      {t('calendar.showSchedules')}
-                    </Label>
-                  </div>
-                </>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="show-important-dates"
+                    checked={showImportantDates}
+                    onCheckedChange={(checked) => updateFilter('showImportantDates', !!checked)}
+                  />
+                  <Label htmlFor="show-important-dates" className="flex items-center">
+                    <Gift className="h-4 w-4 mr-2 text-pink-500" />
+                    {t('calendar.showImportantDates')}
+                  </Label>
+                </div>
               )}
               <div className="border-t pt-2 mt-2">
                 <p className="text-xs font-medium text-muted-foreground mb-2">{t('childLogs.title')}</p>
