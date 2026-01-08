@@ -65,6 +65,9 @@ export function useTasks(filters?: TaskFilters) {
       // Always filter unless specifically viewing only completed tasks
       const shouldFilterRepeats = filters?.status !== 'completed';
 
+      // Debug: Log raw data count
+      console.log('[useTasks] Raw data count:', data?.length, 'shouldFilterRepeats:', shouldFilterRepeats);
+
       if (shouldFilterRepeats && data) {
         // Group tasks by title + created_at to identify repeat batches
         const taskBatches = new Map<string, typeof data>();
@@ -124,9 +127,13 @@ export function useTasks(filters?: TaskFilters) {
           return a.due_date.localeCompare(b.due_date);
         });
 
+        // Debug: Log filtered data count and batch count
+        console.log('[useTasks] Batches:', taskBatches.size, 'Filtered tasks:', filteredData.length);
+
         return filteredData.map((row) => transformTask(row, locale));
       }
 
+      console.log('[useTasks] No filtering applied, returning:', data?.length, 'tasks');
       return (data || []).map((row) => transformTask(row, locale));
     },
   });
