@@ -42,12 +42,21 @@
     "error": "出错了",
     "until": "至",
     "viewAll": "查看全部",
-    "uncategorized": "未分类"
+    "uncategorized": "未分类",
+    "createdBy": "创建者",
+    "more": "更多"
   },
   "dashboard": {
     "noOneOnLeave": "目前没有人休假",
     "upcomingDates": "即将到来的重要日期",
-    "noUpcomingDates": "未来7天没有重要日期"
+    "noUpcomingDates": "未来7天没有重要日期",
+    "expiringTasks": "即将到期的重复任务",
+    "expiringTasksDescription": "这些重复任务将在下个月内结束。请考虑延长它们。",
+    "lastOccurrence": "最后一次",
+    "totalInstances": "总实例数",
+    "extendTask": "编辑 / 延长",
+    "noExpiringTasks": "没有即将到期的任务",
+    "endsOn": "结束于"
   },
   "notifications": {
     "enableTitle": "启用通知",
@@ -182,6 +191,10 @@
     "taskCompleted": "任务已标记完成",
     "deleteTask": "删除任务",
     "deleteConfirmation": "您确定要删除此任务吗？此操作无法撤销。",
+    "deleteRepeatingConfirmation": "这是一个重复任务，有 {count} 个未来实例。您想如何删除？",
+    "deleteThisOnly": "仅删除此实例",
+    "deleteAllFuture": "删除所有未来实例 ({count})",
+    "futureTasksDeleted": "已成功删除 {count} 个任务",
     "deleteRecurringConfirmation": "您确定要删除「{title}」吗？这是一个重复任务。",
     "deleteRecurringNote": "删除此任务将删除所有未来的重复项。",
     "chooseDeleteOption": "选择如何处理此重复任务：",

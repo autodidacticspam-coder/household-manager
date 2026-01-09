@@ -15,7 +15,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
 import { TaskTemplates } from '@/components/admin/task-templates';
-import { useTasks, useTaskCategories, useDeleteTask, useCompleteTask } from '@/hooks/use-tasks';
+import { useTasks, useTaskCategories, useDeleteTask, useDeleteFutureTasks, useTaskBatchInfo, useCompleteTask } from '@/hooks/use-tasks';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +51,11 @@ export default function TasksPage() {
   });
 
   const deleteTask = useDeleteTask();
+  const deleteFutureTasks = useDeleteFutureTasks();
   const completeTask = useCompleteTask();
+
+  // Get batch info for the task being deleted (queries database directly)
+  const batchInfo = useTaskBatchInfo(deleteTaskId);
 
   const handleComplete = async (id: string) => {
     await completeTask.mutateAsync(id);
@@ -61,9 +65,16 @@ export default function TasksPage() {
     router.push(`/tasks/${id}/edit`);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteSingle = async () => {
     if (deleteTaskId) {
       await deleteTask.mutateAsync(deleteTaskId);
+      setDeleteTaskId(null);
+    }
+  };
+
+  const handleDeleteFuture = async () => {
+    if (deleteTaskId) {
+      await deleteFutureTasks.mutateAsync(deleteTaskId);
       setDeleteTaskId(null);
     }
   };
@@ -182,11 +193,33 @@ export default function TasksPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('tasks.deleteConfirmation')}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {batchInfo.isRepeating
+                ? t('tasks.deleteRepeatingConfirmation', { count: batchInfo.futureCount })
+                : t('tasks.deleteConfirmation')
+              }
+            </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className={batchInfo.isRepeating ? 'flex-col sm:flex-row gap-2' : ''}>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>{t('common.delete')}</AlertDialogAction>
+            {batchInfo.isRepeating ? (
+              <>
+                <AlertDialogAction
+                  onClick={handleDeleteSingle}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {t('tasks.deleteThisOnly')}
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={handleDeleteFuture}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {t('tasks.deleteAllFuture', { count: batchInfo.futureCount })}
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction onClick={handleDeleteSingle}>{t('common.delete')}</AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

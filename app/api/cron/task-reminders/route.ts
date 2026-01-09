@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendTaskReminderPush } from '@/lib/notifications/push-service';
+import { sendTaskReminderPush, sendTaskExpirationPush } from '@/lib/notifications/push-service';
 import { formatDateString } from '@/lib/date-utils';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -117,11 +117,83 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Check for expiring repeating tasks (run once daily at 9 AM)
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    let expirationNotificationsSent = 0;
+    let expirationNotificationsFailed = 0;
+
+    // Only run expiration check between 9:00-9:01 AM
+    if (currentHour === 9 && currentMinute === 0) {
+      // Calculate date 7 days from now
+      const sevenDaysFromNow = new Date(now);
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      const targetDate = formatDateString(sevenDaysFromNow);
+
+      // Fetch all pending tasks to find repeating batches expiring in 7 days
+      const { data: allTasks, error: allTasksError } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, created_at, created_by')
+        .in('status', ['pending', 'in_progress'])
+        .order('due_date', { ascending: true })
+        .limit(10000);
+
+      if (!allTasksError && allTasks) {
+        // Group tasks by batch (title + created_at)
+        const taskBatches = new Map<string, typeof allTasks>();
+
+        for (const task of allTasks) {
+          const createdAtTruncated = task.created_at?.slice(0, 19) || '';
+          const batchKey = `${task.title}|${createdAtTruncated}`;
+
+          if (!taskBatches.has(batchKey)) {
+            taskBatches.set(batchKey, []);
+          }
+          taskBatches.get(batchKey)!.push(task);
+        }
+
+        // Find batches that are repeating and have their last occurrence exactly 7 days away
+        for (const [, batchTasks] of taskBatches) {
+          // Only consider repeating tasks (batches with more than 1 task)
+          if (batchTasks.length <= 1) continue;
+
+          // Find the max due_date (last instance)
+          const lastTask = batchTasks.reduce((latest, task) => {
+            if (!task.due_date) return latest;
+            if (!latest.due_date) return task;
+            return task.due_date > latest.due_date ? task : latest;
+          }, batchTasks[0]);
+
+          if (!lastTask.due_date || !lastTask.created_by) continue;
+
+          // Check if the last instance is exactly 7 days away
+          if (lastTask.due_date === targetDate) {
+            try {
+              const result = await sendTaskExpirationPush(
+                [lastTask.created_by],
+                lastTask.title,
+                lastTask.id,
+                lastTask.due_date,
+                batchTasks.length
+              );
+              expirationNotificationsSent += result.sent;
+              expirationNotificationsFailed += result.failed;
+            } catch (err) {
+              console.error('Failed to send expiration notification:', err);
+              expirationNotificationsFailed++;
+            }
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       message: 'Reminder check completed',
       tasksFound: tasks.length,
       pushRemindersSent: pushSentCount,
       pushRemindersFailed: pushFailedCount,
+      expirationNotificationsSent,
+      expirationNotificationsFailed,
     });
   } catch (error) {
     console.error('Cron job error:', error);

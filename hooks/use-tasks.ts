@@ -39,7 +39,8 @@ export function useTasks(filters?: TaskFilters) {
           ),
           videos:task_videos(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('due_date', { ascending: true })
+        .limit(5000);
 
       if (filters?.status) {
         query = query.eq('status', filters.status);
@@ -65,16 +66,14 @@ export function useTasks(filters?: TaskFilters) {
       // Always filter unless specifically viewing only completed tasks
       const shouldFilterRepeats = filters?.status !== 'completed';
 
-      // Debug: Log raw data count
-      console.log('[useTasks] Raw data count:', data?.length, 'shouldFilterRepeats:', shouldFilterRepeats);
-
       if (shouldFilterRepeats && data) {
-        // Group tasks by title + created_at to identify repeat batches
+        // Group tasks by title + created_by + date to identify repeat batches
+        // Use date only (10 chars: YYYY-MM-DD) and created_by to handle timestamp variations
         const taskBatches = new Map<string, typeof data>();
 
         for (const task of data) {
-          const createdAtTruncated = task.created_at?.slice(0, 19) || '';
-          const batchKey = `${task.title}|${createdAtTruncated}`;
+          const createdDate = task.created_at?.slice(0, 10) || '';
+          const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
 
           if (!taskBatches.has(batchKey)) {
             taskBatches.set(batchKey, []);
@@ -127,13 +126,9 @@ export function useTasks(filters?: TaskFilters) {
           return a.due_date.localeCompare(b.due_date);
         });
 
-        // Debug: Log filtered data count and batch count
-        console.log('[useTasks] Batches:', taskBatches.size, 'Filtered tasks:', filteredData.length);
-
         return filteredData.map((row) => transformTask(row, locale));
       }
 
-      console.log('[useTasks] No filtering applied, returning:', data?.length, 'tasks');
       return (data || []).map((row) => transformTask(row, locale));
     },
   });
@@ -240,8 +235,8 @@ export function useMyTasks(userId?: string) {
       const taskBatches = new Map<string, typeof assignedTasks>();
 
       for (const task of assignedTasks) {
-        const createdAtTruncated = task.created_at?.slice(0, 19) || '';
-        const batchKey = `${task.title}|${createdAtTruncated}`;
+        const createdDate = task.created_at?.slice(0, 10) || '';
+        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
 
         if (!taskBatches.has(batchKey)) {
           taskBatches.set(batchKey, []);
@@ -439,12 +434,100 @@ export function useDeleteTask() {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['expiring-tasks'] });
       toast.success(t('tasks.taskDeleted'));
     },
     onError: (error: Error) => {
       toast.error(error.message);
     },
   });
+}
+
+export function useDeleteFutureTasks() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/tasks/${id}/delete-future`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to delete tasks');
+      }
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['expiring-tasks'] });
+      toast.success(t('tasks.futureTasksDeleted', { count: result.deletedCount }));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Check if a task is part of a repeating batch (queries database directly)
+export function useTaskBatchInfo(taskId: string | null) {
+  const supabase = createClient();
+
+  const { data } = useQuery({
+    queryKey: ['task-batch-info', taskId],
+    queryFn: async () => {
+      if (!taskId) return { isRepeating: false, batchSize: 0, futureCount: 0 };
+
+      // First get the task details
+      const { data: task, error: taskError } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, created_at, created_by')
+        .eq('id', taskId)
+        .single();
+
+      if (taskError || !task) {
+        return { isRepeating: false, batchSize: 0, futureCount: 0 };
+      }
+
+      // Use date only (10 chars: YYYY-MM-DD) to handle timestamp variations
+      const createdDate = task.created_at?.slice(0, 10) || '';
+
+      // Find all tasks with same title and created_by to count the batch
+      const { data: allBatchTasks, error: batchError } = await supabase
+        .from('tasks')
+        .select('id, due_date, created_at, created_by')
+        .eq('title', task.title)
+        .eq('created_by', task.created_by);
+
+      if (batchError || !allBatchTasks) {
+        return { isRepeating: false, batchSize: 0, futureCount: 0 };
+      }
+
+      // Filter to same batch (matching created_at date)
+      const batchTasks = allBatchTasks.filter(t => {
+        const tCreatedDate = t.created_at?.slice(0, 10) || '';
+        return tCreatedDate === createdDate;
+      });
+
+      // Count future tasks (due_date >= this task's due_date)
+      const futureCount = batchTasks.filter(t => {
+        if (!t.due_date || !task.due_date) return false;
+        return t.due_date >= task.due_date;
+      }).length;
+
+      return {
+        isRepeating: batchTasks.length > 1,
+        batchSize: batchTasks.length,
+        futureCount,
+      };
+    },
+    enabled: !!taskId,
+  });
+
+  return data || { isRepeating: false, batchSize: 0, futureCount: 0 };
 }
 
 export function useCompleteTask() {
@@ -514,7 +597,7 @@ export function usePendingTasks() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, title, status, priority, due_date, created_at')
+        .select('id, title, status, priority, due_date, created_at, created_by')
         .in('status', ['pending', 'in_progress'])
         .order('due_date', { ascending: true, nullsFirst: false });
 
@@ -526,8 +609,8 @@ export function usePendingTasks() {
 
       for (const task of data || []) {
         // Create a batch key using title and created_at (truncated to second for safety)
-        const createdAtTruncated = task.created_at?.slice(0, 19) || '';
-        const batchKey = `${task.title}|${createdAtTruncated}`;
+        const createdDate = task.created_at?.slice(0, 10) || '';
+        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
 
         if (!taskBatches.has(batchKey)) {
           taskBatches.set(batchKey, []);
@@ -595,6 +678,128 @@ export function useOverdueTasks() {
 
       if (error) throw error;
       return data || [];
+    },
+  });
+}
+
+export type ExpiringTaskBatch = {
+  batchKey: string;
+  title: string;
+  lastDueDate: string;
+  taskCount: number;
+  createdBy: string | null;
+  createdByUser: { id: string; fullName: string; avatarUrl: string | null } | null;
+  category: { id: string; name: string; color: string; icon: string | null } | null;
+  firstTaskId: string;
+};
+
+export function useExpiringTasks() {
+  const supabase = createClient();
+  const today = getTodayString();
+
+  // Calculate date one month from now
+  const oneMonthFromNow = new Date();
+  oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
+  const oneMonthString = oneMonthFromNow.toISOString().split('T')[0];
+
+  return useQuery({
+    queryKey: ['expiring-tasks'],
+    queryFn: async () => {
+      // Fetch ALL tasks to properly count batch sizes (including completed)
+      const { data: allTasksForCounting, error: countError } = await supabase
+        .from('tasks')
+        .select('title, created_at, created_by')
+        .limit(20000);
+
+      if (countError) throw countError;
+
+      // Build a map of batch sizes (including completed tasks)
+      const batchSizes = new Map<string, number>();
+      for (const task of allTasksForCounting || []) {
+        const createdDate = task.created_at?.slice(0, 10) || '';
+        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+        batchSizes.set(batchKey, (batchSizes.get(batchKey) || 0) + 1);
+      }
+
+      // Fetch pending/in_progress tasks with full details
+      const { data, error } = await supabase
+        .from('tasks')
+        .select(`
+          id, title, due_date, created_at, created_by,
+          category:task_categories(id, name, color, icon),
+          created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url)
+        `)
+        .in('status', ['pending', 'in_progress'])
+        .order('due_date', { ascending: true })
+        .limit(10000);
+
+      if (error) throw error;
+      if (!data) return [];
+
+      // Group pending/in_progress tasks by batch
+      const taskBatches = new Map<string, typeof data>();
+
+      for (const task of data) {
+        const createdDate = task.created_at?.slice(0, 10) || '';
+        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+
+        if (!taskBatches.has(batchKey)) {
+          taskBatches.set(batchKey, []);
+        }
+        taskBatches.get(batchKey)!.push(task);
+      }
+
+      // Find batches that are repeating (>1 task total) and expiring within a month
+      const expiringBatches: ExpiringTaskBatch[] = [];
+
+      for (const [batchKey, batchTasks] of taskBatches) {
+        // Check total batch size (including completed) - only show repeating tasks
+        const totalBatchSize = batchSizes.get(batchKey) || 0;
+        if (totalBatchSize <= 1) continue;
+
+        // Find the max due_date (last instance)
+        const lastTask = batchTasks.reduce((latest, task) => {
+          if (!task.due_date) return latest;
+          if (!latest.due_date) return task;
+          return task.due_date > latest.due_date ? task : latest;
+        }, batchTasks[0]);
+
+        if (!lastTask.due_date) continue;
+
+        // Check if the last instance is within the next month (and not already past)
+        if (lastTask.due_date >= today && lastTask.due_date <= oneMonthString) {
+          // Handle the case where Supabase returns array or single object for joins
+          const rawCreatedByUser = lastTask.created_by_user as unknown;
+          const createdByUser = Array.isArray(rawCreatedByUser)
+            ? (rawCreatedByUser[0] as { id: string; full_name: string; avatar_url: string | null } | undefined)
+            : (rawCreatedByUser as { id: string; full_name: string; avatar_url: string | null } | null);
+
+          const rawCategory = lastTask.category as unknown;
+          const category = Array.isArray(rawCategory)
+            ? (rawCategory[0] as { id: string; name: string; color: string; icon: string | null } | undefined)
+            : (rawCategory as { id: string; name: string; color: string; icon: string | null } | null);
+
+          expiringBatches.push({
+            batchKey,
+            title: lastTask.title,
+            lastDueDate: lastTask.due_date,
+            taskCount: totalBatchSize,
+            createdBy: lastTask.created_by,
+            createdByUser: createdByUser ? {
+              id: createdByUser.id,
+              fullName: createdByUser.full_name,
+              avatarUrl: createdByUser.avatar_url,
+            } : null,
+            category: category || null,
+            firstTaskId: batchTasks[0].id,
+          });
+        }
+      }
+
+      // Sort by last due date (soonest first)
+      expiringBatches.sort((a, b) => a.lastDueDate.localeCompare(b.lastDueDate));
+
+      return expiringBatches;
     },
   });
 }

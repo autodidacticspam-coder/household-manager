@@ -68,6 +68,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create tasks for each date
+    // Use a single timestamp for all tasks in this batch to ensure they're grouped together
+    const batchCreatedAt = new Date().toISOString();
+
     const taskInserts = taskDates.map((date) => ({
       title: taskData.title,
       title_es: titleEs,
@@ -86,6 +89,7 @@ export async function POST(request: NextRequest) {
       end_time: taskData.endTime || null,
       sync_to_calendar: taskData.syncToCalendar,
       created_by: user.id,
+      created_at: batchCreatedAt,
     }));
 
     const { data: tasks, error: taskError } = await supabaseAdmin

@@ -42,12 +42,21 @@
     "error": "Algo salió mal",
     "until": "Hasta",
     "viewAll": "Ver Todo",
-    "uncategorized": "Sin categoría"
+    "uncategorized": "Sin categoría",
+    "createdBy": "Creado por",
+    "more": "más"
   },
   "dashboard": {
     "noOneOnLeave": "Nadie está de permiso actualmente",
     "upcomingDates": "Próximas Fechas Importantes",
-    "noUpcomingDates": "No hay fechas importantes en los próximos 7 días"
+    "noUpcomingDates": "No hay fechas importantes en los próximos 7 días",
+    "expiringTasks": "Tareas Repetitivas por Expirar",
+    "expiringTasksDescription": "Estas tareas repetitivas terminarán dentro del próximo mes. Considere extenderlas.",
+    "lastOccurrence": "Última ocurrencia",
+    "totalInstances": "instancias totales",
+    "extendTask": "Editar / Extender",
+    "noExpiringTasks": "No hay tareas por expirar",
+    "endsOn": "Termina el"
   },
   "notifications": {
     "enableTitle": "Activar Notificaciones",
@@ -182,6 +191,10 @@
     "taskCompleted": "Tarea marcada como completada",
     "deleteTask": "Eliminar Tarea",
     "deleteConfirmation": "¿Estás seguro de que deseas eliminar esta tarea? Esta acción no se puede deshacer.",
+    "deleteRepeatingConfirmation": "Esta es una tarea repetitiva con {count} instancias futuras. ¿Cómo deseas eliminarla?",
+    "deleteThisOnly": "Eliminar Solo Esta Instancia",
+    "deleteAllFuture": "Eliminar Todas las Futuras ({count})",
+    "futureTasksDeleted": "{count} tareas eliminadas exitosamente",
     "deleteRecurringConfirmation": "¿Estás seguro de que deseas eliminar \"{title}\"? Esta es una tarea recurrente.",
     "deleteRecurringNote": "Eliminar esta tarea eliminará todas las ocurrencias futuras.",
     "chooseDeleteOption": "Elige cómo quieres manejar esta tarea recurrente:",

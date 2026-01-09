@@ -12,9 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { CheckSquare, Clock, Calendar, Loader2, AlertTriangle, Package, Gift } from 'lucide-react';
+import { CheckSquare, Clock, Calendar, Loader2, AlertTriangle, Package, Gift, Timer } from 'lucide-react';
 import { usePendingLeaveRequests, useCurrentlyOnLeave } from '@/hooks/use-leave';
-import { usePendingTasks, useOverdueTasks } from '@/hooks/use-tasks';
+import { usePendingTasks, useOverdueTasks, useExpiringTasks } from '@/hooks/use-tasks';
 import { usePendingSupplyRequests } from '@/hooks/use-supplies';
 import { useUpcomingImportantDates } from '@/hooks/use-employees';
 import { LogsTopCard, LogsDialog, useLogsAccess } from '@/components/dashboard/logs-section';
@@ -22,7 +22,7 @@ import { format, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from '
 import type { LeaveRequest } from '@/types';
 import Link from 'next/link';
 
-type DialogType = 'tasks' | 'leave' | 'onLeave' | 'supplies' | 'logs' | null;
+type DialogType = 'tasks' | 'leave' | 'onLeave' | 'supplies' | 'logs' | 'expiringTasks' | null;
 
 // Helper to parse date string without timezone issues
 function parseLocalDate(dateStr: string): Date {
@@ -119,6 +119,7 @@ export default function DashboardPage() {
   const { data: currentlyOnLeave } = useCurrentlyOnLeave();
   const { data: pendingTasks } = usePendingTasks();
   const { data: overdueTasks } = useOverdueTasks();
+  const { data: expiringTasks } = useExpiringTasks();
   const { data: pendingSupplyRequests, isLoading: suppliesLoading } = usePendingSupplyRequests();
   const { data: upcomingImportantDates } = useUpcomingImportantDates(7);
   const canAccessLogs = useLogsAccess();
@@ -266,6 +267,61 @@ export default function DashboardPage() {
                   </div>
                 );
               })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Expiring Repeating Tasks - only show when there are expiring tasks */}
+      {expiringTasks && expiringTasks.length > 0 && (
+        <Card
+          className="cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => setOpenDialog('expiringTasks')}
+        >
+          <CardHeader className="flex flex-row items-center justify-between py-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Timer className="h-5 w-5 text-orange-500" />
+              {t('dashboard.expiringTasks')}
+            </CardTitle>
+            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+              {expiringTasks.length}
+            </Badge>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-3">
+              {expiringTasks.slice(0, 3).map((batch) => {
+                const lastDate = parseLocalDate(batch.lastDueDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((lastDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                return (
+                  <div key={batch.batchKey} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center">
+                        <Timer className="h-4 w-4 text-orange-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium truncate max-w-[200px]">{batch.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {t('dashboard.endsOn')} {format(lastDate, 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={diffDays <= 7 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'}
+                    >
+                      {diffDays} {t('common.days')}
+                    </Badge>
+                  </div>
+                );
+              })}
+              {expiringTasks.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  +{expiringTasks.length - 3} {t('common.more')}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -467,7 +523,79 @@ export default function DashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
-{/* Child Logs Dialog */}      <LogsDialog open={openDialog === 'logs'} onClose={() => setOpenDialog(null)} />
+{/* Expiring Tasks Dialog */}
+      <Dialog open={openDialog === 'expiringTasks'} onOpenChange={() => setOpenDialog(null)}>
+        <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Timer className="h-5 w-5 text-orange-500" />
+              {t('dashboard.expiringTasks')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {t('dashboard.expiringTasksDescription')}
+            </p>
+            {expiringTasks && expiringTasks.length > 0 ? (
+              expiringTasks.map((batch) => {
+                const lastDate = parseLocalDate(batch.lastDueDate);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((lastDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                return (
+                  <div key={batch.batchKey} className="p-3 rounded-lg border">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-medium">{batch.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {t('dashboard.lastOccurrence')}: {format(lastDate, 'EEEE, MMMM d, yyyy')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {batch.taskCount} {t('dashboard.totalInstances')}
+                        </p>
+                        {batch.createdByUser && (
+                          <p className="text-xs text-muted-foreground">
+                            {t('common.createdBy')}: {batch.createdByUser.fullName}
+                          </p>
+                        )}
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={diffDays <= 7 ? 'bg-red-50 text-red-700 border-red-200' : 'bg-orange-50 text-orange-700 border-orange-200'}
+                      >
+                        {diffDays} {t('common.days')}
+                      </Badge>
+                    </div>
+                    {batch.category && (
+                      <div className="mt-2">
+                        <Badge
+                          variant="outline"
+                          style={{ backgroundColor: `${batch.category.color}20`, borderColor: batch.category.color, color: batch.category.color }}
+                        >
+                          {batch.category.name}
+                        </Badge>
+                      </div>
+                    )}
+                    <div className="mt-3">
+                      <Link href={`/tasks/${batch.firstTaskId}/edit`}>
+                        <Button variant="outline" size="sm" className="w-full">
+                          {t('dashboard.extendTask')}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-muted-foreground text-center py-4">{t('dashboard.noExpiringTasks')}</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Child Logs Dialog */}
+      <LogsDialog open={openDialog === 'logs'} onClose={() => setOpenDialog(null)} />
     </div>
   );
 }

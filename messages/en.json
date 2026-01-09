@@ -42,12 +42,21 @@
     "error": "Something went wrong",
     "until": "Until",
     "viewAll": "View All",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "createdBy": "Created by",
+    "more": "more"
   },
   "dashboard": {
     "noOneOnLeave": "No one is currently on leave",
     "upcomingDates": "Upcoming Important Dates",
-    "noUpcomingDates": "No important dates in the next 7 days"
+    "noUpcomingDates": "No important dates in the next 7 days",
+    "expiringTasks": "Expiring Repeating Tasks",
+    "expiringTasksDescription": "These repeating tasks will end within the next month. Consider extending them.",
+    "lastOccurrence": "Last occurrence",
+    "totalInstances": "total instances",
+    "extendTask": "Edit / Extend",
+    "noExpiringTasks": "No expiring tasks",
+    "endsOn": "Ends on"
   },
   "notifications": {
     "enableTitle": "Enable Notifications",
@@ -182,6 +191,10 @@
     "taskCompleted": "Task marked as complete",
     "deleteTask": "Delete Task",
     "deleteConfirmation": "Are you sure you want to delete this task? This action cannot be undone.",
+    "deleteRepeatingConfirmation": "This is a repeating task with {count} future instances. How would you like to delete it?",
+    "deleteThisOnly": "Delete This Instance Only",
+    "deleteAllFuture": "Delete All Future ({count})",
+    "futureTasksDeleted": "{count} tasks deleted successfully",
     "deleteRecurringConfirmation": "Are you sure you want to delete \"{title}\"? This is a recurring task.",
     "deleteRecurringNote": "Deleting this task will remove all future occurrences.",
     "chooseDeleteOption": "Choose how you want to handle this recurring task:",

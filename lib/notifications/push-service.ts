@@ -327,3 +327,32 @@ export async function sendTaskCompletedPush(
     },
   });
 }
+
+// Send task expiration warning notification (to task creator)
+export async function sendTaskExpirationPush(
+  userIds: string[],
+  taskTitle: string,
+  taskId: string,
+  lastDueDate: string,
+  taskCount: number
+): Promise<{ sent: number; failed: number; errors: string[] }> {
+  // Format the date nicely
+  const [year, month, day] = lastDueDate.split('-').map(Number);
+  const dateObj = new Date(year, month - 1, day);
+  const formattedDate = dateObj.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  return sendPushToUsers(userIds, {
+    title: '⏳ Repeating Task Expiring Soon',
+    body: `"${taskTitle}" (${taskCount} instances) will end on ${formattedDate}. Consider extending it.`,
+    data: {
+      taskId,
+      type: 'task_expiring',
+      title: taskTitle,
+      lastDueDate,
+    },
+  });
+}
