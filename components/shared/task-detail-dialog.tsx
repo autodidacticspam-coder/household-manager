@@ -25,6 +25,7 @@ import {
   AlertCircle,
   User,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import Image from 'next/image';
 import type { TaskWithRelations } from '@/types';
@@ -36,6 +37,7 @@ type TaskDetailDialogProps = {
   onOpenChange: (open: boolean) => void;
   onComplete?: (id: string) => void;
   onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
   showActions?: boolean;
 };
 
@@ -64,6 +66,7 @@ export function TaskDetailDialog({
   onOpenChange,
   onComplete,
   onEdit,
+  onDelete,
   showActions = true,
 }: TaskDetailDialogProps) {
   const t = useTranslations();
@@ -336,6 +339,16 @@ export function TaskDetailDialog({
           {/* Action buttons */}
           {showActions && (
             <div className="flex justify-end gap-2 pt-2">
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => onDelete(task.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {t('common.delete')}
+                </Button>
+              )}
               {onEdit && (
                 <Button variant="outline" onClick={() => onEdit(task.id)}>
                   {t('common.edit')}

@@ -14,8 +14,21 @@ import {
 } from '@/components/ui/dialog';
 import { CheckSquare, Clock, Calendar, Loader2, AlertTriangle, Package, Gift, Timer } from 'lucide-react';
 import { usePendingLeaveRequests, useCurrentlyOnLeave } from '@/hooks/use-leave';
-import { usePendingTasks, useOverdueTasks, useExpiringTasks } from '@/hooks/use-tasks';
+import { usePendingTasks, useOverdueTasks, useExpiringTasks, useCompleteTask, useDeleteTask, useDeleteFutureTasks, useTaskBatchInfo, useTask } from '@/hooks/use-tasks';
 import { usePendingSupplyRequests } from '@/hooks/use-supplies';
+import { TaskDetailDialog } from '@/components/shared/task-detail-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { useRouter } from 'next/navigation';
+import type { TaskWithRelations } from '@/types';
 import { useUpcomingImportantDates } from '@/hooks/use-employees';
 import { LogsTopCard, LogsDialog, useLogsAccess } from '@/components/dashboard/logs-section';
 import { format, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
@@ -113,7 +126,10 @@ function groupLeaveByEmployee(leaves: LeaveRequest[] | undefined): GroupedLeave[
 
 export default function DashboardPage() {
   const t = useTranslations();
+  const router = useRouter();
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   const { data: pendingLeaveRequests, isLoading: leaveLoading } = usePendingLeaveRequests();
   const { data: currentlyOnLeave } = useCurrentlyOnLeave();
@@ -123,6 +139,37 @@ export default function DashboardPage() {
   const { data: pendingSupplyRequests, isLoading: suppliesLoading } = usePendingSupplyRequests();
   const { data: upcomingImportantDates } = useUpcomingImportantDates(7);
   const canAccessLogs = useLogsAccess();
+
+  // Task management hooks
+  const completeTask = useCompleteTask();
+  const deleteTask = useDeleteTask();
+  const deleteFutureTasks = useDeleteFutureTasks();
+  const batchInfo = useTaskBatchInfo(deleteTaskId);
+  const { data: selectedTask } = useTask(selectedTaskId || '');
+
+  const handleCompleteTask = async (id: string) => {
+    await completeTask.mutateAsync(id);
+    setSelectedTaskId(null);
+  };
+
+  const handleEditTask = (id: string) => {
+    router.push(`/tasks/${id}/edit`);
+    setSelectedTaskId(null);
+  };
+
+  const handleDeleteSingle = async () => {
+    if (deleteTaskId) {
+      await deleteTask.mutateAsync(deleteTaskId);
+      setDeleteTaskId(null);
+    }
+  };
+
+  const handleDeleteFuture = async () => {
+    if (deleteTaskId) {
+      await deleteFutureTasks.mutateAsync(deleteTaskId);
+      setDeleteTaskId(null);
+    }
+  };
 
   // Group leave entries by employee for proper counting and display
   const groupedCurrentlyOnLeave = groupLeaveByEmployee(currentlyOnLeave);
@@ -344,7 +391,11 @@ export default function DashboardPage() {
                   {t('reports.stats.tasksOverdue')} ({overdueTasks.length})
                 </h4>
                 {overdueTasks.slice(0, 5).map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-2 rounded-lg bg-red-50 mb-2">
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between p-2 rounded-lg bg-red-50 mb-2 cursor-pointer hover:bg-red-100 transition-colors"
+                    onClick={() => setSelectedTaskId(task.id)}
+                  >
                     <div>
                       <p className="font-medium text-sm">{task.title}</p>
                       <p className="text-xs text-red-600">
@@ -360,7 +411,11 @@ export default function DashboardPage() {
             )}
             {pendingTasks && pendingTasks.length > 0 ? (
               pendingTasks.slice(0, 10).map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                <div
+                  key={task.id}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                  onClick={() => setSelectedTaskId(task.id)}
+                >
                   <div>
                     <p className="font-medium text-sm">{task.title}</p>
                     <p className="text-xs text-muted-foreground">
@@ -596,6 +651,61 @@ export default function DashboardPage() {
 
       {/* Child Logs Dialog */}
       <LogsDialog open={openDialog === 'logs'} onClose={() => setOpenDialog(null)} />
+
+      {/* Task Detail Dialog */}
+      <TaskDetailDialog
+        task={selectedTask || null}
+        open={!!selectedTaskId}
+        onOpenChange={(open) => !open && setSelectedTaskId(null)}
+        onComplete={handleCompleteTask}
+        onEdit={handleEditTask}
+        onDelete={(id) => {
+          setSelectedTaskId(null);
+          setDeleteTaskId(id);
+        }}
+      />
+
+      {/* Task Delete Confirmation */}
+      <AlertDialog open={!!deleteTaskId} onOpenChange={() => setDeleteTaskId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {batchInfo.isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  {t('common.loading')}
+                </span>
+              ) : batchInfo.isRepeating ? (
+                t('tasks.deleteRepeatingConfirmation', { count: batchInfo.futureCount })
+              ) : (
+                t('tasks.deleteConfirmation')
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className={batchInfo.isRepeating ? 'flex-col sm:flex-row gap-2' : ''}>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            {batchInfo.isLoading ? null : batchInfo.isRepeating ? (
+              <>
+                <AlertDialogAction
+                  onClick={handleDeleteSingle}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {t('tasks.deleteThisOnly')}
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={handleDeleteFuture}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  {t('tasks.deleteAllFuture', { count: batchInfo.futureCount })}
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction onClick={handleDeleteSingle}>{t('common.delete')}</AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
