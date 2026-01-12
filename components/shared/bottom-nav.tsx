@@ -41,7 +41,7 @@ const employeeBaseNavItems: NavItem[] = [
 const chefNavItems: NavItem[] = [
   { href: '/my-tasks', labelKey: 'nav.myTasks', icon: <CheckSquare className="h-4 w-4" /> },
   { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-4 w-4" /> },
-  { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-4 w-4" /> },
+  { href: '/food-ratings', labelKey: 'nav.food', icon: <Star className="h-4 w-4" /> },
   { href: '/supply-requests', labelKey: 'nav.supplies', icon: <Package className="h-4 w-4" /> },
 ];
 

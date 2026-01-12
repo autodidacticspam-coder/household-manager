@@ -60,7 +60,7 @@ const employeeNavItems: NavItem[] = [
 ];
 
 const logsNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> };
-const foodRatingsNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-5 w-5" /> };
+const foodNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.food', icon: <Star className="h-5 w-5" /> };
 
 export function MobileSidebar() {
   const [open, setOpen] = useState(false);
@@ -81,7 +81,7 @@ export function MobileSidebar() {
       items.push(adminNavItems[2]); // calendar
       if (canAccessLogs) items.push(logsNavItem);
       items.push(adminNavItems[3]); // menu
-      if (canAccessFoodRatings) items.push(foodRatingsNavItem);
+      if (canAccessFoodRatings) items.push(foodNavItem);
       items.push(...adminNavItems.slice(4)); // employees, leave-requests, etc.
     } else {
       // Employee nav: my-tasks, [logs], my-calendar, menu, [food-ratings], time-off...
@@ -89,7 +89,7 @@ export function MobileSidebar() {
       if (canAccessLogs) items.push(logsNavItem);
       items.push(employeeNavItems[1]); // my-calendar
       items.push(employeeNavItems[2]); // menu
-      if (canAccessFoodRatings) items.push(foodRatingsNavItem);
+      if (canAccessFoodRatings) items.push(foodNavItem);
       items.push(...employeeNavItems.slice(3)); // time-off, supplies, etc.
     }
 
