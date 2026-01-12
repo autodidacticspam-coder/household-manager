@@ -66,7 +66,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
+import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask, useUpdateFutureTasks } from '@/hooks/use-tasks';
 import { useTaskTemplates, useCreateTaskTemplate, useUpdateTaskTemplate, useDeleteTaskTemplate } from '@/hooks/use-task-templates';
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput, type TaskViewerInput } from '@/lib/validators/task';
 import type { TaskWithRelations, TaskTemplate, TemplateAssignment } from '@/types';
@@ -78,9 +78,10 @@ type TaskFormProps = {
   task?: TaskWithRelations;
   template?: TaskTemplate | null;
   onSuccess?: () => void;
+  batchMode?: boolean;
 };
 
-export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFormProps) {
+export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode = false }: TaskFormProps) {
   const t = useTranslations();
   const router = useRouter();
 
@@ -91,6 +92,7 @@ export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFor
 
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
+  const updateFutureTasks = useUpdateFutureTasks();
   const createTemplate = useCreateTaskTemplate();
   const updateTemplate = useUpdateTaskTemplate();
   const deleteTemplate = useDeleteTaskTemplate();
@@ -423,7 +425,7 @@ export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFor
   };
 
   const isLoading = categoriesLoading || groupsLoading || employeesLoading;
-  const isSaving = createTask.isPending || updateTask.isPending;
+  const isSaving = createTask.isPending || updateTask.isPending || updateFutureTasks.isPending;
 
   // Assignment handlers
   const handleAddAssignment = () => {
@@ -614,7 +616,13 @@ export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFor
     };
 
     if (task) {
-      await updateTask.mutateAsync({ id: task.id, data: submitData });
+      if (batchMode) {
+        // Update all future occurrences of this repeating task
+        await updateFutureTasks.mutateAsync({ id: task.id, data: submitData });
+      } else {
+        // Update just this task
+        await updateTask.mutateAsync({ id: task.id, data: submitData });
+      }
     } else {
       await createTask.mutateAsync(submitData);
     }
@@ -807,19 +815,25 @@ export function TaskForm({ task, template: initialTemplate, onSuccess }: TaskFor
                 <CardTitle>{t('tasks.dueDate')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('tasks.dueDate')}</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {batchMode ? (
+                  <div className="p-3 bg-muted rounded-lg text-sm text-muted-foreground">
+                    {t('tasks.batchModeDateNote', { fallback: 'Due dates cannot be changed when editing all future tasks. Each task keeps its scheduled date.' })}
+                  </div>
+                ) : (
+                  <FormField
+                    control={form.control}
+                    name="dueDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('tasks.dueDate')}</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} value={field.value || ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}

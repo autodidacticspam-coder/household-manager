@@ -69,6 +69,7 @@ export default function TasksPage() {
 
   const [search, setSearch] = useState('');
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [editTaskId, setEditTaskId] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
 
@@ -143,15 +144,31 @@ export default function TasksPage() {
   const deleteFutureTasks = useDeleteFutureTasks();
   const completeTask = useCompleteTask();
 
-  // Get batch info for the task being deleted (queries database directly)
-  const batchInfo = useTaskBatchInfo(deleteTaskId);
+  // Get batch info for tasks being deleted or edited (queries database directly)
+  const deleteBatchInfo = useTaskBatchInfo(deleteTaskId);
+  const editBatchInfo = useTaskBatchInfo(editTaskId);
 
   const handleComplete = async (id: string) => {
     await completeTask.mutateAsync(id);
   };
 
   const handleEdit = (id: string) => {
-    router.push(`/tasks/${id}/edit`);
+    // Set the edit task ID to trigger batch info check
+    setEditTaskId(id);
+  };
+
+  const handleEditSingle = () => {
+    if (editTaskId) {
+      router.push(`/tasks/${editTaskId}/edit`);
+      setEditTaskId(null);
+    }
+  };
+
+  const handleEditFuture = () => {
+    if (editTaskId) {
+      router.push(`/tasks/${editTaskId}/edit?batch=true`);
+      setEditTaskId(null);
+    }
   };
 
   const handleDeleteSingle = async () => {
@@ -378,21 +395,21 @@ export default function TasksPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {batchInfo.isLoading ? (
+              {deleteBatchInfo.isLoading ? (
                 <span className="flex items-center gap-2">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                   {t('common.loading')}
                 </span>
-              ) : batchInfo.isRepeating ? (
-                t('tasks.deleteRepeatingConfirmation', { count: batchInfo.futureCount })
+              ) : deleteBatchInfo.isRepeating ? (
+                t('tasks.deleteRepeatingConfirmation', { count: deleteBatchInfo.futureCount })
               ) : (
                 t('tasks.deleteConfirmation')
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className={batchInfo.isRepeating ? 'flex-col sm:flex-row gap-2' : ''}>
+          <AlertDialogFooter className={deleteBatchInfo.isRepeating ? 'flex-col sm:flex-row gap-2' : ''}>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            {batchInfo.isLoading ? null : batchInfo.isRepeating ? (
+            {deleteBatchInfo.isLoading ? null : deleteBatchInfo.isRepeating ? (
               <>
                 <AlertDialogAction
                   onClick={handleDeleteSingle}
@@ -404,11 +421,53 @@ export default function TasksPage() {
                   onClick={handleDeleteFuture}
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  {t('tasks.deleteAllFuture', { count: batchInfo.futureCount })}
+                  {t('tasks.deleteAllFuture', { count: deleteBatchInfo.futureCount })}
                 </AlertDialogAction>
               </>
             ) : (
               <AlertDialogAction onClick={handleDeleteSingle}>{t('common.delete')}</AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Edit Task Confirmation Dialog */}
+      <AlertDialog open={!!editTaskId} onOpenChange={(open) => { if (!open) setEditTaskId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('tasks.editTask')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {editBatchInfo.isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  {t('common.loading')}
+                </span>
+              ) : editBatchInfo.isRepeating ? (
+                t('tasks.editRepeatingConfirmation', { count: editBatchInfo.futureCount })
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className={editBatchInfo.isRepeating ? 'flex-col sm:flex-row gap-2' : ''}>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            {editBatchInfo.isLoading ? null : editBatchInfo.isRepeating ? (
+              <>
+                <AlertDialogAction
+                  onClick={handleEditSingle}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {t('tasks.editThisOnly')}
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={handleEditFuture}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  {t('tasks.editAllFuture', { count: editBatchInfo.futureCount })}
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction onClick={handleEditSingle}>
+                {t('common.edit')}
+              </AlertDialogAction>
             )}
           </AlertDialogFooter>
         </AlertDialogContent>

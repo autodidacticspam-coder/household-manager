@@ -472,6 +472,39 @@ export function useDeleteFutureTasks() {
   });
 }
 
+export function useUpdateFutureTasks() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: UpdateTaskInput }) => {
+      const response = await fetch(`/api/tasks/${id}/update-future`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update tasks');
+      }
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['expiring-tasks'] });
+      toast.success(t('tasks.futureTasksUpdated', { count: result.updatedCount }));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 // Check if a task is part of a repeating batch (uses API to bypass RLS)
 export function useTaskBatchInfo(taskId: string | null) {
   const { data, isLoading, isFetching, isPending } = useQuery({
