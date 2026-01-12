@@ -8,7 +8,7 @@ DROP POLICY IF EXISTS "Admins can insert recipe media" ON recipe_media;
 DROP POLICY IF EXISTS "Admins can update recipe media" ON recipe_media;
 DROP POLICY IF EXISTS "Admins can delete recipe media" ON recipe_media;
 
--- Recreate policies to include chefs
+-- Recreate policies to include chefs (via employee_groups membership)
 
 -- Recipes INSERT
 CREATE POLICY "Admins and chefs can insert recipes"
@@ -18,7 +18,13 @@ CREATE POLICY "Admins and chefs can insert recipes"
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
-            AND (users.role = 'admin' OR users.position = 'chef')
+            AND users.role = 'admin'
+        )
+        OR EXISTS (
+            SELECT 1 FROM employee_group_memberships egm
+            JOIN employee_groups eg ON eg.id = egm.group_id
+            WHERE egm.user_id = auth.uid()
+            AND LOWER(eg.name) = 'chef'
         )
     );
 
@@ -30,7 +36,13 @@ CREATE POLICY "Admins and chefs can update recipes"
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
-            AND (users.role = 'admin' OR users.position = 'chef')
+            AND users.role = 'admin'
+        )
+        OR EXISTS (
+            SELECT 1 FROM employee_group_memberships egm
+            JOIN employee_groups eg ON eg.id = egm.group_id
+            WHERE egm.user_id = auth.uid()
+            AND LOWER(eg.name) = 'chef'
         )
     );
 
@@ -42,7 +54,13 @@ CREATE POLICY "Admins and chefs can delete recipes"
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
-            AND (users.role = 'admin' OR users.position = 'chef')
+            AND users.role = 'admin'
+        )
+        OR EXISTS (
+            SELECT 1 FROM employee_group_memberships egm
+            JOIN employee_groups eg ON eg.id = egm.group_id
+            WHERE egm.user_id = auth.uid()
+            AND LOWER(eg.name) = 'chef'
         )
     );
 
@@ -54,7 +72,13 @@ CREATE POLICY "Admins and chefs can insert recipe media"
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
-            AND (users.role = 'admin' OR users.position = 'chef')
+            AND users.role = 'admin'
+        )
+        OR EXISTS (
+            SELECT 1 FROM employee_group_memberships egm
+            JOIN employee_groups eg ON eg.id = egm.group_id
+            WHERE egm.user_id = auth.uid()
+            AND LOWER(eg.name) = 'chef'
         )
     );
 
@@ -66,7 +90,13 @@ CREATE POLICY "Admins and chefs can update recipe media"
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
-            AND (users.role = 'admin' OR users.position = 'chef')
+            AND users.role = 'admin'
+        )
+        OR EXISTS (
+            SELECT 1 FROM employee_group_memberships egm
+            JOIN employee_groups eg ON eg.id = egm.group_id
+            WHERE egm.user_id = auth.uid()
+            AND LOWER(eg.name) = 'chef'
         )
     );
 
@@ -78,6 +108,12 @@ CREATE POLICY "Admins and chefs can delete recipe media"
         EXISTS (
             SELECT 1 FROM users
             WHERE users.id = auth.uid()
-            AND (users.role = 'admin' OR users.position = 'chef')
+            AND users.role = 'admin'
+        )
+        OR EXISTS (
+            SELECT 1 FROM employee_group_memberships egm
+            JOIN employee_groups eg ON eg.id = egm.group_id
+            WHERE egm.user_id = auth.uid()
+            AND LOWER(eg.name) = 'chef'
         )
     );
