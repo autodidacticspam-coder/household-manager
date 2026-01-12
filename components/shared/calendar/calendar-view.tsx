@@ -943,6 +943,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               height="auto"
               dayMaxEvents={3}
               eventDisplay="block"
+              snapDuration="00:15:00"
               eventTimeFormat={{
                 hour: 'numeric',
                 minute: '2-digit',
