@@ -11,9 +11,9 @@ import { getTodayString } from '@/lib/date-utils';
 type SupportedLocale = 'en' | 'es' | 'zh';
 
 type TaskFilters = {
-  status?: 'pending' | 'in_progress' | 'completed';
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
-  categoryId?: string;
+  status?: ('pending' | 'in_progress' | 'completed')[];
+  priority?: ('low' | 'medium' | 'high' | 'urgent')[];
+  categoryId?: string[];
   search?: string;
 };
 
@@ -42,16 +42,16 @@ export function useTasks(filters?: TaskFilters) {
         .order('due_date', { ascending: true })
         .limit(5000);
 
-      if (filters?.status) {
-        query = query.eq('status', filters.status);
+      if (filters?.status && filters.status.length > 0) {
+        query = query.in('status', filters.status);
       }
 
-      if (filters?.priority) {
-        query = query.eq('priority', filters.priority);
+      if (filters?.priority && filters.priority.length > 0) {
+        query = query.in('priority', filters.priority);
       }
 
-      if (filters?.categoryId) {
-        query = query.eq('category_id', filters.categoryId);
+      if (filters?.categoryId && filters.categoryId.length > 0) {
+        query = query.in('category_id', filters.categoryId);
       }
 
       if (filters?.search) {
@@ -64,7 +64,7 @@ export function useTasks(filters?: TaskFilters) {
 
       // Filter repeating tasks - show only next occurrence for pending/in_progress
       // Always filter unless specifically viewing only completed tasks
-      const shouldFilterRepeats = filters?.status !== 'completed';
+      const shouldFilterRepeats = !(filters?.status?.length === 1 && filters.status[0] === 'completed');
 
       if (shouldFilterRepeats && data) {
         // Group tasks by title + created_by + date to identify repeat batches
@@ -472,62 +472,36 @@ export function useDeleteFutureTasks() {
   });
 }
 
-// Check if a task is part of a repeating batch (queries database directly)
+// Check if a task is part of a repeating batch (uses API to bypass RLS)
 export function useTaskBatchInfo(taskId: string | null) {
-  const supabase = createClient();
-
-  const { data } = useQuery({
+  const { data, isLoading, isFetching, isPending } = useQuery({
     queryKey: ['task-batch-info', taskId],
     queryFn: async () => {
-      if (!taskId) return { isRepeating: false, batchSize: 0, futureCount: 0 };
-
-      // First get the task details
-      const { data: task, error: taskError } = await supabase
-        .from('tasks')
-        .select('id, title, due_date, created_at, created_by')
-        .eq('id', taskId)
-        .single();
-
-      if (taskError || !task) {
-        return { isRepeating: false, batchSize: 0, futureCount: 0 };
-      }
-
-      // Use date only (10 chars: YYYY-MM-DD) to handle timestamp variations
-      const createdDate = task.created_at?.slice(0, 10) || '';
-
-      // Find all tasks with same title and created_by to count the batch
-      const { data: allBatchTasks, error: batchError } = await supabase
-        .from('tasks')
-        .select('id, due_date, created_at, created_by')
-        .eq('title', task.title)
-        .eq('created_by', task.created_by);
-
-      if (batchError || !allBatchTasks) {
-        return { isRepeating: false, batchSize: 0, futureCount: 0 };
-      }
-
-      // Filter to same batch (matching created_at date)
-      const batchTasks = allBatchTasks.filter(t => {
-        const tCreatedDate = t.created_at?.slice(0, 10) || '';
-        return tCreatedDate === createdDate;
+      const response = await fetch(`/api/tasks/${taskId}/batch-info`, {
+        credentials: 'include',
       });
 
-      // Count future tasks (due_date >= this task's due_date)
-      const futureCount = batchTasks.filter(t => {
-        if (!t.due_date || !task.due_date) return false;
-        return t.due_date >= task.due_date;
-      }).length;
+      if (!response.ok) {
+        return { isRepeating: false, batchSize: 0, futureCount: 0 };
+      }
 
-      return {
-        isRepeating: batchTasks.length > 1,
-        batchSize: batchTasks.length,
-        futureCount,
-      };
+      return response.json();
     },
     enabled: !!taskId,
+    staleTime: 0, // Always refetch
+    gcTime: 0, // Don't cache
+    refetchOnMount: true,
   });
 
-  return data || { isRepeating: false, batchSize: 0, futureCount: 0 };
+  // Consider loading if: query is enabled AND (is pending or fetching)
+  const isQueryLoading = !!taskId && (isPending || isLoading || isFetching);
+
+  return {
+    isRepeating: data?.isRepeating ?? false,
+    batchSize: data?.batchSize ?? 0,
+    futureCount: data?.futureCount ?? 0,
+    isLoading: isQueryLoading,
+  };
 }
 
 export function useCompleteTask() {

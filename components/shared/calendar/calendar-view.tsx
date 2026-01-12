@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask, useDeleteTask, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
+import { useCompleteTask, useDeleteTask, useDeleteFutureTasks, useTaskBatchInfo, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
 import { useDeleteChildLog } from '@/hooks/use-child-logs';
@@ -220,6 +220,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const router = useRouter();
   const completeTask = useCompleteTask();
   const deleteTask = useDeleteTask();
+  const deleteFutureTasks = useDeleteFutureTasks();
   const updateTaskDateTime = useUpdateTaskDateTime();
   const updateTaskStatus = useUpdateTaskStatus();
   const upsertOverride = useUpsertScheduleOverride();
@@ -230,11 +231,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const { data: employees } = useEmployeesList();
 
   // Task delete confirmation state
-  const [deleteTaskDialog, setDeleteTaskDialog] = useState<{
-    open: boolean;
-    taskId: string;
-    title: string;
-  } | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [deleteTaskTitle, setDeleteTaskTitle] = useState<string>('');
+
+  // Get batch info for the task being deleted
+  const batchInfo = useTaskBatchInfo(deleteTaskId);
 
   // Log delete confirmation state
   const [deleteLogDialog, setDeleteLogDialog] = useState<{
@@ -409,22 +410,30 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     router.push(`/tasks/${taskId}/edit`);
   };
 
-  const handleDeleteTask = async () => {
-    if (!deleteTaskDialog) return;
+  const handleDeleteTaskSingle = async () => {
+    if (!deleteTaskId) return;
 
-    await deleteTask.mutateAsync(deleteTaskDialog.taskId);
-    setDeleteTaskDialog(null);
+    await deleteTask.mutateAsync(deleteTaskId);
+    setDeleteTaskId(null);
+    setDeleteTaskTitle('');
+    setSelectedEvent(null);
+    refetch();
+  };
+
+  const handleDeleteTaskFuture = async () => {
+    if (!deleteTaskId) return;
+
+    await deleteFutureTasks.mutateAsync(deleteTaskId);
+    setDeleteTaskId(null);
+    setDeleteTaskTitle('');
     setSelectedEvent(null);
     refetch();
   };
 
   const openDeleteTaskDialog = (eventId: string, title: string) => {
     const taskId = extractTaskId(eventId);
-    setDeleteTaskDialog({
-      open: true,
-      taskId,
-      title,
-    });
+    setDeleteTaskId(taskId);
+    setDeleteTaskTitle(title);
   };
 
   // Child log handlers
@@ -1391,26 +1400,60 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       )}
 
       {/* Delete Task Confirmation Dialog */}
-      <AlertDialog open={!!deleteTaskDialog?.open} onOpenChange={(open) => !open && setDeleteTaskDialog(null)}>
+      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => { if (!open) { setDeleteTaskId(null); setDeleteTaskTitle(''); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('tasks.deleteTask')}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('tasks.deleteConfirmation')}
+              {batchInfo.isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('common.loading')}
+                </span>
+              ) : batchInfo.isRepeating ? (
+                t('tasks.deleteRepeatingConfirmation', { count: batchInfo.futureCount })
+              ) : (
+                t('tasks.deleteConfirmation')
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className={batchInfo.isRepeating ? 'flex-col sm:flex-row gap-2' : ''}>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteTask}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteTask.isPending}
-            >
-              {deleteTask.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : null}
-              {t('common.delete')}
-            </AlertDialogAction>
+            {batchInfo.isLoading ? null : batchInfo.isRepeating ? (
+              <>
+                <AlertDialogAction
+                  onClick={handleDeleteTaskSingle}
+                  className="bg-orange-600 hover:bg-orange-700"
+                  disabled={deleteTask.isPending}
+                >
+                  {deleteTask.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
+                  {t('tasks.deleteThisOnly')}
+                </AlertDialogAction>
+                <AlertDialogAction
+                  onClick={handleDeleteTaskFuture}
+                  className="bg-red-600 hover:bg-red-700"
+                  disabled={deleteFutureTasks.isPending}
+                >
+                  {deleteFutureTasks.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
+                  {t('tasks.deleteAllFuture', { count: batchInfo.futureCount })}
+                </AlertDialogAction>
+              </>
+            ) : (
+              <AlertDialogAction
+                onClick={handleDeleteTaskSingle}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={deleteTask.isPending}
+              >
+                {deleteTask.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                {t('common.delete')}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

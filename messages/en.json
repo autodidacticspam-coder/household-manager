@@ -44,7 +44,8 @@
     "viewAll": "View All",
     "uncategorized": "Uncategorized",
     "createdBy": "Created by",
-    "more": "more"
+    "more": "more",
+    "clearFilters": "Clear Filters"
   },
   "dashboard": {
     "noOneOnLeave": "No one is currently on leave",
@@ -116,7 +117,8 @@
     "profile": "Profile",
     "log": "Log",
     "menu": "Menu",
-    "foodRatings": "Food Ratings"
+    "food": "Food",
+    "recipes": "Recipes"
   },
   "tasks": {
     "title": "Tasks",
@@ -183,6 +185,7 @@
       "occurrences": "occurrences"
     },
     "noTasks": "No tasks found",
+    "tasksFound": "tasks found",
     "noDueDate": "No due date",
     "noPendingTasks": "No pending tasks. Great job!",
     "taskCreated": "Task created successfully",
@@ -617,5 +620,53 @@
     "overwrite": "Overwrite",
     "deleteTemplate": "Delete Template",
     "deleteConfirmation": "Are you sure you want to delete this template? This action cannot be undone."
+  },
+  "recipes": {
+    "title": "Recipes",
+    "description": "Browse and manage recipes",
+    "addRecipe": "Add Recipe",
+    "editRecipe": "Edit Recipe",
+    "deleteRecipe": "Delete Recipe",
+    "deleteConfirmation": "Are you sure you want to delete this recipe?",
+    "recipeTitle": "Recipe Title",
+    "recipeDescription": "Description",
+    "ingredients": "Ingredients",
+    "ingredientName": "Ingredient",
+    "ingredientAmount": "Amount",
+    "instructions": "Instructions",
+    "stepNumber": "Step {number}",
+    "prepTime": "Prep Time",
+    "cookTime": "Cook Time",
+    "servings": "Servings",
+    "sourceUrl": "Source URL",
+    "sourceUrlPlaceholder": "https://example.com/recipe",
+    "sourceName": "Source Name",
+    "sourceNamePlaceholder": "e.g., Allrecipes, NYT Cooking",
+    "notes": "Notes",
+    "notesPlaceholder": "Additional tips or variations...",
+    "addIngredient": "Add Ingredient",
+    "addStep": "Add Step",
+    "removeIngredient": "Remove",
+    "removeStep": "Remove",
+    "requestThisDish": "Request This Dish",
+    "noRecipes": "No recipes yet. Add your first recipe!",
+    "searchRecipes": "Search recipes...",
+    "minutes": "min",
+    "recipeCreated": "Recipe created",
+    "recipeUpdated": "Recipe updated",
+    "recipeDeleted": "Recipe deleted",
+    "media": {
+      "title": "Photos & Videos",
+      "uploadImage": "Upload Image",
+      "uploadVideo": "Upload Video",
+      "addLink": "Add Link",
+      "setAsHero": "Set as Cover",
+      "noMedia": "No photos or videos"
+    }
+  },
+  "foodRequests": {
+    "notes": "Notes",
+    "notesPlaceholder": "Any special requests or preferences...",
+    "submitRequest": "Submit Request"
   }
 }

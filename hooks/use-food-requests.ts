@@ -28,6 +28,7 @@ export type FoodRequest = {
 export type CreateFoodRequestInput = {
   foodName: string;
   notes?: string | null;
+  recipeId?: string | null;
 };
 
 // Get all food requests
@@ -92,6 +93,7 @@ export function useCreateFoodRequest() {
         .insert({
           food_name: input.foodName,
           notes: input.notes || null,
+          recipe_id: input.recipeId || null,
           requested_by: user.id,
         })
         .select()

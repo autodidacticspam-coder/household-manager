@@ -21,6 +21,7 @@ import {
   ClipboardList,
   UtensilsCrossed,
   Star,
+  BookOpen,
 } from 'lucide-react';
 
 type NavItem = {
@@ -52,7 +53,8 @@ const employeeNavItems: NavItem[] = [
 ];
 
 const logsNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> };
-const foodRatingsNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.foodRatings', icon: <Star className="h-5 w-5" /> };
+const foodNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.food', icon: <Star className="h-5 w-5" /> };
+const recipesNavItem: NavItem = { href: '/recipes', labelKey: 'nav.recipes', icon: <BookOpen className="h-5 w-5" /> };
 
 export function Sidebar() {
   const t = useTranslations();
@@ -61,26 +63,32 @@ export function Sidebar() {
   const { data: canAccessFoodRatings } = useCanAccessFoodRatings();
   const { data: canAccessLogs } = useCanAccessChildLogs();
 
-  // Build nav items, conditionally including logs and food ratings
+  // Build nav items, conditionally including logs, food, and recipes
   const buildNavItems = () => {
     const items: NavItem[] = [];
 
     if (isAdmin) {
-      // Admin nav: dashboard, tasks, calendar, [logs], menu, [food-ratings], employees, leave-requests...
+      // Admin nav: dashboard, tasks, calendar, [logs], menu, [food], [recipes], employees, leave-requests...
       items.push(adminNavItems[0]); // dashboard
       items.push(adminNavItems[1]); // tasks
       items.push(adminNavItems[2]); // calendar
       if (canAccessLogs) items.push(logsNavItem);
       items.push(adminNavItems[3]); // menu
-      if (canAccessFoodRatings) items.push(foodRatingsNavItem);
+      if (canAccessFoodRatings) {
+        items.push(foodNavItem);
+        items.push(recipesNavItem);
+      }
       items.push(...adminNavItems.slice(4)); // employees, vacations, leave-requests, etc.
     } else {
-      // Employee nav: my-tasks, [logs], my-calendar, menu, [food-ratings], time-off...
+      // Employee nav: my-tasks, [logs], my-calendar, menu, [food], [recipes], time-off...
       items.push(employeeNavItems[0]); // my-tasks
       if (canAccessLogs) items.push(logsNavItem);
       items.push(employeeNavItems[1]); // my-calendar
       items.push(employeeNavItems[2]); // menu
-      if (canAccessFoodRatings) items.push(foodRatingsNavItem);
+      if (canAccessFoodRatings) {
+        items.push(foodNavItem);
+        items.push(recipesNavItem);
+      }
       items.push(...employeeNavItems.slice(3)); // time-off, supplies, etc.
     }
 

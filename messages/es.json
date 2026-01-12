@@ -44,7 +44,8 @@
     "viewAll": "Ver Todo",
     "uncategorized": "Sin categoría",
     "createdBy": "Creado por",
-    "more": "más"
+    "more": "más",
+    "clearFilters": "Limpiar Filtros"
   },
   "dashboard": {
     "noOneOnLeave": "Nadie está de permiso actualmente",
@@ -116,7 +117,8 @@
     "profile": "Perfil",
     "log": "Registro",
     "menu": "Menú",
-    "foodRatings": "Calificaciones de Comida"
+    "food": "Comida",
+    "recipes": "Recetas"
   },
   "tasks": {
     "title": "Tareas",
@@ -183,6 +185,7 @@
       "occurrences": "repeticiones"
     },
     "noTasks": "No se encontraron tareas",
+    "tasksFound": "tareas encontradas",
     "noDueDate": "Sin fecha límite",
     "noPendingTasks": "No hay tareas pendientes. ¡Buen trabajo!",
     "taskCreated": "Tarea creada exitosamente",
@@ -617,5 +620,53 @@
     "overwrite": "Sobrescribir",
     "deleteTemplate": "Eliminar Plantilla",
     "deleteConfirmation": "¿Estás seguro de que quieres eliminar esta plantilla? Esta acción no se puede deshacer."
+  },
+  "recipes": {
+    "title": "Recetas",
+    "description": "Explora y gestiona recetas",
+    "addRecipe": "Agregar Receta",
+    "editRecipe": "Editar Receta",
+    "deleteRecipe": "Eliminar Receta",
+    "deleteConfirmation": "¿Estás seguro de que quieres eliminar esta receta?",
+    "recipeTitle": "Título de la Receta",
+    "recipeDescription": "Descripción",
+    "ingredients": "Ingredientes",
+    "ingredientName": "Ingrediente",
+    "ingredientAmount": "Cantidad",
+    "instructions": "Instrucciones",
+    "stepNumber": "Paso {number}",
+    "prepTime": "Tiempo de Preparación",
+    "cookTime": "Tiempo de Cocción",
+    "servings": "Porciones",
+    "sourceUrl": "URL de Origen",
+    "sourceUrlPlaceholder": "https://ejemplo.com/receta",
+    "sourceName": "Nombre de la Fuente",
+    "sourceNamePlaceholder": "ej., Allrecipes, NYT Cooking",
+    "notes": "Notas",
+    "notesPlaceholder": "Consejos adicionales o variaciones...",
+    "addIngredient": "Agregar Ingrediente",
+    "addStep": "Agregar Paso",
+    "removeIngredient": "Eliminar",
+    "removeStep": "Eliminar",
+    "requestThisDish": "Solicitar Este Plato",
+    "noRecipes": "Sin recetas aún. ¡Agrega tu primera receta!",
+    "searchRecipes": "Buscar recetas...",
+    "minutes": "min",
+    "recipeCreated": "Receta creada",
+    "recipeUpdated": "Receta actualizada",
+    "recipeDeleted": "Receta eliminada",
+    "media": {
+      "title": "Fotos y Videos",
+      "uploadImage": "Subir Imagen",
+      "uploadVideo": "Subir Video",
+      "addLink": "Agregar Enlace",
+      "setAsHero": "Establecer como Portada",
+      "noMedia": "Sin fotos ni videos"
+    }
+  },
+  "foodRequests": {
+    "notes": "Notas",
+    "notesPlaceholder": "Cualquier solicitud especial o preferencia...",
+    "submitRequest": "Enviar Solicitud"
   }
 }

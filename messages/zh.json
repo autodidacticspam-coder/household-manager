@@ -44,7 +44,8 @@
     "viewAll": "查看全部",
     "uncategorized": "未分类",
     "createdBy": "创建者",
-    "more": "更多"
+    "more": "更多",
+    "clearFilters": "清除筛选"
   },
   "dashboard": {
     "noOneOnLeave": "目前没有人休假",
@@ -116,7 +117,8 @@
     "profile": "个人资料",
     "log": "记录",
     "menu": "菜单",
-    "foodRatings": "食物评分"
+    "food": "食物",
+    "recipes": "食谱"
   },
   "tasks": {
     "title": "任务",
@@ -183,6 +185,7 @@
       "occurrences": "次"
     },
     "noTasks": "未找到任务",
+    "tasksFound": "个任务",
     "noDueDate": "无截止日期",
     "noPendingTasks": "没有待处理的任务。做得好！",
     "taskCreated": "任务创建成功",
@@ -617,5 +620,53 @@
     "overwrite": "覆盖",
     "deleteTemplate": "删除模板",
     "deleteConfirmation": "确定要删除此模板吗？此操作无法撤消。"
+  },
+  "recipes": {
+    "title": "食谱",
+    "description": "浏览和管理食谱",
+    "addRecipe": "添加食谱",
+    "editRecipe": "编辑食谱",
+    "deleteRecipe": "删除食谱",
+    "deleteConfirmation": "确定要删除此食谱吗？",
+    "recipeTitle": "食谱标题",
+    "recipeDescription": "描述",
+    "ingredients": "食材",
+    "ingredientName": "食材",
+    "ingredientAmount": "用量",
+    "instructions": "步骤",
+    "stepNumber": "第 {number} 步",
+    "prepTime": "准备时间",
+    "cookTime": "烹饪时间",
+    "servings": "份量",
+    "sourceUrl": "来源链接",
+    "sourceUrlPlaceholder": "https://example.com/recipe",
+    "sourceName": "来源名称",
+    "sourceNamePlaceholder": "例如：下厨房、美食天下",
+    "notes": "备注",
+    "notesPlaceholder": "额外提示或变化...",
+    "addIngredient": "添加食材",
+    "addStep": "添加步骤",
+    "removeIngredient": "删除",
+    "removeStep": "删除",
+    "requestThisDish": "请求此菜品",
+    "noRecipes": "暂无食谱。添加您的第一个食谱！",
+    "searchRecipes": "搜索食谱...",
+    "minutes": "分钟",
+    "recipeCreated": "食谱已创建",
+    "recipeUpdated": "食谱已更新",
+    "recipeDeleted": "食谱已删除",
+    "media": {
+      "title": "图片和视频",
+      "uploadImage": "上传图片",
+      "uploadVideo": "上传视频",
+      "addLink": "添加链接",
+      "setAsHero": "设为封面",
+      "noMedia": "暂无图片或视频"
+    }
+  },
+  "foodRequests": {
+    "notes": "备注",
+    "notesPlaceholder": "任何特殊要求或偏好...",
+    "submitRequest": "提交请求"
   }
 }
