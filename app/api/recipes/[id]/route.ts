@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateRecipeSchema } from '@/lib/validators/recipe';
-import { getApiAdminClient, getApiAuthUser, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
+import { getApiAdminClient, getApiAuthUser, requireApiAdminOrChefRole, handleApiError } from '@/lib/supabase/api-helpers';
 
 export async function GET(
   request: NextRequest,
@@ -89,7 +89,7 @@ export async function PUT(
       );
     }
 
-    const { user } = await requireApiAdminRole();
+    const { user } = await requireApiAdminOrChefRole();
     const supabaseAdmin = getApiAdminClient();
 
     const { media, ...recipeData } = result.data;
@@ -172,7 +172,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await requireApiAdminRole();
+    await requireApiAdminOrChefRole();
     const supabaseAdmin = getApiAdminClient();
 
     // Delete the recipe (media will be cascade deleted)

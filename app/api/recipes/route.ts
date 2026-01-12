@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRecipeSchema } from '@/lib/validators/recipe';
-import { getApiAdminClient, getApiAuthUser, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
+import { getApiAdminClient, getApiAuthUser, requireApiAdminOrChefRole, handleApiError } from '@/lib/supabase/api-helpers';
 
 export async function GET(request: NextRequest) {
   try {
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { user } = await requireApiAdminRole();
+    const { user } = await requireApiAdminOrChefRole();
     const supabaseAdmin = getApiAdminClient();
 
     const { media, ...recipeData } = result.data;

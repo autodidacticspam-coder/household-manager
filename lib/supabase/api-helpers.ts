@@ -74,6 +74,60 @@ export async function requireApiAdminRole(): Promise<{
 }
 
 /**
+ * Check if user is authenticated and has admin role OR is in chef group
+ * Returns { user, userData } if admin/chef, throws error otherwise
+ */
+export async function requireApiAdminOrChefRole(): Promise<{
+  user: User;
+  userData: { role: string; preferred_locale?: string };
+}> {
+  const user = await getApiAuthUser();
+
+  if (!user) {
+    throw new ApiError('Not authenticated', 401);
+  }
+
+  const adminClient = getApiAdminClient();
+
+  // Check if admin
+  const { data: userData, error } = await adminClient
+    .from('users')
+    .select('role, preferred_locale')
+    .eq('id', user.id)
+    .single();
+
+  if (error || !userData) {
+    throw new ApiError('User not found', 404);
+  }
+
+  if (userData.role === 'admin') {
+    return { user, userData };
+  }
+
+  // Check if in chef group
+  const { data: membership } = await adminClient
+    .from('employee_group_memberships')
+    .select(`
+      group:employee_groups!inner(name)
+    `)
+    .eq('user_id', user.id);
+
+  const isChef = membership?.some((m) => {
+    const group = m.group as { name: string }[] | { name: string } | null;
+    if (Array.isArray(group)) {
+      return group.some(g => g.name?.toLowerCase() === 'chef');
+    }
+    return (group as { name?: string } | null)?.name?.toLowerCase() === 'chef';
+  });
+
+  if (!isChef) {
+    throw new ApiError('Only admins and chefs can perform this action', 403);
+  }
+
+  return { user, userData };
+}
+
+/**
  * Custom error class for API errors with status code
  */
 export class ApiError extends Error {
