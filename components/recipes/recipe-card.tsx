@@ -1,9 +1,8 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, Utensils, Send } from 'lucide-react';
+import { Utensils, Send } from 'lucide-react';
 import type { RecipeWithMedia } from '@/types/recipe';
 import { getVideoThumbnail } from '@/hooks/use-recipe-media';
 
@@ -14,8 +13,6 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe, onClick, onRequest }: RecipeCardProps) {
-  const t = useTranslations();
-
   // Find hero image or first media item
   const heroMedia = recipe.media?.find(m => m.isHero) || recipe.media?.[0];
 
@@ -30,8 +27,6 @@ export function RecipeCard({ recipe, onClick, onRequest }: RecipeCardProps) {
       thumbnailUrl = heroMedia.url;
     }
   }
-
-  const totalTime = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
 
   return (
     <Card
@@ -54,24 +49,8 @@ export function RecipeCard({ recipe, onClick, onRequest }: RecipeCardProps) {
       </div>
 
       <CardContent className="p-4">
-        <h3 className="font-semibold text-lg line-clamp-2 mb-2">{recipe.title}</h3>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            {totalTime > 0 && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
-                {totalTime} {t('recipes.minutes')}
-              </span>
-            )}
-            {recipe.servings && (
-              <span className="flex items-center gap-1">
-                <Utensils className="h-4 w-4" />
-                {recipe.servings}
-              </span>
-            )}
-          </div>
-
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="font-semibold text-lg line-clamp-2 flex-1">{recipe.title}</h3>
           <Button
             size="sm"
             variant="outline"

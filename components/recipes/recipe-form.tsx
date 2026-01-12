@@ -9,11 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { IngredientsInput } from './ingredients-input';
-import { InstructionsInput } from './instructions-input';
 import { RecipeMediaSection } from './recipe-media-section';
 import { useCreateRecipe, useUpdateRecipe } from '@/hooks/use-recipes';
-import type { RecipeWithMedia, Ingredient, Instruction, RecipeMediaInput } from '@/types/recipe';
+import type { RecipeWithMedia, RecipeMediaInput } from '@/types/recipe';
 
 interface RecipeFormProps {
   recipe?: RecipeWithMedia;
@@ -26,14 +24,8 @@ export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
 
   const [title, setTitle] = useState(recipe?.title || '');
   const [description, setDescription] = useState(recipe?.description || '');
-  const [ingredients, setIngredients] = useState<Ingredient[]>(recipe?.ingredients || []);
-  const [instructions, setInstructions] = useState<Instruction[]>(recipe?.instructions || []);
-  const [prepTimeMinutes, setPrepTimeMinutes] = useState<string>(recipe?.prepTimeMinutes?.toString() || '');
-  const [cookTimeMinutes, setCookTimeMinutes] = useState<string>(recipe?.cookTimeMinutes?.toString() || '');
-  const [servings, setServings] = useState<string>(recipe?.servings?.toString() || '');
   const [sourceUrl, setSourceUrl] = useState(recipe?.sourceUrl || '');
   const [sourceName, setSourceName] = useState(recipe?.sourceName || '');
-  const [notes, setNotes] = useState(recipe?.notes || '');
 
   // Media state
   const [existingMedia, setExistingMedia] = useState<RecipeMediaInput[]>(
@@ -66,14 +58,10 @@ export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
     const data = {
       title,
       description: description || undefined,
-      ingredients,
-      instructions,
-      prepTimeMinutes: prepTimeMinutes ? parseInt(prepTimeMinutes) : undefined,
-      cookTimeMinutes: cookTimeMinutes ? parseInt(cookTimeMinutes) : undefined,
-      servings: servings ? parseInt(servings) : undefined,
+      ingredients: [],
+      instructions: [],
       sourceUrl: sourceUrl || undefined,
       sourceName: sourceName || undefined,
-      notes: notes || undefined,
       media: allMedia,
     };
 
@@ -143,70 +131,11 @@ export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="A brief description of the recipe..."
-              rows={3}
+              placeholder="Enter the full recipe including ingredients, instructions, notes..."
+              rows={20}
+              className="min-h-[400px] font-mono text-sm"
             />
           </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="prepTime">{t('recipes.prepTime')}</Label>
-              <Input
-                id="prepTime"
-                type="number"
-                min="0"
-                value={prepTimeMinutes}
-                onChange={(e) => setPrepTimeMinutes(e.target.value)}
-                placeholder="15"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cookTime">{t('recipes.cookTime')}</Label>
-              <Input
-                id="cookTime"
-                type="number"
-                min="0"
-                value={cookTimeMinutes}
-                onChange={(e) => setCookTimeMinutes(e.target.value)}
-                placeholder="30"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="servings">{t('recipes.servings')}</Label>
-              <Input
-                id="servings"
-                type="number"
-                min="1"
-                value={servings}
-                onChange={(e) => setServings(e.target.value)}
-                placeholder="4"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('recipes.ingredients')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <IngredientsInput
-            ingredients={ingredients}
-            onChange={setIngredients}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('recipes.instructions')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <InstructionsInput
-            instructions={instructions}
-            onChange={setInstructions}
-          />
         </CardContent>
       </Card>
 
@@ -267,20 +196,6 @@ export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
               placeholder={t('recipes.sourceNamePlaceholder')}
             />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('recipes.notes')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t('recipes.notesPlaceholder')}
-            rows={4}
-          />
         </CardContent>
       </Card>
 

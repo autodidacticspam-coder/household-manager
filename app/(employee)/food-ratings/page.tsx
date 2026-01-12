@@ -21,11 +21,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2 } from 'lucide-react';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings, useDeleteMenuRating } from '@/hooks/use-menu-ratings';
 import { useFoodRequests, useCompleteFoodRequest, useCreateFoodRequest, usePendingFoodRequestsCount, useDeleteFoodRequest } from '@/hooks/use-food-requests';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -146,14 +147,22 @@ export default function FoodRatingsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-          <ChefHat className="h-6 w-6" />
-          Food Ratings
-        </h1>
-        <p className="text-muted-foreground">
-          View how your dishes are being rated by the family
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <ChefHat className="h-6 w-6" />
+            Food Ratings
+          </h1>
+          <p className="text-muted-foreground">
+            View how your dishes are being rated by the family
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/recipes">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Recipes
+          </Link>
+        </Button>
       </div>
 
       {/* Stats Cards */}

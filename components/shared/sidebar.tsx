@@ -21,7 +21,6 @@ import {
   ClipboardList,
   UtensilsCrossed,
   Star,
-  BookOpen,
 } from 'lucide-react';
 
 type NavItem = {
@@ -54,7 +53,6 @@ const employeeNavItems: NavItem[] = [
 
 const logsNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> };
 const foodNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.food', icon: <Star className="h-5 w-5" /> };
-const recipesNavItem: NavItem = { href: '/recipes', labelKey: 'nav.recipes', icon: <BookOpen className="h-5 w-5" /> };
 
 export function Sidebar() {
   const t = useTranslations();
@@ -76,18 +74,16 @@ export function Sidebar() {
       items.push(adminNavItems[3]); // menu
       if (canAccessFoodRatings) {
         items.push(foodNavItem);
-        items.push(recipesNavItem);
       }
       items.push(...adminNavItems.slice(4)); // employees, vacations, leave-requests, etc.
     } else {
-      // Employee nav: my-tasks, [logs], my-calendar, menu, [food], [recipes], time-off...
+      // Employee nav: my-tasks, [logs], my-calendar, menu, [food], time-off...
       items.push(employeeNavItems[0]); // my-tasks
       if (canAccessLogs) items.push(logsNavItem);
       items.push(employeeNavItems[1]); // my-calendar
       items.push(employeeNavItems[2]); // menu
       if (canAccessFoodRatings) {
         items.push(foodNavItem);
-        items.push(recipesNavItem);
       }
       items.push(...employeeNavItems.slice(3)); // time-off, supplies, etc.
     }

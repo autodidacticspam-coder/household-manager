@@ -21,11 +21,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Clock,
-  Utensils,
   ExternalLink,
   Pencil,
   Trash2,
@@ -56,7 +53,6 @@ export function RecipeDetailDialog({
   const deleteRecipe = useDeleteRecipe();
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!recipe) return null;
@@ -64,8 +60,6 @@ export function RecipeDetailDialog({
   const heroMedia = recipe.media?.find(m => m.isHero) || recipe.media?.[0];
   const mediaCount = recipe.media?.length || 0;
   const currentMedia = recipe.media?.[currentMediaIndex] || heroMedia;
-
-  const totalTime = (recipe.prepTimeMinutes || 0) + (recipe.cookTimeMinutes || 0);
 
   const handleEdit = () => {
     onOpenChange(false);
@@ -76,16 +70,6 @@ export function RecipeDetailDialog({
     await deleteRecipe.mutateAsync(recipe.id);
     setShowDeleteConfirm(false);
     onOpenChange(false);
-  };
-
-  const toggleIngredient = (index: number) => {
-    const newChecked = new Set(checkedIngredients);
-    if (newChecked.has(index)) {
-      newChecked.delete(index);
-    } else {
-      newChecked.add(index);
-    }
-    setCheckedIngredients(newChecked);
   };
 
   const getThumbnail = (media: typeof currentMedia): string | null => {
@@ -188,90 +172,12 @@ export function RecipeDetailDialog({
             <div className="p-6 space-y-6">
               <DialogHeader>
                 <DialogTitle className="text-2xl">{recipe.title}</DialogTitle>
-                {recipe.description && (
-                  <p className="text-muted-foreground">{recipe.description}</p>
-                )}
               </DialogHeader>
 
-              {/* Meta Info */}
-              <div className="flex flex-wrap gap-4 text-sm">
-                {recipe.prepTimeMinutes && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>Prep: {recipe.prepTimeMinutes} {t('recipes.minutes')}</span>
-                  </div>
-                )}
-                {recipe.cookTimeMinutes && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>Cook: {recipe.cookTimeMinutes} {t('recipes.minutes')}</span>
-                  </div>
-                )}
-                {totalTime > 0 && (
-                  <div className="flex items-center gap-1 font-medium">
-                    <Clock className="h-4 w-4" />
-                    <span>Total: {totalTime} {t('recipes.minutes')}</span>
-                  </div>
-                )}
-                {recipe.servings && (
-                  <div className="flex items-center gap-1">
-                    <Utensils className="h-4 w-4 text-muted-foreground" />
-                    <span>{recipe.servings} {t('recipes.servings')}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Ingredients */}
-              {recipe.ingredients && recipe.ingredients.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">{t('recipes.ingredients')}</h3>
-                  <ul className="space-y-2">
-                    {recipe.ingredients.map((ingredient, index) => (
-                      <li key={index} className="flex items-center gap-3">
-                        <Checkbox
-                          id={`ingredient-${index}`}
-                          checked={checkedIngredients.has(index)}
-                          onCheckedChange={() => toggleIngredient(index)}
-                        />
-                        <label
-                          htmlFor={`ingredient-${index}`}
-                          className={`flex-1 cursor-pointer ${
-                            checkedIngredients.has(index) ? 'line-through text-muted-foreground' : ''
-                          }`}
-                        >
-                          {ingredient.amount && (
-                            <span className="font-medium">{ingredient.amount}</span>
-                          )}{' '}
-                          {ingredient.item}
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Instructions */}
-              {recipe.instructions && recipe.instructions.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">{t('recipes.instructions')}</h3>
-                  <ol className="space-y-4">
-                    {recipe.instructions.map((instruction) => (
-                      <li key={instruction.step} className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-                          {instruction.step}
-                        </span>
-                        <p className="flex-1 pt-0.5">{instruction.text}</p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-
-              {/* Notes */}
-              {recipe.notes && (
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-lg">{t('recipes.notes')}</h3>
-                  <p className="text-muted-foreground whitespace-pre-wrap">{recipe.notes}</p>
+              {/* Description */}
+              {recipe.description && (
+                <div className="whitespace-pre-wrap text-sm font-mono bg-muted/50 p-4 rounded-lg">
+                  {recipe.description}
                 </div>
               )}
 
