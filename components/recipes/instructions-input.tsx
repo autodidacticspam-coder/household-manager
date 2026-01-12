@@ -46,7 +46,7 @@ export function InstructionsInput({ instructions, onChange }: InstructionsInputP
 
       {instructions.length === 0 ? (
         <p className="text-sm text-muted-foreground py-2">
-          No instructions added yet. Click "Add Step" to start.
+          No instructions added yet. Click &quot;Add Step&quot; to start.
         </p>
       ) : (
         <div className="space-y-3">

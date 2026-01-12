@@ -184,8 +184,7 @@ export function generateTaskDates(input: TaskGenerationInput): string[] {
  */
 export function getRepeatDescription(
   selectedDays: number[],
-  repeatInterval: RepeatInterval,
-  _t: (key: string) => string
+  repeatInterval: RepeatInterval
 ): string {
   if (!repeatInterval || selectedDays.length === 0) {
     return '';

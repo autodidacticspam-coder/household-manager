@@ -1,46 +1,40 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getTodayString, getStartOfMonthString } from '@/lib/date-utils';
 
 /**
  * SSR-safe hook to get today's date string.
- * Returns empty string during SSR, then updates to actual date on client.
+ * Uses lazy initialization to avoid hydration mismatch.
  */
 export function useToday(): string {
-  const [today, setToday] = useState('');
-
-  useEffect(() => {
-    setToday(getTodayString());
-  }, []);
+  const [today] = useState(() =>
+    typeof window !== 'undefined' ? getTodayString() : ''
+  );
 
   return today;
 }
 
 /**
  * SSR-safe hook to get the start of current month.
- * Returns empty string during SSR, then updates to actual date on client.
+ * Uses lazy initialization to avoid hydration mismatch.
  */
 export function useStartOfMonth(): string {
-  const [startOfMonth, setStartOfMonth] = useState('');
-
-  useEffect(() => {
-    setStartOfMonth(getStartOfMonthString());
-  }, []);
+  const [startOfMonth] = useState(() =>
+    typeof window !== 'undefined' ? getStartOfMonthString() : ''
+  );
 
   return startOfMonth;
 }
 
 /**
  * SSR-safe hook to get today's Date object.
- * Returns null during SSR, then updates to actual Date on client.
+ * Uses lazy initialization to avoid hydration mismatch.
  */
 export function useTodayDate(): Date | null {
-  const [today, setToday] = useState<Date | null>(null);
-
-  useEffect(() => {
-    setToday(new Date());
-  }, []);
+  const [today] = useState<Date | null>(() =>
+    typeof window !== 'undefined' ? new Date() : null
+  );
 
   return today;
 }

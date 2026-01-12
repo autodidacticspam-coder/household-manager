@@ -28,7 +28,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useRouter } from 'next/navigation';
-import type { TaskWithRelations } from '@/types';
 import { useUpcomingImportantDates } from '@/hooks/use-employees';
 import { LogsTopCard, LogsDialog, useLogsAccess } from '@/components/dashboard/logs-section';
 import { format, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';

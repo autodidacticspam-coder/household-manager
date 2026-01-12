@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { AuthUser } from '@/types';
-import type { User, Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 
 type AuthContextType = {
   user: AuthUser | null;
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
-  const fetchUserData = useCallback(async (_authUser: User) => {
+  const fetchUserData = useCallback(async () => {
     try {
       const response = await fetch('/api/user');
       if (response.ok) {
@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Get the refreshed session
         const { data: { session: refreshedSession } } = await supabase.auth.getSession();
         setSession(refreshedSession);
-        await fetchUserData(authUser);
+        await fetchUserData();
       }
     } catch (error) {
       console.error('Error refreshing session:', error);
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = useCallback(async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (authUser) {
-      await fetchUserData(authUser);
+      await fetchUserData();
     }
   }, [supabase, fetchUserData]);
 
@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (authUser) {
           const { data: { session: currentSession } } = await supabase.auth.getSession();
           setSession(currentSession);
-          await fetchUserData(authUser);
+          await fetchUserData();
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -121,14 +121,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(newSession);
 
         if (event === 'SIGNED_IN' && newSession?.user) {
-          await fetchUserData(newSession.user);
+          await fetchUserData();
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
         } else if (event === 'USER_UPDATED' && newSession?.user) {
-          await fetchUserData(newSession.user);
+          await fetchUserData();
         } else if (event === 'TOKEN_REFRESHED' && newSession?.user) {
           // Handle token refresh - important for keeping mobile sessions alive
-          await fetchUserData(newSession.user);
+          await fetchUserData();
         }
       }
     );

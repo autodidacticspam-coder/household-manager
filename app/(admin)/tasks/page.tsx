@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TaskCard } from '@/components/shared/task-card';
 import { TaskTemplates } from '@/components/admin/task-templates';
@@ -64,34 +63,41 @@ export default function TasksPage() {
   const t = useTranslations();
   const router = useRouter();
 
+  // Load filters from localStorage using lazy initialization
+  const [filters, setFilters] = useState<SavedFilters>(() => loadSavedFilters());
+  const { status: statusFilters, priority: priorityFilters, categories: categoryFilters } = filters;
+
   const [search, setSearch] = useState('');
-  const [statusFilters, setStatusFilters] = useState<StatusFilter[]>(['pending']);
-  const [priorityFilters, setPriorityFilters] = useState<PriorityFilter[]>([]);
-  const [categoryFilters, setCategoryFilters] = useState<string[]>([]);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskWithRelations | null>(null);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
 
-  // Load filters from localStorage on mount
-  useEffect(() => {
-    const saved = loadSavedFilters();
-    setStatusFilters(saved.status);
-    setPriorityFilters(saved.priority);
-    setCategoryFilters(saved.categories);
-    setFiltersLoaded(true);
-  }, []);
+  // Update individual filter arrays
+  const setStatusFilters = (status: StatusFilter[] | ((prev: StatusFilter[]) => StatusFilter[])) => {
+    setFilters(prev => ({
+      ...prev,
+      status: typeof status === 'function' ? status(prev.status) : status
+    }));
+  };
+
+  const setPriorityFilters = (priority: PriorityFilter[] | ((prev: PriorityFilter[]) => PriorityFilter[])) => {
+    setFilters(prev => ({
+      ...prev,
+      priority: typeof priority === 'function' ? priority(prev.priority) : priority
+    }));
+  };
+
+  const setCategoryFilters = (categories: string[] | ((prev: string[]) => string[])) => {
+    setFilters(prev => ({
+      ...prev,
+      categories: typeof categories === 'function' ? categories(prev.categories) : categories
+    }));
+  };
 
   // Save filters to localStorage when they change
   useEffect(() => {
-    if (filtersLoaded) {
-      saveFilters({
-        status: statusFilters,
-        priority: priorityFilters,
-        categories: categoryFilters,
-      });
-    }
-  }, [statusFilters, priorityFilters, categoryFilters, filtersLoaded]);
+    saveFilters(filters);
+  }, [filters]);
 
   const toggleStatus = (status: StatusFilter) => {
     setStatusFilters(prev =>

@@ -41,7 +41,7 @@ export function IngredientsInput({ ingredients, onChange }: IngredientsInputProp
 
       {ingredients.length === 0 ? (
         <p className="text-sm text-muted-foreground py-2">
-          No ingredients added yet. Click "Add Ingredient" to start.
+          No ingredients added yet. Click &quot;Add Ingredient&quot; to start.
         </p>
       ) : (
         <div className="space-y-2">

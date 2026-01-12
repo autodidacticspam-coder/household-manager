@@ -232,7 +232,6 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
   // Task delete confirmation state
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
-  const [deleteTaskTitle, setDeleteTaskTitle] = useState<string>('');
 
   // Get batch info for the task being deleted
   const batchInfo = useTaskBatchInfo(deleteTaskId);
@@ -415,7 +414,6 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
     await deleteTask.mutateAsync(deleteTaskId);
     setDeleteTaskId(null);
-    setDeleteTaskTitle('');
     setSelectedEvent(null);
     refetch();
   };
@@ -425,15 +423,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
     await deleteFutureTasks.mutateAsync(deleteTaskId);
     setDeleteTaskId(null);
-    setDeleteTaskTitle('');
     setSelectedEvent(null);
     refetch();
   };
 
-  const openDeleteTaskDialog = (eventId: string, title: string) => {
+  const openDeleteTaskDialog = (eventId: string) => {
     const taskId = extractTaskId(eventId);
     setDeleteTaskId(taskId);
-    setDeleteTaskTitle(title);
   };
 
   // Child log handlers
@@ -1097,7 +1093,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                       size="sm"
                       variant="outline"
                       className="flex-1 text-destructive hover:text-destructive"
-                      onClick={() => openDeleteTaskDialog(selectedEvent.id, selectedEvent.title)}
+                      onClick={() => openDeleteTaskDialog(selectedEvent.id)}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       {t('common.delete')}
@@ -1401,7 +1397,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       )}
 
       {/* Delete Task Confirmation Dialog */}
-      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => { if (!open) { setDeleteTaskId(null); setDeleteTaskTitle(''); } }}>
+      <AlertDialog open={!!deleteTaskId} onOpenChange={(open) => { if (!open) setDeleteTaskId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('tasks.deleteTask')}</AlertDialogTitle>
