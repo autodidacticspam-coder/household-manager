@@ -11,7 +11,10 @@ export async function GET(request: NextRequest) {
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  // Use the request origin for redirect, falling back to production URL
+  const appUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_APP_URL || 'https://household-manager-two.vercel.app';
   const settingsUrl = `${appUrl}/settings`;
 
   // Handle OAuth errors

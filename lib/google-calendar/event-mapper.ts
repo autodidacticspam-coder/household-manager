@@ -64,6 +64,9 @@ interface ChildLogData {
   endTime?: string; // For sleep logs
 }
 
+// Default timezone for events
+const DEFAULT_TIMEZONE = 'America/Los_Angeles';
+
 /**
  * Map a task to Google Calendar event format
  */
@@ -77,14 +80,14 @@ export function taskToCalendarEvent(task: TaskData): GoogleCalendarEvent {
     end = { date: task.dueDate };
   } else if (task.isActivity && task.startTime && task.endTime) {
     // Activity with duration
-    start = { dateTime: `${task.dueDate}T${task.startTime}` };
-    end = { dateTime: `${task.dueDate}T${task.endTime}` };
+    start = { dateTime: `${task.dueDate}T${task.startTime}`, timeZone: DEFAULT_TIMEZONE };
+    end = { dateTime: `${task.dueDate}T${task.endTime}`, timeZone: DEFAULT_TIMEZONE };
   } else {
     // Timed task without duration (1 hour default)
     const startDateTime = `${task.dueDate}T${task.dueTime}`;
-    start = { dateTime: startDateTime };
+    start = { dateTime: startDateTime, timeZone: DEFAULT_TIMEZONE };
     const endTime = addHours(task.dueTime, 1);
-    end = { dateTime: `${task.dueDate}T${endTime}` };
+    end = { dateTime: `${task.dueDate}T${endTime}`, timeZone: DEFAULT_TIMEZONE };
   }
 
   const event: GoogleCalendarEvent = {
@@ -134,8 +137,8 @@ export function scheduleToCalendarEvent(schedule: ScheduleData): GoogleCalendarE
     summary: `${schedule.employeeName} - Work`,
     description: 'Work schedule',
     colorId: COLORS.schedule,
-    start: { dateTime: `${schedule.date}T${schedule.startTime}` },
-    end: { dateTime: `${schedule.date}T${schedule.endTime}` },
+    start: { dateTime: `${schedule.date}T${schedule.startTime}`, timeZone: DEFAULT_TIMEZONE },
+    end: { dateTime: `${schedule.date}T${schedule.endTime}`, timeZone: DEFAULT_TIMEZONE },
     extendedProperties: {
       private: {
         sourceType: 'schedule',
@@ -190,12 +193,12 @@ export function childLogToCalendarEvent(log: ChildLogData): GoogleCalendarEvent 
   let end: GoogleCalendarEvent['end'];
 
   if (log.category === 'sleep' && log.endTime) {
-    start = { dateTime: `${log.logDate}T${log.logTime}` };
-    end = { dateTime: `${log.logDate}T${log.endTime}` };
+    start = { dateTime: `${log.logDate}T${log.logTime}`, timeZone: DEFAULT_TIMEZONE };
+    end = { dateTime: `${log.logDate}T${log.endTime}`, timeZone: DEFAULT_TIMEZONE };
   } else {
     // Other logs are point-in-time (30 min default)
-    start = { dateTime: `${log.logDate}T${log.logTime}` };
-    end = { dateTime: `${log.logDate}T${addMinutes(log.logTime, 30)}` };
+    start = { dateTime: `${log.logDate}T${log.logTime}`, timeZone: DEFAULT_TIMEZONE };
+    end = { dateTime: `${log.logDate}T${addMinutes(log.logTime, 30)}`, timeZone: DEFAULT_TIMEZONE };
   }
 
   return {
