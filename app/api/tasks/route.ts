@@ -4,6 +4,7 @@ import { translateTaskContent, type SupportedLocale } from '@/lib/translation/ge
 import { sendTaskAssignedPush } from '@/lib/notifications/push-service';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 import { generateTaskDates, type RepeatInterval } from '@/lib/task-generator';
+import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -262,6 +263,23 @@ export async function POST(request: NextRequest) {
       if (videoError) {
         console.error('Video creation error:', videoError);
       }
+    }
+
+    // Sync created tasks to Google Calendar (fire and forget)
+    for (const createdTask of tasks) {
+      syncEventToConnectedUsers('task', createdTask.id, 'create', {
+        id: createdTask.id,
+        title: createdTask.title,
+        description: createdTask.description,
+        dueDate: createdTask.due_date,
+        dueTime: createdTask.due_time,
+        isAllDay: createdTask.is_all_day,
+        isActivity: createdTask.is_activity,
+        startTime: createdTask.start_time,
+        endTime: createdTask.end_time,
+        status: createdTask.status,
+        priority: createdTask.priority,
+      }).catch(err => console.error('Calendar sync failed:', err));
     }
 
     return NextResponse.json({

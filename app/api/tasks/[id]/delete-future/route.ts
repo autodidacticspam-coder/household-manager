@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
+import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
 
 // DELETE handler for deleting a task and all future instances in the same batch
 export async function DELETE(
@@ -60,6 +61,13 @@ export async function DELETE(
     }
 
     const taskIdsToDelete = tasksToDelete.map(t => t.id);
+
+    // Trigger calendar sync delete for all tasks being deleted (fire and forget)
+    for (const deletingTaskId of taskIdsToDelete) {
+      syncEventToConnectedUsers('task', deletingTaskId, 'delete').catch(err =>
+        console.error('Calendar sync delete failed:', err)
+      );
+    }
 
     // Delete all the tasks
     const { error: deleteError } = await supabaseAdmin

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { useUser } from '@/hooks/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GoogleCalendarSettings } from '@/components/google-calendar-settings';
 
 export default function SettingsPage() {
   const t = useTranslations();
@@ -132,6 +133,20 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Suspense fallback={
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-10 w-48" />
+          </CardContent>
+        </Card>
+      }>
+        <GoogleCalendarSettings />
+      </Suspense>
 
       <Card>
         <CardHeader>

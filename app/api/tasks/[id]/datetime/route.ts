@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
 
 // PUT handler for updating task date/time (for drag and drop of regular tasks)
 export async function PUT(
@@ -54,6 +55,29 @@ export async function PUT(
     if (error) {
       console.error('Task date/time update error:', error);
       return NextResponse.json({ error: 'Failed to update task date/time' }, { status: 500 });
+    }
+
+    // Sync updated task to Google Calendar
+    const { data: updatedTask } = await supabaseAdmin
+      .from('tasks')
+      .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
+      .eq('id', taskId)
+      .single();
+
+    if (updatedTask) {
+      syncEventToConnectedUsers('task', taskId, 'update', {
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        dueDate: updatedTask.due_date,
+        dueTime: updatedTask.due_time,
+        isAllDay: updatedTask.is_all_day,
+        isActivity: updatedTask.is_activity,
+        startTime: updatedTask.start_time,
+        endTime: updatedTask.end_time,
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+      }).catch(err => console.error('Calendar sync update failed:', err));
     }
 
     return NextResponse.json({ success: true });

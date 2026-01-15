@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { updateTaskSchema, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
+import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
 
 // DELETE handler for deleting a task
 export async function DELETE(
@@ -13,6 +14,11 @@ export async function DELETE(
 
     await requireApiAdminRole();
     const supabaseAdmin = getApiAdminClient();
+
+    // Trigger calendar sync delete before deleting from DB
+    syncEventToConnectedUsers('task', taskId, 'delete').catch(err =>
+      console.error('Calendar sync delete failed:', err)
+    );
 
     const { error } = await supabaseAdmin
       .from('tasks')
@@ -196,6 +202,29 @@ export async function PUT(
           console.error('Video update error:', videoError);
         }
       }
+    }
+
+    // Sync updated task to Google Calendar
+    const { data: updatedTask } = await supabaseAdmin
+      .from('tasks')
+      .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
+      .eq('id', taskId)
+      .single();
+
+    if (updatedTask) {
+      syncEventToConnectedUsers('task', taskId, 'update', {
+        id: updatedTask.id,
+        title: updatedTask.title,
+        description: updatedTask.description,
+        dueDate: updatedTask.due_date,
+        dueTime: updatedTask.due_time,
+        isAllDay: updatedTask.is_all_day,
+        isActivity: updatedTask.is_activity,
+        startTime: updatedTask.start_time,
+        endTime: updatedTask.end_time,
+        status: updatedTask.status,
+        priority: updatedTask.priority,
+      }).catch(err => console.error('Calendar sync update failed:', err));
     }
 
     return NextResponse.json({ success: true });
