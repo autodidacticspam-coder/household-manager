@@ -14,12 +14,12 @@ export async function POST() {
 
     if (!result.success) {
       return NextResponse.json(
-        { error: result.error || 'Sync failed' },
+        { error: result.error || 'Sync failed', debug: result.debug },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, debug: result.debug });
   } catch (error) {
     console.error('Sync error:', error);
     return NextResponse.json(

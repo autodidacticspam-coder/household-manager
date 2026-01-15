@@ -17,11 +17,32 @@ import {
 } from './event-mapper';
 import { format, subDays, addDays } from 'date-fns';
 
+interface SyncResult {
+  success: boolean;
+  error?: string;
+  debug?: {
+    tasksCount: number;
+    leaveCount: number;
+    schedulesCount: number;
+    importantDatesCount: number;
+    childLogsCount: number;
+    dateRange: { start: string; end: string };
+  };
+}
+
 /**
  * Sync all events for a user based on their filters
  */
-export async function syncAllEventsForUser(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function syncAllEventsForUser(userId: string): Promise<SyncResult> {
   const supabase = getApiAdminClient();
+  const debug = {
+    tasksCount: 0,
+    leaveCount: 0,
+    schedulesCount: 0,
+    importantDatesCount: 0,
+    childLogsCount: 0,
+    dateRange: { start: '', end: '' },
+  };
 
   // Get access token and filters
   const accessToken = await getValidAccessToken(userId);
@@ -42,6 +63,7 @@ export async function syncAllEventsForUser(userId: string): Promise<{ success: b
   // Date range: 30 days back, 90 days forward
   const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
   const endDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
+  debug.dateRange = { start: startDate, end: endDate };
 
   try {
     // Clear existing synced events for this user (fresh sync)
@@ -52,26 +74,26 @@ export async function syncAllEventsForUser(userId: string): Promise<{ success: b
 
     // Sync tasks
     if (filters.tasks) {
-      await syncTasks(userId, accessToken, calendarId, startDate, endDate);
+      debug.tasksCount = await syncTasks(userId, accessToken, calendarId, startDate, endDate);
     }
 
     // Sync leave
     if (filters.leave) {
-      await syncLeave(userId, accessToken, calendarId, startDate, endDate);
+      debug.leaveCount = await syncLeave(userId, accessToken, calendarId, startDate, endDate);
     }
 
     // Sync schedules
     if (filters.schedules) {
-      await syncSchedules(userId, accessToken, calendarId, startDate, endDate);
+      debug.schedulesCount = await syncSchedules(userId, accessToken, calendarId, startDate, endDate);
     }
 
     // Sync important dates
     if (filters.importantDates) {
-      await syncImportantDates(userId, accessToken, calendarId);
+      debug.importantDatesCount = await syncImportantDates(userId, accessToken, calendarId);
     }
 
     // Sync child logs
-    await syncChildLogs(userId, accessToken, calendarId, startDate, endDate, filters.childLogs);
+    debug.childLogsCount = await syncChildLogs(userId, accessToken, calendarId, startDate, endDate, filters.childLogs);
 
     // Update last_synced timestamp
     await supabase
@@ -79,10 +101,10 @@ export async function syncAllEventsForUser(userId: string): Promise<{ success: b
       .update({ last_synced: new Date().toISOString() })
       .eq('user_id', userId);
 
-    return { success: true };
+    return { success: true, debug };
   } catch (error) {
     console.error('Error syncing events:', error);
-    return { success: false, error: String(error) };
+    return { success: false, error: String(error), debug };
   }
 }
 
@@ -92,7 +114,7 @@ async function syncTasks(
   calendarId: string,
   startDate: string,
   endDate: string
-) {
+): Promise<number> {
   const supabase = getApiAdminClient();
 
   // Get tasks in date range
@@ -103,8 +125,9 @@ async function syncTasks(
     .lte('due_date', endDate)
     .order('due_date');
 
-  if (!tasks) return;
+  if (!tasks) return 0;
 
+  let syncedCount = 0;
   for (const task of tasks) {
     const event = taskToCalendarEvent({
       id: task.id,
@@ -123,8 +146,10 @@ async function syncTasks(
     const result = await createCalendarEvent(accessToken, calendarId, event);
     if (result.success && result.eventId) {
       await saveSyncedEvent(userId, 'task', task.id, result.eventId);
+      syncedCount++;
     }
   }
+  return syncedCount;
 }
 
 async function syncLeave(
@@ -133,7 +158,7 @@ async function syncLeave(
   calendarId: string,
   startDate: string,
   endDate: string
-) {
+): Promise<number> {
   const supabase = getApiAdminClient();
 
   // Get approved leave requests in date range
@@ -150,8 +175,9 @@ async function syncLeave(
     .eq('status', 'approved')
     .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
 
-  if (!leaveRequests) return;
+  if (!leaveRequests) return 0;
 
+  let syncedCount = 0;
   for (const leave of leaveRequests) {
     const user = leave.user as unknown as { full_name: string } | null;
     const event = leaveToCalendarEvent({
@@ -166,8 +192,10 @@ async function syncLeave(
     const result = await createCalendarEvent(accessToken, calendarId, event);
     if (result.success && result.eventId) {
       await saveSyncedEvent(userId, 'leave', leave.id, result.eventId);
+      syncedCount++;
     }
   }
+  return syncedCount;
 }
 
 async function syncSchedules(
@@ -176,7 +204,7 @@ async function syncSchedules(
   calendarId: string,
   startDate: string,
   endDate: string
-) {
+): Promise<number> {
   const supabase = getApiAdminClient();
 
   // Get employee schedules and generate events for each day in range
@@ -190,8 +218,9 @@ async function syncSchedules(
       user:users!employee_schedules_user_id_fkey(full_name)
     `);
 
-  if (!schedules) return;
+  if (!schedules) return 0;
 
+  let syncedCount = 0;
   // Generate schedule events for each day in range
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -214,17 +243,19 @@ async function syncSchedules(
         const result = await createCalendarEvent(accessToken, calendarId, event);
         if (result.success && result.eventId) {
           await saveSyncedEvent(userId, 'schedule', `${schedule.id}-${dateStr}`, result.eventId);
+          syncedCount++;
         }
       }
     }
   }
+  return syncedCount;
 }
 
 async function syncImportantDates(
   userId: string,
   accessToken: string,
   calendarId: string
-) {
+): Promise<number> {
   const supabase = getApiAdminClient();
 
   // Get employees with important dates
@@ -233,8 +264,9 @@ async function syncImportantDates(
     .select('id, full_name, important_dates')
     .not('important_dates', 'is', null);
 
-  if (!employees) return;
+  if (!employees) return 0;
 
+  let syncedCount = 0;
   const currentYear = new Date().getFullYear();
 
   for (const employee of employees) {
@@ -253,9 +285,11 @@ async function syncImportantDates(
       const result = await createCalendarEvent(accessToken, calendarId, event);
       if (result.success && result.eventId) {
         await saveSyncedEvent(userId, 'important_date', `${employee.id}-${importantDate.label}`, result.eventId);
+        syncedCount++;
       }
     }
   }
+  return syncedCount;
 }
 
 async function syncChildLogs(
@@ -265,7 +299,7 @@ async function syncChildLogs(
   startDate: string,
   endDate: string,
   logFilters: SyncFilters['childLogs']
-) {
+): Promise<number> {
   const supabase = getApiAdminClient();
 
   // Build category filter
@@ -275,7 +309,7 @@ async function syncChildLogs(
   if (logFilters.poop) categories.push('poop');
   if (logFilters.shower) categories.push('shower');
 
-  if (categories.length === 0) return;
+  if (categories.length === 0) return 0;
 
   // Get child logs in date range
   const { data: logs } = await supabase
@@ -293,8 +327,9 @@ async function syncChildLogs(
     .gte('log_date', startDate)
     .lte('log_date', endDate);
 
-  if (!logs) return;
+  if (!logs) return 0;
 
+  let syncedCount = 0;
   for (const log of logs) {
     const child = log.child as unknown as { name: string } | null;
     const event = childLogToCalendarEvent({
@@ -310,8 +345,10 @@ async function syncChildLogs(
     const result = await createCalendarEvent(accessToken, calendarId, event);
     if (result.success && result.eventId) {
       await saveSyncedEvent(userId, 'child_log', log.id, result.eventId);
+      syncedCount++;
     }
   }
+  return syncedCount;
 }
 
 async function saveSyncedEvent(
