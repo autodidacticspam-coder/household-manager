@@ -25,7 +25,8 @@ export async function POST() {
 
     const response = NextResponse.json({
       success: true,
-      routeVersion: 'v4',
+      routeVersion: 'v5',
+      timestamp: new Date().toISOString(),
       debug: result.debug
     });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
