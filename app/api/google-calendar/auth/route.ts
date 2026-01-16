@@ -32,6 +32,7 @@ export async function GET() {
     });
 
     const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`;
+    console.log('Generated auth URL with scopes:', SCOPES);
 
     return NextResponse.json({ url: authUrl });
   } catch (error) {

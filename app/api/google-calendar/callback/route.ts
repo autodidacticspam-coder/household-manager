@@ -58,6 +58,11 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenData = await tokenResponse.json();
+    console.log('Token data received:', {
+      scope: tokenData.scope,
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token
+    });
 
     // Get user's email for display
     const userInfoResponse = await fetch(GOOGLE_USERINFO_URL, {
