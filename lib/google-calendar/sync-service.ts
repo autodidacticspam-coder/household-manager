@@ -127,6 +127,11 @@ async function syncTasks(
 
   console.log('syncTasks query:', { startDate, endDate, tasksCount: tasks?.length, error });
 
+  // Log first few tasks for debugging
+  if (tasks && tasks.length > 0) {
+    console.log('First 3 tasks:', tasks.slice(0, 3).map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
+  }
+
   if (!tasks) return 0;
 
   let syncedCount = 0;
