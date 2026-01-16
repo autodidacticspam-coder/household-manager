@@ -21,6 +21,7 @@ interface SyncResult {
   success: boolean;
   error?: string;
   debug?: {
+    version: string;
     tasksCount: number;
     tasksFound?: number;
     firstTaskError?: string;
@@ -40,27 +41,25 @@ interface SyncResult {
  */
 export async function syncAllEventsForUser(userId: string): Promise<SyncResult> {
   const supabase = getApiAdminClient();
-  const debug: SyncResult['debug'] = {
+  const debug: NonNullable<SyncResult['debug']> = {
+    version: 'v3',
     tasksCount: 0,
     leaveCount: 0,
     schedulesCount: 0,
     importantDatesCount: 0,
     childLogsCount: 0,
     dateRange: { start: '', end: '' },
-    filters: undefined,
-    totalTasksInDb: null,
-    sampleTasks: [],
   };
 
   // Get access token and filters
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
-    return { success: false, error: 'No valid access token' };
+    return { success: false, error: 'No valid access token', debug };
   }
 
   const calendarId = await getUserCalendarId(userId);
   if (!calendarId) {
-    return { success: false, error: 'No calendar ID found' };
+    return { success: false, error: 'No calendar ID found', debug };
   }
 
   const filters = await getUserSyncFilters(userId);
