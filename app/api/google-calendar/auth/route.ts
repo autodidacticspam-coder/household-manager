@@ -3,11 +3,9 @@ import { getApiAuthUser } from '@/lib/supabase/api-helpers';
 import crypto from 'crypto';
 
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-// Use exact scope URLs from Google's documentation
+// Request only calendar scope to test
 const SCOPES = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/userinfo.email',
-  'openid',
+  'https://www.googleapis.com/auth/calendar.events',
 ];
 
 export async function GET() {
