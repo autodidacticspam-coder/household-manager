@@ -23,7 +23,11 @@ export async function POST() {
       );
     }
 
-    const response = NextResponse.json({ success: true, debug: result.debug });
+    const response = NextResponse.json({
+      success: true,
+      routeVersion: 'v4',
+      debug: result.debug
+    });
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     return response;
   } catch (error) {
