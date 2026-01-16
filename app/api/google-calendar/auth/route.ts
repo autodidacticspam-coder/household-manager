@@ -5,9 +5,9 @@ import crypto from 'crypto';
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 // Use exact scope URLs from Google's documentation
 const SCOPES = [
-  'openid',
-  'email',
   'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/userinfo.email',
+  'openid',
 ];
 
 export async function GET() {
@@ -30,7 +30,6 @@ export async function GET() {
       scope: SCOPES.join(' '),
       access_type: 'offline',
       prompt: 'consent',
-      include_granted_scopes: 'true',
       state,
     });
 
