@@ -22,6 +22,8 @@ interface SyncResult {
   error?: string;
   debug?: {
     tasksCount: number;
+    tasksFound?: number;
+    firstTaskError?: string;
     leaveCount: number;
     schedulesCount: number;
     importantDatesCount: number;
@@ -100,6 +102,8 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
     if (filters.tasks) {
       const taskResult = await syncTasks(userId, accessToken, calendarId, startDate, endDate);
       debug.tasksCount = taskResult.count;
+      debug.tasksFound = taskResult.tasksFound;
+      debug.firstTaskError = taskResult.firstError;
       debug.totalTasksInDb = taskResult.totalInDb;
       debug.sampleTasks = taskResult.sampleTasks;
     }
@@ -138,6 +142,8 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
 interface TaskSyncResult {
   count: number;
   totalInDb: number | null;
+  tasksFound: number;
+  firstError?: string;
   sampleTasks: Array<{ id: string; title: string; due_date: string }>;
 }
 
@@ -149,7 +155,7 @@ async function syncTasks(
   endDate: string
 ): Promise<TaskSyncResult> {
   const supabase = getApiAdminClient();
-  const result: TaskSyncResult = { count: 0, totalInDb: null, sampleTasks: [] };
+  const result: TaskSyncResult = { count: 0, totalInDb: null, tasksFound: 0, sampleTasks: [] };
 
   // First, test query to count all tasks
   const { count: totalCount } = await supabase
@@ -177,6 +183,8 @@ async function syncTasks(
 
   if (!tasks) return result;
 
+  result.tasksFound = tasks.length;
+
   for (const task of tasks) {
     const event = taskToCalendarEvent({
       id: task.id,
@@ -196,6 +204,9 @@ async function syncTasks(
     if (createResult.success && createResult.eventId) {
       await saveSyncedEvent(userId, 'task', task.id, createResult.eventId);
       result.count++;
+    } else if (!result.firstError && createResult.error) {
+      // Capture first error for debugging
+      result.firstError = createResult.error;
     }
   }
   return result;
