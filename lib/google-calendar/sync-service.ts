@@ -117,6 +117,13 @@ async function syncTasks(
 ): Promise<number> {
   const supabase = getApiAdminClient();
 
+  // First, test query to count all tasks
+  const { count: totalCount, error: countError } = await supabase
+    .from('tasks')
+    .select('*', { count: 'exact', head: true });
+
+  console.log('Total tasks in DB:', { totalCount, countError });
+
   // Get tasks in date range
   const { data: tasks, error } = await supabase
     .from('tasks')
@@ -130,6 +137,13 @@ async function syncTasks(
   // Log first few tasks for debugging
   if (tasks && tasks.length > 0) {
     console.log('First 3 tasks:', tasks.slice(0, 3).map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
+  } else {
+    // Query without date filter to see if tasks exist
+    const { data: allTasks } = await supabase
+      .from('tasks')
+      .select('id, title, due_date')
+      .limit(5);
+    console.log('Sample tasks without date filter:', allTasks);
   }
 
   if (!tasks) return 0;
