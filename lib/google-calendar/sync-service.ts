@@ -72,6 +72,23 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   const endDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
   debug.dateRange = { start: startDate, end: endDate };
 
+  // Always query total tasks count for debugging (regardless of filters)
+  const { count: totalCount, error: countError } = await supabase
+    .from('tasks')
+    .select('*', { count: 'exact', head: true });
+
+  debug.totalTasksInDb = totalCount;
+  if (countError) {
+    console.error('Error counting tasks:', countError);
+  }
+
+  // Get sample tasks for debugging
+  const { data: sampleData } = await supabase
+    .from('tasks')
+    .select('id, title, due_date')
+    .limit(3);
+  debug.sampleTasks = (sampleData || []).map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
+
   try {
     // Clear existing synced events for this user (fresh sync)
     await supabase
