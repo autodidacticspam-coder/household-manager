@@ -16,10 +16,16 @@ export async function GET() {
     .select('id, title, due_date')
     .limit(5);
 
-  // Test 3: Count google_calendar_tokens
+  // Test 3: Count google_calendar_tokens and get full data
   const { count: tokenCount, error: tokenError } = await supabase
     .from('google_calendar_tokens')
     .select('*', { count: 'exact', head: true });
+
+  // Test 4: Get actual token data with sync_filters
+  const { data: tokenData, error: tokenDataError } = await supabase
+    .from('google_calendar_tokens')
+    .select('user_id, sync_filters, google_email, calendar_id')
+    .limit(5);
 
   // Test 4: Check service role key presence
   const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -35,6 +41,13 @@ export async function GET() {
     tokens: {
       count: tokenCount,
       error: tokenError?.message || null,
+      data: tokenData?.map(t => ({
+        user_id: t.user_id,
+        sync_filters: t.sync_filters,
+        google_email: t.google_email,
+        calendar_id: t.calendar_id,
+      })) || [],
+      dataError: tokenDataError?.message || null,
     },
     env: {
       hasServiceKey,
