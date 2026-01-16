@@ -27,8 +27,15 @@ export async function GET() {
       response_type: 'code',
       scope: SCOPES.join(' '),
       access_type: 'offline',
-      prompt: 'consent', // Force consent to get refresh token
+      prompt: 'consent',
+      include_granted_scopes: 'true',
       state,
+    });
+
+    console.log('Auth URL params:', {
+      client_id: process.env.GOOGLE_CLIENT_ID?.substring(0, 20) + '...',
+      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+      scope: SCOPES.join(' '),
     });
 
     const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`;
