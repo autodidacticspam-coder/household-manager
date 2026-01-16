@@ -118,12 +118,14 @@ async function syncTasks(
   const supabase = getApiAdminClient();
 
   // Get tasks in date range
-  const { data: tasks } = await supabase
+  const { data: tasks, error } = await supabase
     .from('tasks')
     .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
     .gte('due_date', startDate)
     .lte('due_date', endDate)
     .order('due_date');
+
+  console.log('syncTasks query:', { startDate, endDate, tasksCount: tasks?.length, error });
 
   if (!tasks) return 0;
 
