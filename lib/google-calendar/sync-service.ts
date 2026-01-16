@@ -56,6 +56,7 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   }
 
   const filters = await getUserSyncFilters(userId);
+  console.log('Sync filters:', JSON.stringify(filters));
   if (!filters) {
     return { success: false, error: 'No filters found' };
   }
