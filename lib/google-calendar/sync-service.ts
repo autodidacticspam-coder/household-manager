@@ -27,6 +27,9 @@ interface SyncResult {
     importantDatesCount: number;
     childLogsCount: number;
     dateRange: { start: string; end: string };
+    filters?: SyncFilters;
+    totalTasksInDb?: number | null;
+    sampleTasks?: Array<{ id: string; title: string; due_date: string }>;
   };
 }
 
@@ -35,13 +38,16 @@ interface SyncResult {
  */
 export async function syncAllEventsForUser(userId: string): Promise<SyncResult> {
   const supabase = getApiAdminClient();
-  const debug = {
+  const debug: SyncResult['debug'] = {
     tasksCount: 0,
     leaveCount: 0,
     schedulesCount: 0,
     importantDatesCount: 0,
     childLogsCount: 0,
     dateRange: { start: '', end: '' },
+    filters: undefined,
+    totalTasksInDb: null,
+    sampleTasks: [],
   };
 
   // Get access token and filters
@@ -56,9 +62,9 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   }
 
   const filters = await getUserSyncFilters(userId);
-  console.log('Sync filters:', JSON.stringify(filters));
+  debug.filters = filters || undefined;
   if (!filters) {
-    return { success: false, error: 'No filters found' };
+    return { success: false, error: 'No filters found', debug };
   }
 
   // Date range: 30 days back, 90 days forward
@@ -75,7 +81,10 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
 
     // Sync tasks
     if (filters.tasks) {
-      debug.tasksCount = await syncTasks(userId, accessToken, calendarId, startDate, endDate);
+      const taskResult = await syncTasks(userId, accessToken, calendarId, startDate, endDate);
+      debug.tasksCount = taskResult.count;
+      debug.totalTasksInDb = taskResult.totalInDb;
+      debug.sampleTasks = taskResult.sampleTasks;
     }
 
     // Sync leave
@@ -109,47 +118,48 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   }
 }
 
+interface TaskSyncResult {
+  count: number;
+  totalInDb: number | null;
+  sampleTasks: Array<{ id: string; title: string; due_date: string }>;
+}
+
 async function syncTasks(
   userId: string,
   accessToken: string,
   calendarId: string,
   startDate: string,
   endDate: string
-): Promise<number> {
+): Promise<TaskSyncResult> {
   const supabase = getApiAdminClient();
+  const result: TaskSyncResult = { count: 0, totalInDb: null, sampleTasks: [] };
 
   // First, test query to count all tasks
-  const { count: totalCount, error: countError } = await supabase
+  const { count: totalCount } = await supabase
     .from('tasks')
     .select('*', { count: 'exact', head: true });
 
-  console.log('Total tasks in DB:', { totalCount, countError });
+  result.totalInDb = totalCount;
 
   // Get tasks in date range
-  const { data: tasks, error } = await supabase
+  const { data: tasks } = await supabase
     .from('tasks')
     .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
     .gte('due_date', startDate)
     .lte('due_date', endDate)
     .order('due_date');
 
-  console.log('syncTasks query:', { startDate, endDate, tasksCount: tasks?.length, error });
-
-  // Log first few tasks for debugging
-  if (tasks && tasks.length > 0) {
-    console.log('First 3 tasks:', tasks.slice(0, 3).map(t => ({ id: t.id, title: t.title, due_date: t.due_date })));
-  } else {
-    // Query without date filter to see if tasks exist
+  // Get sample tasks for debugging
+  if (!tasks || tasks.length === 0) {
     const { data: allTasks } = await supabase
       .from('tasks')
       .select('id, title, due_date')
       .limit(5);
-    console.log('Sample tasks without date filter:', allTasks);
+    result.sampleTasks = (allTasks || []).map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
   }
 
-  if (!tasks) return 0;
+  if (!tasks) return result;
 
-  let syncedCount = 0;
   for (const task of tasks) {
     const event = taskToCalendarEvent({
       id: task.id,
@@ -165,13 +175,13 @@ async function syncTasks(
       priority: task.priority,
     });
 
-    const result = await createCalendarEvent(accessToken, calendarId, event);
-    if (result.success && result.eventId) {
-      await saveSyncedEvent(userId, 'task', task.id, result.eventId);
-      syncedCount++;
+    const createResult = await createCalendarEvent(accessToken, calendarId, event);
+    if (createResult.success && createResult.eventId) {
+      await saveSyncedEvent(userId, 'task', task.id, createResult.eventId);
+      result.count++;
     }
   }
-  return syncedCount;
+  return result;
 }
 
 async function syncLeave(
