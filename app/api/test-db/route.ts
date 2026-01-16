@@ -32,6 +32,8 @@ export async function GET() {
   const keyPrefix = process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10);
 
   return NextResponse.json({
+    timestamp: new Date().toISOString(),
+    version: 'v2',
     tasks: {
       count: taskCount,
       error: countError?.message || null,
