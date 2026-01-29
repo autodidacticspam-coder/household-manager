@@ -251,7 +251,6 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                       mode="multiple"
                       selected={selectedDates}
                       onSelect={handleDateSelect}
-                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                       numberOfMonths={2}
                       className="rounded-md"
                     />
