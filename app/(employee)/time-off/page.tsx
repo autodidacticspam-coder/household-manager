@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatTime12h } from '@/lib/format-time';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useMyLeaveRequests, useCancelLeaveRequest } from '@/hooks/use-leave';
-import { format } from 'date-fns';
+import { eachDayOfInterval, format } from 'date-fns';
 import { Plus, Calendar, X, Clock } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
 
@@ -47,6 +47,17 @@ function getLeaveTypeLabel(request: LeaveRequest, t: (key: string) => string): s
     return t('leave.holiday');
   }
   return isVacation(request) ? t('leave.pto') : t('leave.sick');
+}
+
+function getRequestDates(request: LeaveRequest): Date[] {
+  if (request.selectedDates && request.selectedDates.length > 0) {
+    return request.selectedDates.map(parseLocalDate);
+  }
+
+  return eachDayOfInterval({
+    start: parseLocalDate(request.startDate),
+    end: parseLocalDate(request.endDate),
+  });
 }
 
 // Helper to get badge class based on leave type
@@ -75,9 +86,19 @@ export default function TimeOffPage() {
   const { data: requests, isLoading: requestsLoading } = useMyLeaveRequests(user?.id);
   const cancelRequest = useCancelLeaveRequest();
 
-  const pendingRequests = requests?.filter((r) => r.status === 'pending') || [];
-  const approvedRequests = requests?.filter((r) => r.status === 'approved') || [];
-  const deniedRequests = requests?.filter((r) => r.status === 'denied') || [];
+  const sortedRequests = useMemo(() => {
+    if (!requests) return [];
+
+    return [...requests].sort((a, b) => {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    });
+  }, [requests]);
+
+  const pendingRequests = sortedRequests.filter((r) => r.status === 'pending');
+  const approvedRequests = sortedRequests.filter((r) => r.status === 'approved');
+  const deniedRequests = sortedRequests.filter((r) => r.status === 'denied');
 
   const handleCancelRequest = async () => {
     if (cancelRequestId) {
@@ -86,11 +107,14 @@ export default function TimeOffPage() {
     }
   };
 
-  const renderRequestCard = (request: LeaveRequest, showCancel = false) => (
-    <Card key={request.id} className="relative">
-      <CardContent className="pt-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
+  const renderRequestCard = (request: LeaveRequest, showCancel = false) => {
+    const requestDates = getRequestDates(request);
+
+    return (
+      <Card key={request.id} className="relative">
+        <CardContent className="pt-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className={getLeaveTypeBadgeClass(request)}>
                 {getLeaveTypeLabel(request, t)}
@@ -106,43 +130,51 @@ export default function TimeOffPage() {
                 <> - {format(parseLocalDate(request.endDate), 'MMM d, yyyy')}</>
               )}
             </div>
-            <p className="text-sm text-muted-foreground">
-              {request.totalDays} {request.totalDays === 1 ? t('common.day') : t('common.days')}
-              {!request.isFullDay && (
-                <>
-                  {' '}({t('leave.partial')})
-                  {request.startTime && request.endTime && (
-                    <span className="flex items-center gap-1 mt-1">
-                      <Clock className="h-3 w-3" />
-                      {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
-                    </span>
-                  )}
-                </>
-              )}
-            </p>
-            {request.reason && (
-              <p className="text-sm mt-2">{request.reason}</p>
-            )}
-            {request.adminNotes && (
-              <p className="text-sm text-muted-foreground mt-2 italic">
-                {t('leave.adminNotes')}: {request.adminNotes}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {requestDates.map((date, index) => (
+                  <Badge key={`${request.id}-${index}`} variant="outline" className="text-xs font-normal">
+                    {format(date, 'EEE, MMM d')}
+                  </Badge>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {request.totalDays} {request.totalDays === 1 ? t('common.day') : t('common.days')}
+                {!request.isFullDay && (
+                  <>
+                    {' '}({t('leave.partial')})
+                    {request.startTime && request.endTime && (
+                      <span className="flex items-center gap-1 mt-1">
+                        <Clock className="h-3 w-3" />
+                        {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
+                      </span>
+                    )}
+                  </>
+                )}
               </p>
+              {request.reason && (
+                <p className="text-sm mt-2">{request.reason}</p>
+              )}
+              {request.adminNotes && (
+                <p className="text-sm text-muted-foreground mt-2 italic">
+                  {t('leave.adminNotes')}: {request.adminNotes}
+                </p>
+              )}
+            </div>
+            {showCancel && request.status === 'pending' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setCancelRequestId(request.id)}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
           </div>
-          {showCancel && request.status === 'pending' && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCancelRequestId(request.id)}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">

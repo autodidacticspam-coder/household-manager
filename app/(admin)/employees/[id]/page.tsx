@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -79,6 +79,16 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
   const { data: groups } = useEmployeeGroups();
   const updateEmployee = useUpdateEmployee();
   const deleteEmployee = useDeleteEmployee();
+
+  const sortedLeaveRequests = useMemo(() => {
+    if (!leaveRequests) return [];
+
+    return [...leaveRequests].sort((a, b) => {
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
+      return bTime - aTime;
+    });
+  }, [leaveRequests]);
 
   // Edit dialog state
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -408,9 +418,9 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
               <CardTitle>Recent Leave Requests</CardTitle>
             </CardHeader>
             <CardContent>
-              {leaveRequests && leaveRequests.length > 0 ? (
+              {sortedLeaveRequests.length > 0 ? (
                 <div className="space-y-3">
-                  {leaveRequests.slice(0, 5).map((request) => (
+                  {sortedLeaveRequests.slice(0, 5).map((request) => (
                     <div key={request.id} className="p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
