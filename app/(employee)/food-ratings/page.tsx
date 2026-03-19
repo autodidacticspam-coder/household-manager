@@ -513,6 +513,9 @@ export default function FoodRatingsPage() {
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <p className="font-medium text-sm flex-1 min-w-0 truncate">
                             {rating.menuItem}
+                            {rating.comment && (
+                              <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                            )}
                           </p>
                           <Badge
                             className={cn(
@@ -546,6 +549,15 @@ export default function FoodRatingsPage() {
                             </Button>
                           )}
                         </div>
+                        {rating.comment && (
+                          <div className="mt-3 rounded-md border bg-muted/40 px-3 py-2">
+                            <div className="mb-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <MessageSquare className="h-3 w-3" />
+                              Note
+                            </div>
+                            <p className="text-sm whitespace-pre-wrap break-words">{rating.comment}</p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -559,6 +571,7 @@ export default function FoodRatingsPage() {
                           <TableHead>Meal</TableHead>
                           <TableHead className="text-center">Rating</TableHead>
                           <TableHead>Rated By</TableHead>
+                          <TableHead>Note</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
@@ -567,7 +580,10 @@ export default function FoodRatingsPage() {
                         {filteredRatings.map((rating) => (
                           <TableRow key={rating.id}>
                             <TableCell className="font-medium max-w-[250px] truncate">
-                              {rating.menuItem}
+                              <span>{rating.menuItem}</span>
+                              {rating.comment && (
+                                <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                              )}
                             </TableCell>
                             <TableCell className="capitalize text-sm">
                               {rating.dayOfWeek} - {rating.mealType}
@@ -587,6 +603,16 @@ export default function FoodRatingsPage() {
                             </TableCell>
                             <TableCell className="text-sm">
                               {rating.ratedByUser?.fullName || 'Unknown'}
+                            </TableCell>
+                            <TableCell className="max-w-[320px]">
+                              {rating.comment ? (
+                                <div className="flex items-start gap-2 text-sm">
+                                  <MessageSquare className="h-3.5 w-3.5 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                  <p className="whitespace-pre-wrap break-words">{rating.comment}</p>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No note</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {format(new Date(rating.createdAt), 'MMM d, yyyy')}
