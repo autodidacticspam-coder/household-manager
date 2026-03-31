@@ -18,9 +18,9 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
   const searchParams = useSearchParams();
   const isBatchMode = searchParams.get('batch') === 'true';
   const { data: task, isLoading } = useTask(id);
-  const batchInfo = useTaskBatchInfo(isBatchMode ? id : null);
+  const batchInfo = useTaskBatchInfo(id);
 
-  if (isLoading) {
+  if (isLoading || batchInfo.isLoading) {
     return (
       <div className="space-y-6">
         <div>
@@ -58,7 +58,20 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
         </p>
       </div>
 
-      <TaskForm task={task} batchMode={isBatchMode} />
+      <TaskForm
+        task={task}
+        batchMode={isBatchMode}
+        allowRepeatEditing={isBatchMode || !batchInfo.isRepeating}
+        initialRepeatSettings={
+          isBatchMode && batchInfo.repeatDays && batchInfo.repeatInterval && batchInfo.repeatEndDate
+            ? {
+                repeatDays: batchInfo.repeatDays,
+                repeatInterval: batchInfo.repeatInterval,
+                repeatEndDate: batchInfo.repeatEndDate,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

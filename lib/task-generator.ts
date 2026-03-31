@@ -16,6 +16,12 @@ import { parseLocalDate, formatDateString } from './date-utils';
 
 export type RepeatInterval = 'weekly' | 'biweekly' | 'monthly' | null;
 
+export type InferredRepeatSettings = {
+  repeatDays: number[];
+  repeatInterval: Exclude<RepeatInterval, null>;
+  repeatEndDate: string;
+};
+
 export type TaskGenerationInput = {
   /** Days of week to create tasks (0=Sunday, 1=Monday, ..., 6=Saturday) */
   selectedDays: number[];
@@ -204,4 +210,45 @@ export function getRepeatDescription(
         : 'monthly (same week pattern)';
 
   return `Repeats ${intervalText} on ${selectedDayNames}`;
+}
+
+/**
+ * Infer repeat settings from an existing batch of generated task dates.
+ * Returns null if the dates no longer match one of the supported generators.
+ */
+export function inferRepeatSettings(dates: Array<string | null | undefined>): InferredRepeatSettings | null {
+  const normalizedDates = [...new Set(
+    dates.filter((date): date is string => typeof date === 'string' && date.length > 0)
+  )].sort();
+
+  if (normalizedDates.length < 2) {
+    return null;
+  }
+
+  const selectedDays = [...new Set(
+    normalizedDates.map((date) => getDay(parseLocalDate(date)))
+  )].sort((a, b) => a - b);
+
+  const startDate = normalizedDates[0];
+  const endDate = normalizedDates[normalizedDates.length - 1];
+  const candidateIntervals: Array<Exclude<RepeatInterval, null>> = ['weekly', 'biweekly', 'monthly'];
+
+  for (const candidate of candidateIntervals) {
+    const generated = generateTaskDates({
+      selectedDays,
+      repeatInterval: candidate,
+      startDate,
+      endDate,
+    });
+
+    if (generated.length === normalizedDates.length && generated.every((date, index) => date === normalizedDates[index])) {
+      return {
+        repeatDays: selectedDays,
+        repeatInterval: candidate,
+        repeatEndDate: endDate,
+      };
+    }
+  }
+
+  return null;
 }

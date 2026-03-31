@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiAdminClient, getApiAuthUser, handleApiError } from '@/lib/supabase/api-helpers';
+import { inferRepeatSettings } from '@/lib/task-generator';
 
 export async function GET(
   request: NextRequest,
@@ -68,11 +69,15 @@ export async function GET(
       t.due_date >= today &&
       t.status !== 'completed'
     ).length;
+    const repeatSettings = inferRepeatSettings(batchTasks.map((t) => t.due_date as string | null));
 
     return NextResponse.json({
       isRepeating: batchTasks.length > 1,
       batchSize: batchTasks.length,
       futureCount,
+      repeatDays: repeatSettings?.repeatDays ?? null,
+      repeatInterval: repeatSettings?.repeatInterval ?? null,
+      repeatEndDate: repeatSettings?.repeatEndDate ?? null,
     });
   } catch (err) {
     const { error, status } = handleApiError(err);

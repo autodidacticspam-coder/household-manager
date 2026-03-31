@@ -515,7 +515,14 @@ export function useTaskBatchInfo(taskId: string | null) {
       });
 
       if (!response.ok) {
-        return { isRepeating: false, batchSize: 0, futureCount: 0 };
+        return {
+          isRepeating: false,
+          batchSize: 0,
+          futureCount: 0,
+          repeatDays: null,
+          repeatInterval: null,
+          repeatEndDate: null,
+        };
       }
 
       return response.json();
@@ -533,6 +540,9 @@ export function useTaskBatchInfo(taskId: string | null) {
     isRepeating: data?.isRepeating ?? false,
     batchSize: data?.batchSize ?? 0,
     futureCount: data?.futureCount ?? 0,
+    repeatDays: data?.repeatDays ?? null,
+    repeatInterval: data?.repeatInterval ?? null,
+    repeatEndDate: data?.repeatEndDate ?? null,
     isLoading: isQueryLoading,
   };
 }

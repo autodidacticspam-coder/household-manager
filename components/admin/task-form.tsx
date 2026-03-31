@@ -79,9 +79,22 @@ type TaskFormProps = {
   template?: TaskTemplate | null;
   onSuccess?: () => void;
   batchMode?: boolean;
+  allowRepeatEditing?: boolean;
+  initialRepeatSettings?: {
+    repeatDays: number[];
+    repeatInterval: 'weekly' | 'biweekly' | 'monthly';
+    repeatEndDate: string;
+  } | null;
 };
 
-export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode = false }: TaskFormProps) {
+export function TaskForm({
+  task,
+  template: initialTemplate,
+  onSuccess,
+  batchMode = false,
+  allowRepeatEditing = !task,
+  initialRepeatSettings = null,
+}: TaskFormProps) {
   const t = useTranslations();
   const router = useRouter();
 
@@ -180,17 +193,23 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
   const [selectedViewerUsers, setSelectedViewerUsers] = useState<string[]>([]);
 
   // Repeat system state
+  const initialTemplateRepeatEnabled = !!(loadedTemplate?.repeatDays && loadedTemplate.repeatDays.length > 0);
+  const initialRepeatEnabled = !!initialRepeatSettings || initialTemplateRepeatEnabled;
+  const initialSelectedDays = initialRepeatSettings?.repeatDays || loadedTemplate?.repeatDays || [];
+  const initialRepeatInterval = initialRepeatSettings?.repeatInterval || (loadedTemplate?.repeatInterval as 'weekly' | 'biweekly' | 'monthly') || 'weekly';
+  const initialRepeatEndDate = initialRepeatSettings?.repeatEndDate || format(addYears(new Date(), 1), 'yyyy-MM-dd');
+
   const [repeatEnabled, setRepeatEnabled] = useState(
-    () => !!(loadedTemplate?.repeatDays && loadedTemplate.repeatDays.length > 0)
+    () => initialRepeatEnabled
   );
   const [selectedDays, setSelectedDays] = useState<number[]>(
-    () => loadedTemplate?.repeatDays || []
+    () => initialSelectedDays
   );
   const [repeatInterval, setRepeatInterval] = useState<'weekly' | 'biweekly' | 'monthly'>(
-    () => (loadedTemplate?.repeatInterval as 'weekly' | 'biweekly' | 'monthly') || 'weekly'
+    () => initialRepeatInterval
   );
   const [repeatEndDate, setRepeatEndDate] = useState<string>(
-    () => format(addYears(new Date(), 1), 'yyyy-MM-dd')
+    () => initialRepeatEndDate
   );
 
   // Time helpers
@@ -424,6 +443,35 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
     );
   };
 
+  const normalizeDays = (days: number[]) => [...days].sort((a, b) => a - b);
+
+  const repeatDaysChanged = () => {
+    const initialDays = normalizeDays(initialRepeatSettings?.repeatDays || []);
+    const currentDays = normalizeDays(selectedDays);
+
+    return initialDays.length !== currentDays.length || initialDays.some((day, index) => day !== currentDays[index]);
+  };
+
+  const repeatSettingsChanged = () => {
+    if (!initialRepeatSettings) {
+      return repeatEnabled;
+    }
+
+    if (!repeatEnabled) {
+      return true;
+    }
+
+    return repeatDaysChanged()
+      || repeatInterval !== initialRepeatSettings.repeatInterval
+      || repeatEndDate !== initialRepeatSettings.repeatEndDate;
+  };
+
+  const getRepeatSectionTitle = () => {
+    if (batchMode) return 'Update Repeating Tasks';
+    if (task) return 'Make This a Repeating Task';
+    return 'Create Repeating Tasks';
+  };
+
   const isLoading = categoriesLoading || groupsLoading || employeesLoading;
   const isSaving = createTask.isPending || updateTask.isPending || updateFutureTasks.isPending;
 
@@ -600,6 +648,52 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
       if (!isDuplicate) finalViewers.push(pendingViewer);
     }
 
+    const repeatData = (() => {
+      if (!allowRepeatEditing) {
+        return {};
+      }
+
+      if (!task) {
+        return repeatEnabled && selectedDays.length > 0
+          ? {
+              repeatDays: normalizeDays(selectedDays),
+              repeatInterval,
+              repeatEndDate,
+            }
+          : {};
+      }
+
+      if (batchMode) {
+        if (!repeatSettingsChanged()) {
+          return {};
+        }
+
+        if (repeatEnabled) {
+          return selectedDays.length > 0
+            ? {
+                repeatDays: normalizeDays(selectedDays),
+                repeatInterval,
+                repeatEndDate,
+              }
+            : {};
+        }
+
+        return {
+          repeatDays: [],
+          repeatInterval: null,
+          repeatEndDate: task.dueDate || today,
+        };
+      }
+
+      return repeatEnabled && selectedDays.length > 0
+        ? {
+            repeatDays: normalizeDays(selectedDays),
+            repeatInterval,
+            repeatEndDate,
+          }
+        : {};
+    })();
+
     const submitData = {
       ...data,
       dueTime: data.isActivity ? null : dueTime24,
@@ -608,11 +702,7 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
       assignments: finalAssignments,
       viewers: finalViewers,
       videos: [...existingVideosToKeep, ...pendingVideos],
-      ...(repeatEnabled && !task && {
-        repeatDays: selectedDays,
-        repeatInterval: repeatInterval,
-        repeatEndDate: repeatEndDate,
-      }),
+      ...repeatData,
     };
 
     if (task) {
@@ -643,74 +733,71 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
     <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* Template Actions - Only show when creating new task */}
-          {!task && (
-            <div className="flex flex-wrap gap-3 items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button type="button" variant="outline">
-                    <FolderOpen className="h-4 w-4 mr-2" />
-                    {t('templates.loadTemplate')}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  {templates && templates.length > 0 ? (
-                    <>
-                      <DropdownMenuLabel>{t('templates.selectCategory')}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {Object.entries(templatesByCategory).map(([categoryName, categoryTemplates]) => (
-                        <DropdownMenuSub key={categoryName}>
-                          <DropdownMenuSubTrigger className="gap-2">
-                            <Folder className="h-4 w-4" />
-                            <span>{categoryName === 'uncategorized' ? t('common.uncategorized') : categoryName}</span>
-                            <Badge variant="secondary" className="ml-auto text-xs">
-                              {categoryTemplates.length}
-                            </Badge>
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-56 max-h-64 overflow-y-auto">
-                            {categoryTemplates.map((template) => (
-                              <DropdownMenuItem
-                                key={template.id}
-                                className="flex items-center justify-between group cursor-pointer"
-                                onClick={() => handleLoadTemplate(template)}
+          <div className="flex flex-wrap gap-3 items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline">
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  {t('templates.loadTemplate')}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56">
+                {templates && templates.length > 0 ? (
+                  <>
+                    <DropdownMenuLabel>{t('templates.selectCategory')}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {Object.entries(templatesByCategory).map(([categoryName, categoryTemplates]) => (
+                      <DropdownMenuSub key={categoryName}>
+                        <DropdownMenuSubTrigger className="gap-2">
+                          <Folder className="h-4 w-4" />
+                          <span>{categoryName === 'uncategorized' ? t('common.uncategorized') : categoryName}</span>
+                          <Badge variant="secondary" className="ml-auto text-xs">
+                            {categoryTemplates.length}
+                          </Badge>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-56 max-h-64 overflow-y-auto">
+                          {categoryTemplates.map((template) => (
+                            <DropdownMenuItem
+                              key={template.id}
+                              className="flex items-center justify-between group cursor-pointer"
+                              onClick={() => handleLoadTemplate(template)}
+                            >
+                              <span className="flex-1 truncate">{template.name}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteTemplateId(template.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive ml-2"
                               >
-                                <span className="flex-1 truncate">{template.name}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteTemplateId(template.id);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive ml-2"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </button>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      ))}
-                    </>
-                  ) : (
-                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                      {t('templates.noTemplates')}
-                    </div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    ))}
+                  </>
+                ) : (
+                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                    {t('templates.noTemplates')}
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-              <Button type="button" variant="outline" onClick={handleOpenSaveDialog}>
-                <Save className="h-4 w-4 mr-2" />
-                {t('templates.saveAsTemplate')}
-              </Button>
+            <Button type="button" variant="outline" onClick={handleOpenSaveDialog}>
+              <Save className="h-4 w-4 mr-2" />
+              {t('templates.saveAsTemplate')}
+            </Button>
 
-              {loadedTemplate && (
-                <Badge variant="secondary" className="text-sm">
-                  Template: {loadedTemplate.name}
-                </Badge>
-              )}
-            </div>
-          )}
+            {loadedTemplate && (
+              <Badge variant="secondary" className="text-sm">
+                Template: {loadedTemplate.name}
+              </Badge>
+            )}
+          </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
@@ -1027,8 +1114,7 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
                   )}
                 />
 
-                {/* Repeat System - only show when creating new task */}
-                {!task && (
+                {allowRepeatEditing && (
                   <div className="space-y-4 pt-4 border-t">
                     <div className="flex items-center space-x-2">
                       <Checkbox
@@ -1038,12 +1124,18 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
                       />
                       <Label htmlFor="repeatEnabled" className="flex items-center gap-2 cursor-pointer">
                         <Repeat className="h-4 w-4" />
-                        Create Repeating Tasks
+                        {getRepeatSectionTitle()}
                       </Label>
                     </div>
 
                     {repeatEnabled && (
                       <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                        {batchMode && (
+                          <p className="text-xs text-muted-foreground">
+                            Changes here update the future schedule starting from this task.
+                          </p>
+                        )}
+
                         <div className="space-y-2">
                           <Label>Select Days</Label>
                           <div className="flex flex-wrap gap-1">
@@ -1090,7 +1182,9 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
                             min={form.watch('dueDate') || today}
                           />
                           <p className="text-xs text-muted-foreground">
-                            Individual tasks will be created for each occurrence until this date
+                            {batchMode
+                              ? 'Future tasks will be kept or created for each occurrence until this date'
+                              : 'Individual tasks will be created for each occurrence until this date'}
                           </p>
                         </div>
 
@@ -1099,7 +1193,7 @@ export function TaskForm({ task, template: initialTemplate, onSuccess, batchMode
                             <p className="text-sm text-muted-foreground">
                               <span className="font-medium text-foreground">Preview: </span>
                               Tasks will be created on{' '}
-                              {selectedDays.sort((a, b) => a - b).map(d => DAYS_OF_WEEK_LABELS[d]).join(', ')}
+                              {normalizeDays(selectedDays).map(d => DAYS_OF_WEEK_LABELS[d]).join(', ')}
                               {repeatInterval === 'weekly' && ' every week'}
                               {repeatInterval === 'biweekly' && ' every 2 weeks'}
                               {repeatInterval === 'monthly' && ' each month (same week pattern)'}
