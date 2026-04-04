@@ -6,6 +6,7 @@ import {
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
+  deleteAllSyncedEvents,
   type SyncFilters,
 } from './calendar-service';
 import {
@@ -22,6 +23,8 @@ interface SyncResult {
   error?: string;
   debug?: {
     version: string;
+    deletedFromGoogle?: number;
+    deleteErrors?: number;
     tasksCount: number;
     tasksFound?: number;
     firstTaskError?: string;
@@ -42,7 +45,7 @@ interface SyncResult {
 export async function syncAllEventsForUser(userId: string): Promise<SyncResult> {
   const supabase = getApiAdminClient();
   const debug: NonNullable<SyncResult['debug']> = {
-    version: 'v3',
+    version: 'v4',
     tasksCount: 0,
     leaveCount: 0,
     schedulesCount: 0,
@@ -91,6 +94,21 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   debug.sampleTasks = (sampleData || []).map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
 
   try {
+    // Remove any previously-synced Google events before rebuilding the feed.
+    // Without this, a second full sync recreates the same logical events and
+    // leaves duplicate copies behind in the user's calendar.
+    const deleteResult = await deleteAllSyncedEvents(accessToken, calendarId);
+    debug.deletedFromGoogle = deleteResult.deleted;
+    debug.deleteErrors = deleteResult.errors;
+
+    if (deleteResult.errors > 0) {
+      return {
+        success: false,
+        error: `Failed to remove ${deleteResult.errors} existing synced calendar events before rebuilding sync`,
+        debug,
+      };
+    }
+
     // Clear existing synced events for this user (fresh sync)
     await supabase
       .from('google_calendar_synced_events')

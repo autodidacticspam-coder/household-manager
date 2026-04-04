@@ -285,6 +285,108 @@ export async function deleteCalendarEvent(
   }
 }
 
+interface SyncedCalendarEvent {
+  id: string;
+  summary: string;
+  sourceType: string;
+  sourceId?: string;
+}
+
+/**
+ * List all events created by our sync.
+ * We scan a broad date window because the Calendar API does not support
+ * querying by only the presence of a private extended property.
+ */
+export async function listSyncedEvents(
+  accessToken: string,
+  calendarId: string
+): Promise<SyncedCalendarEvent[]> {
+  const events: SyncedCalendarEvent[] = [];
+  let pageToken: string | undefined;
+
+  const timeMin = new Date();
+  timeMin.setFullYear(timeMin.getFullYear() - 1);
+
+  const timeMax = new Date();
+  timeMax.setFullYear(timeMax.getFullYear() + 1);
+
+  do {
+    const url = new URL(`${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`);
+    url.searchParams.set('maxResults', '2500');
+    url.searchParams.set('singleEvents', 'true');
+    url.searchParams.set('showDeleted', 'false');
+    url.searchParams.set('timeMin', timeMin.toISOString());
+    url.searchParams.set('timeMax', timeMax.toISOString());
+    if (pageToken) {
+      url.searchParams.set('pageToken', pageToken);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to list synced calendar events: ${await response.text()}`);
+    }
+
+    const data = await response.json();
+    for (const event of data.items || []) {
+      const sourceType = event.extendedProperties?.private?.sourceType;
+      if (!event.id || !sourceType) {
+        continue;
+      }
+
+      events.push({
+        id: event.id,
+        summary: event.summary || '',
+        sourceType,
+        sourceId: event.extendedProperties?.private?.sourceId,
+      });
+    }
+
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return events;
+}
+
+/**
+ * Delete all events created by our sync from Google Calendar.
+ * We do this before rebuilding a full sync so repeated syncs stay idempotent.
+ */
+export async function deleteAllSyncedEvents(
+  accessToken: string,
+  calendarId: string
+): Promise<{ deleted: number; errors: number; total: number }> {
+  const events = await listSyncedEvents(accessToken, calendarId);
+  if (events.length === 0) {
+    return { deleted: 0, errors: 0, total: 0 };
+  }
+
+  let deleted = 0;
+  let errors = 0;
+  const CONCURRENCY = 10;
+
+  for (let i = 0; i < events.length; i += CONCURRENCY) {
+    const chunk = events.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      chunk.map((event) => deleteCalendarEvent(accessToken, calendarId, event.id))
+    );
+
+    for (const result of results) {
+      if (result.success) {
+        deleted++;
+      } else {
+        errors++;
+      }
+    }
+  }
+
+  return { deleted, errors, total: events.length };
+}
+
 /**
  * Get user's calendar ID
  */
