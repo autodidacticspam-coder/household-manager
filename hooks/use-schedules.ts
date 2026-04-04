@@ -62,25 +62,28 @@ export function useAllSchedules() {
 
 // Create a new schedule entry
 export function useCreateSchedule() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
   return useMutation({
     mutationFn: async ({ userId, ...data }: ScheduleFormData & { userId: string }) => {
-      const { data: result, error } = await supabase
-        .from('employee_schedules')
-        .insert({
-          user_id: userId,
-          day_of_week: data.dayOfWeek,
-          start_time: data.startTime,
-          end_time: data.endTime,
-        })
-        .select()
-        .single();
+      const response = await fetch('/api/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          dayOfWeek: data.dayOfWeek,
+          startTime: data.startTime,
+          endTime: data.endTime,
+        }),
+      });
 
-      if (error) throw error;
-      return result;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create schedule');
+      }
+
+      return response.json();
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedules', variables.userId] });
@@ -96,25 +99,28 @@ export function useCreateSchedule() {
 
 // Update an existing schedule entry
 export function useUpdateSchedule() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
   return useMutation({
     mutationFn: async ({ id, ...data }: ScheduleFormData & { id: string; userId: string }) => {
-      const { data: result, error } = await supabase
-        .from('employee_schedules')
-        .update({
-          day_of_week: data.dayOfWeek,
-          start_time: data.startTime,
-          end_time: data.endTime,
-        })
-        .eq('id', id)
-        .select()
-        .single();
+      const response = await fetch(`/api/schedules/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dayOfWeek: data.dayOfWeek,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          userId: data.userId,
+        }),
+      });
 
-      if (error) throw error;
-      return result;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update schedule');
+      }
+
+      return response.json();
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedules', variables.userId] });
@@ -130,18 +136,19 @@ export function useUpdateSchedule() {
 
 // Delete a schedule entry
 export function useDeleteSchedule() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
   return useMutation({
     mutationFn: async ({ id }: { id: string; userId: string }) => {
-      const { error } = await supabase
-        .from('employee_schedules')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(`/api/schedules/${id}`, {
+        method: 'DELETE',
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete schedule');
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedules', variables.userId] });
@@ -208,56 +215,30 @@ export function useScheduleOverrides(startDate: string, endDate: string) {
 
 // Create or update a schedule override
 export function useUpsertScheduleOverride() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
   return useMutation({
     mutationFn: async (data: ScheduleOverrideFormData) => {
-      // Check if override already exists
-      const { data: existing } = await supabase
-        .from('schedule_overrides')
-        .select('id')
-        .eq('schedule_id', data.scheduleId)
-        .eq('override_date', data.overrideDate)
-        .single();
+      const response = await fetch('/api/schedule-overrides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduleId: data.scheduleId,
+          overrideDate: data.overrideDate,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          isCancelled: data.isCancelled,
+          notes: data.notes,
+        }),
+      });
 
-      if (existing) {
-        // Update existing override
-        const { data: result, error } = await supabase
-          .from('schedule_overrides')
-          .update({
-            start_time: data.isCancelled ? null : data.startTime,
-            end_time: data.isCancelled ? null : data.endTime,
-            is_cancelled: data.isCancelled || false,
-            notes: data.notes,
-          })
-          .eq('id', existing.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-        return result;
-      } else {
-        // Create new override
-        const { data: user } = await supabase.auth.getUser();
-        const { data: result, error } = await supabase
-          .from('schedule_overrides')
-          .insert({
-            schedule_id: data.scheduleId,
-            override_date: data.overrideDate,
-            start_time: data.isCancelled ? null : data.startTime,
-            end_time: data.isCancelled ? null : data.endTime,
-            is_cancelled: data.isCancelled || false,
-            notes: data.notes,
-            created_by: user?.user?.id,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        return result;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save schedule override');
       }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-overrides'] });
@@ -273,19 +254,20 @@ export function useUpsertScheduleOverride() {
 
 // Delete a schedule override (restore to normal schedule)
 export function useDeleteScheduleOverride() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
   return useMutation({
     mutationFn: async ({ scheduleId, overrideDate }: { scheduleId: string; overrideDate: string }) => {
-      const { error } = await supabase
-        .from('schedule_overrides')
-        .delete()
-        .eq('schedule_id', scheduleId)
-        .eq('override_date', overrideDate);
+      const response = await fetch(
+        `/api/schedule-overrides?scheduleId=${encodeURIComponent(scheduleId)}&overrideDate=${encodeURIComponent(overrideDate)}`,
+        { method: 'DELETE' }
+      );
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete schedule override');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule-overrides'] });
@@ -358,7 +340,6 @@ export function useOneOffSchedules(startDate: string, endDate: string) {
 
 // Create a one-off schedule
 export function useCreateOneOffSchedule() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -369,23 +350,18 @@ export function useCreateOneOffSchedule() {
       startTime: string;
       endTime: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const response = await fetch('/api/schedule-one-offs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-      const { data: result, error } = await supabase
-        .from('schedule_one_offs')
-        .insert({
-          user_id: data.userId,
-          schedule_date: data.scheduleDate,
-          start_time: data.startTime,
-          end_time: data.endTime,
-          created_by: user.id,
-        })
-        .select()
-        .single();
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create one-off schedule');
+      }
 
-      if (error) throw error;
-      return result;
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });
@@ -401,7 +377,6 @@ export function useCreateOneOffSchedule() {
 
 // Update a one-off schedule
 export function useUpdateOneOffSchedule() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -410,19 +385,24 @@ export function useUpdateOneOffSchedule() {
       id: string;
       startTime: string;
       endTime: string;
+      scheduleDate?: string;
     }) => {
-      const { data: result, error } = await supabase
-        .from('schedule_one_offs')
-        .update({
-          start_time: data.startTime,
-          end_time: data.endTime,
-        })
-        .eq('id', data.id)
-        .select()
-        .single();
+      const response = await fetch(`/api/schedule-one-offs/${data.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startTime: data.startTime,
+          endTime: data.endTime,
+          ...(data.scheduleDate && { scheduleDate: data.scheduleDate }),
+        }),
+      });
 
-      if (error) throw error;
-      return result;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update one-off schedule');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });
@@ -438,18 +418,19 @@ export function useUpdateOneOffSchedule() {
 
 // Delete a one-off schedule
 export function useDeleteOneOffSchedule() {
-  const supabase = createClient();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('schedule_one_offs')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(`/api/schedule-one-offs/${id}`, {
+        method: 'DELETE',
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete one-off schedule');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });

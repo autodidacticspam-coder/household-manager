@@ -3,6 +3,7 @@ import {
   getValidAccessToken,
   getUserCalendarId,
   getUserSyncFilters,
+  DEFAULT_SYNC_FILTERS,
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
@@ -289,16 +290,57 @@ async function syncSchedules(
     .from('employee_schedules')
     .select(`
       id,
+      user_id,
       day_of_week,
       start_time,
       end_time,
       user:users!employee_schedules_user_id_fkey(full_name)
-    `);
+    `)
+    .eq('is_active', true);
 
-  if (!schedules) return 0;
+  if (!schedules || schedules.length === 0) return 0;
+
+  // Get schedule overrides for the date range
+  const { data: overrides } = await supabase
+    .from('schedule_overrides')
+    .select('schedule_id, override_date, start_time, end_time, is_cancelled')
+    .gte('override_date', startDate)
+    .lte('override_date', endDate);
+
+  const overrideMap = new Map<string, { start_time: string | null; end_time: string | null; is_cancelled: boolean }>();
+  for (const override of overrides || []) {
+    const key = `${override.schedule_id}-${override.override_date}`;
+    overrideMap.set(key, {
+      start_time: override.start_time,
+      end_time: override.end_time,
+      is_cancelled: override.is_cancelled,
+    });
+  }
+
+  // Get approved leave requests to exclude schedule on days off
+  const { data: approvedLeaves } = await supabase
+    .from('leave_requests')
+    .select('user_id, start_date, end_date, selected_dates')
+    .eq('status', 'approved')
+    .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+
+  const leaveDaysSet = new Set<string>();
+  for (const leave of approvedLeaves || []) {
+    if (leave.selected_dates && Array.isArray(leave.selected_dates)) {
+      for (const dateStr of leave.selected_dates) {
+        leaveDaysSet.add(`${leave.user_id}-${dateStr}`);
+      }
+    } else {
+      let leaveDate = new Date(leave.start_date + 'T00:00:00');
+      const leaveEnd = new Date(leave.end_date + 'T00:00:00');
+      while (leaveDate <= leaveEnd) {
+        leaveDaysSet.add(`${leave.user_id}-${format(leaveDate, 'yyyy-MM-dd')}`);
+        leaveDate = addDays(leaveDate, 1);
+      }
+    }
+  }
 
   let syncedCount = 0;
-  // Generate schedule events for each day in range
   const start = new Date(startDate);
   const end = new Date(endDate);
 
@@ -308,23 +350,71 @@ async function syncSchedules(
 
     for (const schedule of schedules) {
       if (schedule.day_of_week === dayOfWeek) {
+        if (leaveDaysSet.has(`${schedule.user_id}-${dateStr}`)) {
+          continue;
+        }
+
         const user = schedule.user as unknown as { full_name: string } | null;
+        const localId = `${schedule.id}-${dateStr}`;
+        const override = overrideMap.get(localId);
+
+        if (override?.is_cancelled) {
+          continue;
+        }
+
         const event = scheduleToCalendarEvent({
-          id: `${schedule.id}-${dateStr}`,
+          id: localId,
           employeeName: user?.full_name || 'Employee',
           date: dateStr,
-          startTime: schedule.start_time,
-          endTime: schedule.end_time,
+          startTime: override?.start_time || schedule.start_time,
+          endTime: override?.end_time || schedule.end_time,
         });
 
         const result = await createCalendarEvent(accessToken, calendarId, event);
         if (result.success && result.eventId) {
-          await saveSyncedEvent(userId, 'schedule', `${schedule.id}-${dateStr}`, result.eventId);
+          await saveSyncedEvent(userId, 'schedule', localId, result.eventId);
           syncedCount++;
         }
       }
     }
   }
+
+  // Also sync one-off schedules
+  const { data: oneOffSchedules } = await supabase
+    .from('schedule_one_offs')
+    .select(`
+      id,
+      user_id,
+      schedule_date,
+      start_time,
+      end_time,
+      user:users!schedule_one_offs_user_id_fkey(full_name)
+    `)
+    .gte('schedule_date', startDate)
+    .lte('schedule_date', endDate);
+
+  for (const schedule of oneOffSchedules || []) {
+    if (leaveDaysSet.has(`${schedule.user_id}-${schedule.schedule_date}`)) {
+      continue;
+    }
+
+    const user = schedule.user as unknown as { full_name: string } | null;
+    const localId = `one-off-${schedule.id}`;
+    const event = scheduleToCalendarEvent({
+      id: localId,
+      employeeName: user?.full_name || 'Employee',
+      date: schedule.schedule_date,
+      startTime: schedule.start_time,
+      endTime: schedule.end_time,
+    });
+
+    const result = await createCalendarEvent(accessToken, calendarId, event);
+    if (result.success && result.eventId) {
+      await saveSyncedEvent(userId, 'schedule', localId, result.eventId);
+      syncedCount++;
+    }
+  }
+
   return syncedCount;
 }
 
@@ -474,7 +564,7 @@ export async function syncEventToConnectedUsers(
   if (!tokens) return;
 
   for (const token of tokens) {
-    const filters = token.sync_filters as SyncFilters;
+    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
 
     // Check if user has this filter enabled
     let shouldSync = false;
@@ -483,7 +573,7 @@ export async function syncEventToConnectedUsers(
     } else if (eventType === 'child_log' && eventData) {
       // Check specific child log category
       const category = (eventData as { category?: string }).category;
-      if (category && filters.childLogs[category as keyof SyncFilters['childLogs']]) {
+      if (category && filters.childLogs?.[category as keyof SyncFilters['childLogs']]) {
         shouldSync = true;
       }
     }
@@ -554,5 +644,326 @@ function mapEventData(eventType: string, data: unknown): ReturnType<typeof taskT
       return childLogToCalendarEvent(data as Parameters<typeof childLogToCalendarEvent>[0]);
     default:
       return null;
+  }
+}
+
+/**
+ * Sync a base schedule change (employee_schedules table) to all connected users.
+ */
+export async function syncBaseScheduleChange(
+  scheduleId: string,
+  action: 'create' | 'update' | 'delete',
+  scheduleData?: {
+    userId: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+  }
+): Promise<void> {
+  const supabase = getApiAdminClient();
+
+  const { data: tokens } = await supabase
+    .from('google_calendar_tokens')
+    .select('user_id, calendar_id, sync_filters');
+
+  if (!tokens) return;
+
+  const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+  const endDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
+
+  for (const token of tokens) {
+    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    if (!filters.schedules) continue;
+
+    const accessToken = await getValidAccessToken(token.user_id);
+    if (!accessToken) continue;
+
+    if (action === 'delete') {
+      const { data: syncedEvents } = await supabase
+        .from('google_calendar_synced_events')
+        .select('google_event_id, source_id')
+        .eq('user_id', token.user_id)
+        .eq('event_type', 'schedule')
+        .like('source_id', `${scheduleId}-%`);
+
+      for (const syncedEvent of syncedEvents || []) {
+        await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
+        await supabase
+          .from('google_calendar_synced_events')
+          .delete()
+          .eq('user_id', token.user_id)
+          .eq('event_type', 'schedule')
+          .eq('source_id', syncedEvent.source_id);
+      }
+
+      continue;
+    }
+
+    if (!scheduleData) {
+      continue;
+    }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('full_name')
+      .eq('id', scheduleData.userId)
+      .single();
+
+    const employeeName = user?.full_name || 'Employee';
+
+    const { data: existingEvents } = await supabase
+      .from('google_calendar_synced_events')
+      .select('google_event_id, source_id')
+      .eq('user_id', token.user_id)
+      .eq('event_type', 'schedule')
+      .like('source_id', `${scheduleId}-%`);
+
+    for (const existing of existingEvents || []) {
+      await deleteCalendarEvent(accessToken, token.calendar_id, existing.google_event_id);
+      await supabase
+        .from('google_calendar_synced_events')
+        .delete()
+        .eq('user_id', token.user_id)
+        .eq('event_type', 'schedule')
+        .eq('source_id', existing.source_id);
+    }
+
+    const { data: overrides } = await supabase
+      .from('schedule_overrides')
+      .select('override_date, start_time, end_time, is_cancelled')
+      .eq('schedule_id', scheduleId)
+      .gte('override_date', startDate)
+      .lte('override_date', endDate);
+
+    const overrideMap = new Map<string, { start_time: string | null; end_time: string | null; is_cancelled: boolean }>();
+    for (const override of overrides || []) {
+      overrideMap.set(override.override_date, {
+        start_time: override.start_time,
+        end_time: override.end_time,
+        is_cancelled: override.is_cancelled,
+      });
+    }
+
+    const { data: approvedLeaves } = await supabase
+      .from('leave_requests')
+      .select('start_date, end_date, selected_dates')
+      .eq('user_id', scheduleData.userId)
+      .eq('status', 'approved')
+      .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+
+    const leaveDaysSet = new Set<string>();
+    for (const leave of approvedLeaves || []) {
+      if (leave.selected_dates && Array.isArray(leave.selected_dates)) {
+        for (const dateStr of leave.selected_dates) {
+          leaveDaysSet.add(dateStr);
+        }
+      } else {
+        let leaveDate = new Date(leave.start_date + 'T00:00:00');
+        const leaveEnd = new Date(leave.end_date + 'T00:00:00');
+        while (leaveDate <= leaveEnd) {
+          leaveDaysSet.add(format(leaveDate, 'yyyy-MM-dd'));
+          leaveDate = addDays(leaveDate, 1);
+        }
+      }
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayOfWeek = d.getDay();
+      const dateStr = format(d, 'yyyy-MM-dd');
+
+      if (dayOfWeek !== scheduleData.dayOfWeek) continue;
+      if (leaveDaysSet.has(dateStr)) continue;
+
+      const override = overrideMap.get(dateStr);
+      if (override?.is_cancelled) continue;
+
+      const event = scheduleToCalendarEvent({
+        id: `${scheduleId}-${dateStr}`,
+        employeeName,
+        date: dateStr,
+        startTime: override?.start_time || scheduleData.startTime,
+        endTime: override?.end_time || scheduleData.endTime,
+      });
+
+      const result = await createCalendarEvent(accessToken, token.calendar_id, event);
+      if (result.success && result.eventId) {
+        await saveSyncedEvent(token.user_id, 'schedule', `${scheduleId}-${dateStr}`, result.eventId);
+      }
+    }
+  }
+}
+
+/**
+ * Sync a schedule override change to all connected users.
+ */
+export async function syncScheduleOverrideChange(
+  scheduleId: string,
+  overrideDate: string,
+  action: 'create' | 'update' | 'delete',
+  overrideData?: {
+    startTime: string | null;
+    endTime: string | null;
+    isCancelled: boolean;
+  }
+): Promise<void> {
+  const supabase = getApiAdminClient();
+
+  const { data: schedule } = await supabase
+    .from('employee_schedules')
+    .select(`
+      id,
+      user_id,
+      start_time,
+      end_time,
+      user:users!employee_schedules_user_id_fkey(full_name)
+    `)
+    .eq('id', scheduleId)
+    .single();
+
+  if (!schedule) return;
+
+  const user = schedule.user as unknown as { full_name: string } | null;
+  const employeeName = user?.full_name || 'Employee';
+  const localId = `${scheduleId}-${overrideDate}`;
+
+  const { data: tokens } = await supabase
+    .from('google_calendar_tokens')
+    .select('user_id, calendar_id, sync_filters');
+
+  if (!tokens) return;
+
+  for (const token of tokens) {
+    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    if (!filters.schedules) continue;
+
+    const accessToken = await getValidAccessToken(token.user_id);
+    if (!accessToken) continue;
+
+    const { data: syncedEvent } = await supabase
+      .from('google_calendar_synced_events')
+      .select('google_event_id')
+      .eq('user_id', token.user_id)
+      .eq('event_type', 'schedule')
+      .eq('source_id', localId)
+      .single();
+
+    if (action === 'delete' || (overrideData && !overrideData.isCancelled)) {
+      const event = scheduleToCalendarEvent({
+        id: localId,
+        employeeName,
+        date: overrideDate,
+        startTime: overrideData?.startTime || schedule.start_time,
+        endTime: overrideData?.endTime || schedule.end_time,
+      });
+
+      if (syncedEvent) {
+        await updateCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id, event);
+      } else {
+        const result = await createCalendarEvent(accessToken, token.calendar_id, event);
+        if (result.success && result.eventId) {
+          await saveSyncedEvent(token.user_id, 'schedule', localId, result.eventId);
+        }
+      }
+    } else if (overrideData?.isCancelled && syncedEvent) {
+      await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
+      await supabase
+        .from('google_calendar_synced_events')
+        .delete()
+        .eq('user_id', token.user_id)
+        .eq('event_type', 'schedule')
+        .eq('source_id', localId);
+    }
+  }
+}
+
+/**
+ * Sync a one-off schedule change to all connected users.
+ */
+export async function syncOneOffScheduleChange(
+  oneOffId: string,
+  action: 'create' | 'update' | 'delete',
+  scheduleData?: {
+    userId: string;
+    scheduleDate: string;
+    startTime: string;
+    endTime: string;
+  }
+): Promise<void> {
+  const supabase = getApiAdminClient();
+  const localId = `one-off-${oneOffId}`;
+
+  const { data: tokens } = await supabase
+    .from('google_calendar_tokens')
+    .select('user_id, calendar_id, sync_filters');
+
+  if (!tokens) return;
+
+  for (const token of tokens) {
+    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    if (!filters.schedules) continue;
+
+    const accessToken = await getValidAccessToken(token.user_id);
+    if (!accessToken) continue;
+
+    if (action === 'delete') {
+      const { data: syncedEvent } = await supabase
+        .from('google_calendar_synced_events')
+        .select('google_event_id')
+        .eq('user_id', token.user_id)
+        .eq('event_type', 'schedule')
+        .eq('source_id', localId)
+        .single();
+
+      if (syncedEvent) {
+        await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
+        await supabase
+          .from('google_calendar_synced_events')
+          .delete()
+          .eq('user_id', token.user_id)
+          .eq('event_type', 'schedule')
+          .eq('source_id', localId);
+      }
+
+      continue;
+    }
+
+    if (!scheduleData) {
+      continue;
+    }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('full_name')
+      .eq('id', scheduleData.userId)
+      .single();
+
+    const employeeName = user?.full_name || 'Employee';
+    const event = scheduleToCalendarEvent({
+      id: localId,
+      employeeName,
+      date: scheduleData.scheduleDate,
+      startTime: scheduleData.startTime,
+      endTime: scheduleData.endTime,
+    });
+
+    const { data: syncedEvent } = await supabase
+      .from('google_calendar_synced_events')
+      .select('google_event_id')
+      .eq('user_id', token.user_id)
+      .eq('event_type', 'schedule')
+      .eq('source_id', localId)
+      .single();
+
+    if (action === 'update' && syncedEvent) {
+      await updateCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id, event);
+    } else {
+      const result = await createCalendarEvent(accessToken, token.calendar_id, event);
+      if (result.success && result.eventId) {
+        await saveSyncedEvent(token.user_id, 'schedule', localId, result.eventId);
+      }
+    }
   }
 }
