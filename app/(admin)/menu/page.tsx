@@ -23,7 +23,7 @@ import {
 import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
-import { useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
+import { useAllMenuRatings, useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
 import { useAuth } from '@/contexts/auth-context';
 import type { DayMeals, DayOfWeek } from '@/types';
@@ -312,8 +312,12 @@ export default function MenuPage() {
   const { data: menu, isLoading } = useWeeklyMenu(weekStartStr);
   const updateMenu = useUpdateMenu(weekStartStr);
   const { data: canEdit } = useCanEditMenu();
-  const { data: ratings } = useMenuRatings(weekStartStr);
   const { data: canAccessRatings } = useCanAccessFoodRatings();
+  const { data: ratings } = useMenuRatings(weekStartStr);
+  const { data: allWeekRatings } = useAllMenuRatings(
+    { startDate: weekStartStr, endDate: weekStartStr },
+    { enabled: canAccessRatings === true }
+  );
   const { isAdmin } = useAuth();
 
   // Auto-scroll to today when menu loads (only once per page load)
@@ -333,11 +337,18 @@ export default function MenuPage() {
     hasScrolledRef.current = false;
   }, [weekStartStr]);
 
-  // Helper to find rating for a specific menu item
+  // Helper to find the current user's rating for editing a specific menu item
   const getRating = (dayOfWeek: string, mealType: string, menuItem: string) => {
     return ratings?.find(
       r => r.dayOfWeek === dayOfWeek && r.mealType === mealType && r.menuItem === menuItem
     );
+  };
+
+  // Helper to show all admin/chef notes left on a specific menu item
+  const getItemRatings = (dayOfWeek: string, mealType: string, menuItem: string) => {
+    return allWeekRatings?.filter(
+      r => r.dayOfWeek === dayOfWeek && r.mealType === mealType && r.menuItem === menuItem
+    ) || [];
   };
 
   const [isEditing, setIsEditing] = useState(false);
@@ -600,39 +611,61 @@ export default function MenuPage() {
                                 const isKidsLine = trimmedLine.toLowerCase().includes('zander') ||
                                                    trimmedLine.toLowerCase().includes('zara') ||
                                                    trimmedLine.toLowerCase().includes('kids');
+                                const itemRatings = getItemRatings(dayMeal.day, key, trimmedLine);
+                                const itemNotes = itemRatings.filter(rating => rating.comment?.trim());
 
                                 return (
-                                  <div key={i} className="group flex items-center gap-2">
-                                    <p className={cn(
-                                      "flex-1 text-amber-900 dark:text-amber-100",
-                                      isKidsLine && "text-amber-600 dark:text-amber-400 text-sm italic"
-                                    )}>
-                                      {line}
-                                    </p>
-                                    {/* Rating selector for admins and chefs */}
-                                    {canAccessRatings && trimmedLine && !isKidsLine && (
-                                      <RatingSelector
-                                        menuItem={trimmedLine}
-                                        weekStart={weekStartStr}
-                                        dayOfWeek={dayMeal.day}
-                                        mealType={key}
-                                        currentRating={getRating(dayMeal.day, key, trimmedLine)}
-                                      />
-                                    )}
-                                    {/* Food request button for admins only */}
-                                    {isAdmin && trimmedLine && !isKidsLine && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
-                                        onClick={() => {
-                                          setRequestFoodName(trimmedLine);
-                                          setShowRequestDialog(true);
-                                        }}
-                                        title="Request this dish"
-                                      >
-                                        <Send className="h-3.5 w-3.5" />
-                                      </Button>
+                                  <div key={i} className="group">
+                                    <div className="flex items-center gap-2">
+                                      <p className={cn(
+                                        "flex-1 text-amber-900 dark:text-amber-100",
+                                        isKidsLine && "text-amber-600 dark:text-amber-400 text-sm italic"
+                                      )}>
+                                        {line}
+                                      </p>
+                                      {/* Rating selector for admins and chefs */}
+                                      {canAccessRatings && trimmedLine && !isKidsLine && (
+                                        <RatingSelector
+                                          menuItem={trimmedLine}
+                                          weekStart={weekStartStr}
+                                          dayOfWeek={dayMeal.day}
+                                          mealType={key}
+                                          currentRating={getRating(dayMeal.day, key, trimmedLine)}
+                                        />
+                                      )}
+                                      {/* Food request button for admins only */}
+                                      {isAdmin && trimmedLine && !isKidsLine && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 sm:opacity-0 sm:group-hover:opacity-100 touch-manipulation"
+                                          onClick={() => {
+                                            setRequestFoodName(trimmedLine);
+                                            setShowRequestDialog(true);
+                                          }}
+                                          title="Request this dish"
+                                        >
+                                          <Send className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                    {canAccessRatings && itemNotes.length > 0 && (
+                                      <div className="mt-1 ml-2 space-y-1">
+                                        {itemNotes.map((rating) => (
+                                          <div
+                                            key={rating.id}
+                                            className="flex items-start gap-2 rounded-md border border-amber-200/70 bg-white/60 px-2 py-1.5 text-amber-900 dark:border-amber-800/70 dark:bg-stone-900/50 dark:text-amber-100"
+                                          >
+                                            <MessageSquare className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                                            <div className="min-w-0">
+                                              <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                                {rating.ratedByUser?.fullName || 'Unknown'}
+                                              </p>
+                                              <p className="whitespace-pre-wrap break-words text-sm">{rating.comment}</p>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
                                 );

@@ -100,15 +100,19 @@ export function useMenuRatings(weekStart: string) {
 }
 
 // Get all ratings (for chef view) - aggregated across all admins
-export function useAllMenuRatings(filters?: {
-  menuItem?: string;
-  startDate?: string;
-  endDate?: string;
-}) {
+export function useAllMenuRatings(
+  filters?: {
+    menuItem?: string;
+    startDate?: string;
+    endDate?: string;
+  },
+  options?: { enabled?: boolean }
+) {
   const supabase = createClient();
 
   return useQuery({
     queryKey: ['menu-ratings-all', filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       let query = supabase
         .from('menu_ratings')
