@@ -205,11 +205,12 @@ export default function LeaveRequestsPage() {
   const [showCurrentlyOutPopup, setShowCurrentlyOutPopup] = useState(false);
   const [showUpcomingPopup, setShowUpcomingPopup] = useState(false);
 
-  // Vacation management state
+  // Leave management state
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showHolidayDialog, setShowHolidayDialog] = useState(false);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [addingEmployee, setAddingEmployee] = useState<string>('');
+  const [addingLeaveType, setAddingLeaveType] = useState<'vacation' | 'sick'>('vacation');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedHolidays, setSelectedHolidays] = useState<string[]>([]);
   const [selectedEmployeesForHolidays, setSelectedEmployeesForHolidays] = useState<string[]>([]);
@@ -245,6 +246,24 @@ export default function LeaveRequestsPage() {
 
   const holidays = getUpcomingUSHolidays();
 
+  const resetAddLeaveForm = (leaveType: 'vacation' | 'sick' = 'vacation') => {
+    setSelectedDates([]);
+    setAddingEmployee('');
+    setAddingLeaveType(leaveType);
+  };
+
+  const openAddLeaveDialog = (leaveType: 'vacation' | 'sick') => {
+    resetAddLeaveForm(leaveType);
+    setShowAddDialog(true);
+  };
+
+  const handleAddDialogOpenChange = (open: boolean) => {
+    setShowAddDialog(open);
+    if (!open) {
+      resetAddLeaveForm();
+    }
+  };
+
   const handleAction = async () => {
     if (!actionRequest) return;
 
@@ -258,7 +277,7 @@ export default function LeaveRequestsPage() {
     setAdminNotes('');
   };
 
-  const handleAddVacation = async () => {
+  const handleAddLeave = async () => {
     if (!addingEmployee || selectedDates.length === 0) {
       toast.error('Please select an employee and at least one date');
       return;
@@ -273,12 +292,13 @@ export default function LeaveRequestsPage() {
       const startDate = format(sortedDates[0], 'yyyy-MM-dd');
       const endDate = format(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd');
       const selectedDatesStr = sortedDates.map(d => format(d, 'yyyy-MM-dd'));
+      const leaveType = addingLeaveType === 'vacation' ? 'pto' : 'sick';
 
       const { error } = await supabase
         .from('leave_requests')
         .insert({
           user_id: addingEmployee,
-          leave_type: 'pto',
+          leave_type: leaveType,
           status: 'approved',
           start_date: startDate,
           end_date: endDate,
@@ -292,16 +312,15 @@ export default function LeaveRequestsPage() {
 
       if (error) throw error;
 
-      toast.success('Vacation days added successfully');
+      toast.success(`${addingLeaveType === 'vacation' ? 'Vacation' : 'Sick leave'} days added successfully`);
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
       setShowAddDialog(false);
-      setSelectedDates([]);
-      setAddingEmployee('');
+      resetAddLeaveForm();
     } catch (error: unknown) {
       const err = error as { message?: string };
-      console.error('Error adding vacation:', err);
-      toast.error(err.message || 'Failed to add vacation days');
+      console.error('Error adding leave:', err);
+      toast.error(err.message || 'Failed to add leave days');
     } finally {
       setIsSubmitting(false);
     }
@@ -480,14 +499,18 @@ export default function LeaveRequestsPage() {
             </div>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 sm:justify-end">
           <Button variant="outline" onClick={() => setShowHolidayDialog(true)}>
             <Sparkles className="h-4 w-4 mr-2" />
             Add Holidays
           </Button>
-          <Button onClick={() => setShowAddDialog(true)}>
+          <Button onClick={() => openAddLeaveDialog('vacation')}>
             <Plus className="h-4 w-4 mr-2" />
             Add Vacation
+          </Button>
+          <Button variant="outline" onClick={() => openAddLeaveDialog('sick')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Sick Leave
           </Button>
         </div>
       </div>
@@ -804,16 +827,16 @@ export default function LeaveRequestsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Vacation Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      {/* Add Leave Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={handleAddDialogOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              Add Vacation Days
+              {addingLeaveType === 'vacation' ? 'Add Vacation Days' : 'Add Sick Leave'}
             </DialogTitle>
             <DialogDescription>
-              Select an employee and pick vacation days from the calendar
+              Select an employee and pick {addingLeaveType === 'vacation' ? 'vacation' : 'sick'} days from the calendar
             </DialogDescription>
           </DialogHeader>
 
@@ -885,13 +908,12 @@ export default function LeaveRequestsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setShowAddDialog(false);
-              setSelectedDates([]);
-              setAddingEmployee('');
+              resetAddLeaveForm();
             }}>
               Cancel
             </Button>
             <Button
-              onClick={handleAddVacation}
+              onClick={handleAddLeave}
               disabled={isSubmitting || !addingEmployee || selectedDates.length === 0}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
