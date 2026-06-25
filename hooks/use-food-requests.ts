@@ -2,13 +2,16 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { canonicalizeFoodName, type FoodNameMergeLike } from '@/lib/food-names';
 import { toast } from 'sonner';
 
 export type FoodRequest = {
   id: string;
   foodName: string;
+  canonicalFoodName: string;
   requestedBy: string;
   notes: string | null;
+  recipeId: string | null;
   status: 'pending' | 'completed' | 'declined';
   completedAt: string | null;
   completedBy: string | null;
@@ -51,11 +54,14 @@ export function useFoodRequests(filters?: { status?: 'pending' | 'completed' | '
         query = query.eq('status', filters.status);
       }
 
-      const { data, error } = await query;
+      const [{ data, error }, activeMerges] = await Promise.all([
+        query,
+        fetchActiveMenuItemMerges(supabase),
+      ]);
 
       if (error) throw error;
 
-      return (data || []).map(transformFoodRequest);
+      return (data || []).map((row) => transformFoodRequest(row, activeMerges));
     },
   });
 }
@@ -195,7 +201,36 @@ export function useDeleteFoodRequest() {
   });
 }
 
-function transformFoodRequest(row: Record<string, unknown>): FoodRequest {
+async function fetchActiveMenuItemMerges(supabase: ReturnType<typeof createClient>): Promise<FoodNameMergeLike[]> {
+  const { data, error } = await supabase
+    .from('menu_item_merges')
+    .select('source_name, canonical_name')
+    .is('unmerged_at', null);
+
+  if (error) {
+    if (isMissingMenuItemMergesTableError(error)) return [];
+    throw error;
+  }
+
+  return (data || []).map((row) => ({
+    sourceName: row.source_name as string,
+    canonicalName: row.canonical_name as string,
+  }));
+}
+
+function isMissingMenuItemMergesTableError(error: { code?: string; message?: string }): boolean {
+  const message = error.message?.toLowerCase() || '';
+
+  return error.code === '42P01' ||
+    error.code === 'PGRST205' ||
+    (message.includes('menu_item_merges') && (
+      message.includes('does not exist') ||
+      message.includes('could not find') ||
+      message.includes('not found')
+    ));
+}
+
+function transformFoodRequest(row: Record<string, unknown>, activeMerges: FoodNameMergeLike[] = []): FoodRequest {
   // Handle Supabase join which may return array or object
   const rawRequestedByUser = row.requested_by_user as unknown;
   let requestedByUser: { id: string; full_name: string; avatar_url: string | null } | undefined;
@@ -220,8 +255,10 @@ function transformFoodRequest(row: Record<string, unknown>): FoodRequest {
   return {
     id: row.id as string,
     foodName: row.food_name as string,
+    canonicalFoodName: canonicalizeFoodName(row.food_name as string, activeMerges),
     requestedBy: row.requested_by as string,
     notes: row.notes as string | null,
+    recipeId: row.recipe_id as string | null,
     status: row.status as 'pending' | 'completed' | 'declined',
     completedAt: row.completed_at as string | null,
     completedBy: row.completed_by as string | null,

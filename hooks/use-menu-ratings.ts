@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
+import { canonicalizeFoodName, type FoodNameMergeLike } from '@/lib/food-names';
 import { toast } from 'sonner';
 
 // Check if user can access food ratings (admin or chef only)
@@ -52,6 +53,7 @@ export type MenuRating = {
   dayOfWeek: string;
   mealType: string;
   menuItem: string;
+  canonicalMenuItem: string;
   rating: number;
   ratedBy: string;
   comment: string | null;
@@ -62,6 +64,16 @@ export type MenuRating = {
     fullName: string;
     avatarUrl: string | null;
   };
+};
+
+export type MenuRatingSummary = {
+  menuItem: string;
+  rawMenuItems: string[];
+  averageRating: number;
+  totalRatings: number;
+  raters: string[];
+  minRating: number;
+  maxRating: number;
 };
 
 export type MenuRatingInput = {
@@ -94,7 +106,7 @@ export function useMenuRatings(weekStart: string) {
 
       if (error) throw error;
 
-      return (data || []).map(transformRating);
+      return (data || []).map((row) => transformRating(row));
     },
   });
 }
@@ -134,11 +146,14 @@ export function useAllMenuRatings(
         query = query.lte('week_start', filters.endDate);
       }
 
-      const { data, error } = await query;
+      const [{ data, error }, activeMerges] = await Promise.all([
+        query,
+        fetchActiveMenuItemMerges(supabase),
+      ]);
 
       if (error) throw error;
 
-      return (data || []).map(transformRating);
+      return (data || []).map((row) => transformRating(row, activeMerges));
     },
   });
 }
@@ -150,26 +165,33 @@ export function useMenuRatingsSummary() {
   return useQuery({
     queryKey: ['menu-ratings-summary'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const [ratingsResult, activeMerges] = await Promise.all([
+        supabase
         .from('menu_ratings')
         .select(`
           menu_item,
           rating,
           rated_by_user:users!menu_ratings_rated_by_fkey(full_name)
-        `);
+        `),
+        fetchActiveMenuItemMerges(supabase),
+      ]);
+
+      const { data, error } = ratingsResult;
 
       if (error) throw error;
 
       // Aggregate ratings by menu item
       const itemMap = new Map<string, {
         menuItem: string;
+        rawMenuItems: string[];
         ratings: number[];
         raters: string[];
       }>();
 
       for (const row of data || []) {
-        const item = row.menu_item;
-        const existing = itemMap.get(item);
+        const item = row.menu_item as string;
+        const canonicalItem = canonicalizeFoodName(item, activeMerges);
+        const existing = itemMap.get(canonicalItem);
         const ratedByUser = row.rated_by_user as unknown;
         let raterName = 'Unknown';
         if (Array.isArray(ratedByUser) && ratedByUser[0]?.full_name) {
@@ -180,12 +202,16 @@ export function useMenuRatingsSummary() {
 
         if (existing) {
           existing.ratings.push(row.rating);
+          if (!existing.rawMenuItems.includes(item)) {
+            existing.rawMenuItems.push(item);
+          }
           if (!existing.raters.includes(raterName)) {
             existing.raters.push(raterName);
           }
         } else {
-          itemMap.set(item, {
-            menuItem: item,
+          itemMap.set(canonicalItem, {
+            menuItem: canonicalItem,
+            rawMenuItems: [item],
             ratings: [row.rating],
             raters: [raterName],
           });
@@ -196,6 +222,7 @@ export function useMenuRatingsSummary() {
       return Array.from(itemMap.values())
         .map(item => ({
           menuItem: item.menuItem,
+          rawMenuItems: item.rawMenuItems.sort((a, b) => a.localeCompare(b)),
           averageRating: item.ratings.reduce((a, b) => a + b, 0) / item.ratings.length,
           totalRatings: item.ratings.length,
           raters: item.raters,
@@ -275,7 +302,36 @@ export function useDeleteMenuRating() {
   });
 }
 
-function transformRating(row: Record<string, unknown>): MenuRating {
+async function fetchActiveMenuItemMerges(supabase: ReturnType<typeof createClient>): Promise<FoodNameMergeLike[]> {
+  const { data, error } = await supabase
+    .from('menu_item_merges')
+    .select('source_name, canonical_name')
+    .is('unmerged_at', null);
+
+  if (error) {
+    if (isMissingMenuItemMergesTableError(error)) return [];
+    throw error;
+  }
+
+  return (data || []).map((row) => ({
+    sourceName: row.source_name as string,
+    canonicalName: row.canonical_name as string,
+  }));
+}
+
+function isMissingMenuItemMergesTableError(error: { code?: string; message?: string }): boolean {
+  const message = error.message?.toLowerCase() || '';
+
+  return error.code === '42P01' ||
+    error.code === 'PGRST205' ||
+    (message.includes('menu_item_merges') && (
+      message.includes('does not exist') ||
+      message.includes('could not find') ||
+      message.includes('not found')
+    ));
+}
+
+function transformRating(row: Record<string, unknown>, activeMerges: FoodNameMergeLike[] = []): MenuRating {
   // Handle Supabase join which may return array or object
   const rawRatedByUser = row.rated_by_user as unknown;
   let ratedByUser: { id: string; full_name: string; avatar_url: string | null } | null = null;
@@ -292,6 +348,7 @@ function transformRating(row: Record<string, unknown>): MenuRating {
     dayOfWeek: row.day_of_week as string,
     mealType: row.meal_type as string,
     menuItem: row.menu_item as string,
+    canonicalMenuItem: canonicalizeFoodName(row.menu_item as string, activeMerges),
     rating: row.rating as number,
     ratedBy: row.rated_by as string,
     comment: row.comment as string | null,

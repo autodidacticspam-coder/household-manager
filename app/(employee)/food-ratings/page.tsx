@@ -21,11 +21,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2, BookOpen } from 'lucide-react';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2, BookOpen, GitMerge } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings, useDeleteMenuRating } from '@/hooks/use-menu-ratings';
 import { useFoodRequests, useCompleteFoodRequest, useCreateFoodRequest, usePendingFoodRequestsCount, useDeleteFoodRequest } from '@/hooks/use-food-requests';
+import { useMenuItemMerges } from '@/hooks/use-menu-item-merges';
+import { FoodMergeReview } from '@/components/food/food-merge-review';
+import { FoodRequestInsights } from '@/components/food/food-request-insights';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { Textarea } from '@/components/ui/textarea';
@@ -62,6 +65,7 @@ function getRatingColor(rating: number): string {
 
 export default function FoodRatingsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('summary');
   const [selectedDish, setSelectedDish] = useState<string | null>(null);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [requestFoodName, setRequestFoodName] = useState('');
@@ -71,7 +75,9 @@ export default function FoodRatingsPage() {
   const { data: allRatings, isLoading: ratingsLoading } = useAllMenuRatings();
   const { data: foodRequests, isLoading: requestsLoading } = useFoodRequests();
   const { data: pendingCount } = usePendingFoodRequestsCount();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { data: activeMerges = [] } = useMenuItemMerges({ activeOnly: true });
+  const { data: mergeHistory = [] } = useMenuItemMerges();
   const completeFoodRequest = useCompleteFoodRequest();
   const createFoodRequest = useCreateFoodRequest();
   const deleteFoodRequest = useDeleteFoodRequest();
@@ -80,7 +86,7 @@ export default function FoodRatingsPage() {
   // Get all ratings for the selected dish
   const selectedDishRatings = useMemo(() => {
     if (!selectedDish || !allRatings) return [];
-    return allRatings.filter(r => r.menuItem === selectedDish);
+    return allRatings.filter(r => r.canonicalMenuItem === selectedDish);
   }, [selectedDish, allRatings]);
 
   // Get summary for selected dish
@@ -92,18 +98,30 @@ export default function FoodRatingsPage() {
   const filteredSummary = useMemo(() => {
     if (!summary) return [];
     if (!searchTerm) return summary;
+    const normalizedSearch = searchTerm.toLowerCase();
     return summary.filter(item =>
-      item.menuItem.toLowerCase().includes(searchTerm.toLowerCase())
+      item.menuItem.toLowerCase().includes(normalizedSearch) ||
+      item.rawMenuItems.some(rawItem => rawItem.toLowerCase().includes(normalizedSearch))
     );
   }, [summary, searchTerm]);
 
   const filteredRatings = useMemo(() => {
     if (!allRatings) return [];
     if (!searchTerm) return allRatings;
+    const normalizedSearch = searchTerm.toLowerCase();
     return allRatings.filter(r =>
-      r.menuItem.toLowerCase().includes(searchTerm.toLowerCase())
+      r.menuItem.toLowerCase().includes(normalizedSearch) ||
+      r.canonicalMenuItem.toLowerCase().includes(normalizedSearch)
     );
   }, [allRatings, searchTerm]);
+
+  const dishesWithComments = useMemo(() => {
+    return new Set(
+      (allRatings || [])
+        .filter(r => r.comment)
+        .map(r => r.canonicalMenuItem)
+    );
+  }, [allRatings]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -122,6 +140,12 @@ export default function FoodRatingsPage() {
       totalItems: summary.length,
     };
   }, [summary]);
+
+  const openRequestDialog = (foodName = '') => {
+    setRequestFoodName(foodName);
+    setRequestNotes('');
+    setShowRequestDialog(true);
+  };
 
   if (accessLoading || summaryLoading || ratingsLoading || requestsLoading) {
     return (
@@ -157,12 +181,23 @@ export default function FoodRatingsPage() {
             View how your dishes are being rated by the family
           </p>
         </div>
-        <Button asChild>
-          <Link href="/recipes">
-            <BookOpen className="h-4 w-4 mr-2" />
-            Recipes
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setActiveTab('requests')}>
+            <Send className="h-4 w-4 mr-2" />
+            Requests
+            {pendingCount && pendingCount > 0 && (
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1 text-xs">
+                {pendingCount}
+              </Badge>
+            )}
+          </Button>
+          <Button asChild>
+            <Link href="/recipes">
+              <BookOpen className="h-4 w-4 mr-2" />
+              Recipes
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -239,7 +274,7 @@ export default function FoodRatingsPage() {
         />
       </div>
 
-      <Tabs defaultValue="summary" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex overflow-x-auto no-scrollbar">
           <TabsTrigger value="summary" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Award className="h-4 w-4" />
@@ -266,6 +301,12 @@ export default function FoodRatingsPage() {
               </Badge>
             )}
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="merges" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+              <GitMerge className="h-4 w-4" />
+              <span className="hidden sm:inline">Merge Review</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Summary Tab */}
@@ -296,13 +337,18 @@ export default function FoodRatingsPage() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">
                               {item.menuItem}
-                              {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                              {dishesWithComments.has(item.menuItem) && (
                                 <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
                               )}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} • Range: {item.minRating}-{item.maxRating}
                             </p>
+                            {item.rawMenuItems.length > 1 && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                Includes {item.rawMenuItems.join(', ')}
+                              </p>
+                            )}
                           </div>
                           <RatingBadge rating={item.averageRating} />
                         </div>
@@ -310,18 +356,19 @@ export default function FoodRatingsPage() {
                           <p className="text-xs text-muted-foreground truncate flex-1">
                             {item.raters.join(', ')}
                           </p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 px-2 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 ml-2 flex-shrink-0"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRequestFoodName(item.menuItem);
-                              setShowRequestDialog(true);
-                            }}
-                          >
-                            <Send className="h-3 w-3" />
-                          </Button>
+                          {isAdmin && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 ml-2 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRequestDialog(item.menuItem);
+                              }}
+                            >
+                              <Send className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -333,7 +380,7 @@ export default function FoodRatingsPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Dish</TableHead>
-                          <TableHead className="text-center w-[100px]">Request</TableHead>
+                          {isAdmin && <TableHead className="text-center w-[100px]">Request</TableHead>}
                           <TableHead className="text-center">Avg Rating</TableHead>
                           <TableHead className="text-center">Total Ratings</TableHead>
                           <TableHead className="text-center">Range</TableHead>
@@ -349,25 +396,31 @@ export default function FoodRatingsPage() {
                           >
                             <TableCell className="font-medium max-w-[300px] truncate">
                               <span className="hover:underline">{item.menuItem}</span>
-                              {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                              {dishesWithComments.has(item.menuItem) && (
                                 <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
                               )}
+                              {item.rawMenuItems.length > 1 && (
+                                <div className="mt-1 text-xs font-normal text-muted-foreground">
+                                  Includes {item.rawMenuItems.join(', ')}
+                                </div>
+                              )}
                             </TableCell>
-                            <TableCell className="text-center">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 px-3 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setRequestFoodName(item.menuItem);
-                                  setShowRequestDialog(true);
-                                }}
-                              >
-                                <Send className="h-3 w-3 mr-1.5" />
-                                Request
-                              </Button>
-                            </TableCell>
+                            {isAdmin && (
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-3 text-xs bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 hover:text-amber-800 dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openRequestDialog(item.menuItem);
+                                  }}
+                                >
+                                  <Send className="h-3 w-3 mr-1.5" />
+                                  Request
+                                </Button>
+                              </TableCell>
+                            )}
                             <TableCell className="text-center">
                               <RatingBadge rating={item.averageRating} />
                             </TableCell>
@@ -425,7 +478,7 @@ export default function FoodRatingsPage() {
                           <div>
                             <p className="font-medium hover:underline">
                               {item.menuItem}
-                              {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                              {dishesWithComments.has(item.menuItem) && (
                                 <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
                               )}
                             </p>
@@ -473,7 +526,7 @@ export default function FoodRatingsPage() {
                         <div>
                           <p className="font-medium hover:underline">
                             {item.menuItem}
-                            {allRatings?.some(r => r.menuItem === item.menuItem && r.comment) && (
+                            {dishesWithComments.has(item.menuItem) && (
                               <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
                             )}
                           </p>
@@ -529,6 +582,11 @@ export default function FoodRatingsPage() {
                             {rating.rating}/10
                           </Badge>
                         </div>
+                        {rating.menuItem !== rating.canonicalMenuItem && (
+                          <p className="mb-2 text-xs text-muted-foreground">
+                            Grouped as {rating.canonicalMenuItem}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span className="capitalize">{rating.dayOfWeek} {rating.mealType}</span>
                           <span>{rating.ratedByUser?.fullName || 'Unknown'}</span>
@@ -583,6 +641,11 @@ export default function FoodRatingsPage() {
                               <span>{rating.menuItem}</span>
                               {rating.comment && (
                                 <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                              )}
+                              {rating.menuItem !== rating.canonicalMenuItem && (
+                                <div className="mt-1 text-xs font-normal text-muted-foreground">
+                                  Grouped as {rating.canonicalMenuItem}
+                                </div>
                               )}
                             </TableCell>
                             <TableCell className="capitalize text-sm">
@@ -645,24 +708,49 @@ export default function FoodRatingsPage() {
         <TabsContent value="requests">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="h-5 w-5" />
-                Food Requests
-              </CardTitle>
-              <CardDescription>
-                Food requests from the family
-              </CardDescription>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Send className="h-5 w-5" />
+                    Food Requests
+                  </CardTitle>
+                  <CardDescription>
+                    Food requests from the family
+                  </CardDescription>
+                </div>
+                {isAdmin && (
+                  <Button onClick={() => openRequestDialog()}>
+                    <Send className="h-4 w-4 mr-2" />
+                    New Request
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {!foodRequests || foodRequests.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  No food requests yet
-                </p>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">
+                    No food requests yet
+                  </p>
+                  {isAdmin && (
+                    <Button className="mt-4" onClick={() => openRequestDialog()}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Make First Request
+                    </Button>
+                  )}
+                </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
+                  <FoodRequestInsights
+                    requests={foodRequests}
+                    userId={user?.id}
+                    canCreateRequests={isAdmin}
+                    onRequestFood={openRequestDialog}
+                  />
+
                   {/* Pending Requests */}
                   {foodRequests.filter(r => r.status === 'pending').length > 0 && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 border-t pt-6">
                       <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         Pending Requests
@@ -683,6 +771,11 @@ export default function FoodRatingsPage() {
                               </Avatar>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-sm sm:text-base truncate">{request.foodName}</p>
+                                {request.foodName !== request.canonicalFoodName && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Grouped as {request.canonicalFoodName}
+                                  </p>
+                                )}
                                 <p className="text-xs sm:text-sm text-muted-foreground">
                                   by {request.requestedByUser?.fullName || 'Unknown'}
                                 </p>
@@ -772,9 +865,61 @@ export default function FoodRatingsPage() {
                                 <p className="text-xs sm:text-sm text-muted-foreground">
                                   by {request.requestedByUser?.fullName || 'Unknown'}
                                 </p>
+                                {request.foodName !== request.canonicalFoodName && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Grouped as {request.canonicalFoodName}
+                                  </p>
+                                )}
                                 {request.completedAt && (
                                   <p className="text-xs text-green-600 mt-1">
                                     Completed {format(new Date(request.completedAt), 'MMM d, yyyy')}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Declined Requests */}
+                  {foodRequests.filter(r => r.status === 'declined').length > 0 && (
+                    <div className="space-y-3 pt-4 border-t">
+                      <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <X className="h-4 w-4 text-red-500" />
+                        Declined Requests
+                      </h3>
+                      {foodRequests
+                        .filter(r => r.status === 'declined')
+                        .slice(0, 10)
+                        .map((request) => (
+                          <div
+                            key={request.id}
+                            className="p-3 sm:p-4 rounded-lg border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+                          >
+                            <div className="flex items-start gap-3">
+                              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+                                <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
+                                <AvatarFallback>
+                                  {request.requestedByUser?.fullName?.[0] || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="font-semibold text-sm sm:text-base text-muted-foreground truncate">
+                                    {request.foodName}
+                                  </p>
+                                  <Badge variant="outline" className="flex-shrink-0 text-xs">
+                                    <X className="h-3 w-3 sm:mr-1" />
+                                    <span className="hidden sm:inline">Declined</span>
+                                  </Badge>
+                                </div>
+                                <p className="text-xs sm:text-sm text-muted-foreground">
+                                  by {request.requestedByUser?.fullName || 'Unknown'}
+                                </p>
+                                {request.foodName !== request.canonicalFoodName && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Grouped as {request.canonicalFoodName}
                                   </p>
                                 )}
                               </div>
@@ -788,6 +933,29 @@ export default function FoodRatingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="merges">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GitMerge className="h-5 w-5" />
+                  Food Merge Review
+                </CardTitle>
+                <CardDescription>
+                  Approve likely duplicate dish names and undo previous merges when needed
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FoodMergeReview
+                  ratings={allRatings || []}
+                  activeMerges={activeMerges}
+                  mergeHistory={mergeHistory}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Dish Details Dialog */}
@@ -842,6 +1010,12 @@ export default function FoodRatingsPage() {
                   <div className="text-xs text-muted-foreground mb-2">
                     {rating.dayOfWeek} {rating.mealType} • {format(new Date(rating.createdAt), 'MMM d, yyyy')}
                   </div>
+
+                  {rating.menuItem !== rating.canonicalMenuItem && (
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Original item: {rating.menuItem}
+                    </p>
+                  )}
 
                   {rating.comment && (
                     <div className="mt-3 p-3 bg-background rounded border">
