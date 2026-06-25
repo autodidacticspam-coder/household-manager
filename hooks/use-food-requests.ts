@@ -94,6 +94,17 @@ export function useCreateFoodRequest() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) throw userError;
+      if (userData?.role !== 'admin') {
+        throw new Error('Only administrators can create food requests');
+      }
+
       const { data, error } = await supabase
         .from('food_requests')
         .insert({

@@ -20,6 +20,7 @@ import { RecipeCard } from '@/components/recipes/recipe-card';
 import { RecipeDetailDialog } from '@/components/recipes/recipe-detail-dialog';
 import { useRecipes } from '@/hooks/use-recipes';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
+import { useAuth } from '@/contexts/auth-context';
 import type { RecipeWithMedia } from '@/types/recipe';
 
 export default function RecipesPage() {
@@ -35,6 +36,7 @@ export default function RecipesPage() {
 
   const { data: recipes, isLoading } = useRecipes(debouncedSearch);
   const createFoodRequest = useCreateFoodRequest();
+  const { isAdmin } = useAuth();
 
   // Debounce search
   const handleSearchChange = (value: string) => {
@@ -46,6 +48,7 @@ export default function RecipesPage() {
   };
 
   const handleRequestRecipe = (recipe: RecipeWithMedia) => {
+    if (!isAdmin) return;
     setRequestRecipe(recipe);
     setRequestNotes('');
     setRequestDialogOpen(true);
@@ -104,6 +107,7 @@ export default function RecipesPage() {
               recipe={recipe}
               onClick={setSelectedRecipe}
               onRequest={handleRequestRecipe}
+              canRequest={isAdmin}
             />
           ))}
         </div>
@@ -126,9 +130,11 @@ export default function RecipesPage() {
         open={!!selectedRecipe}
         onOpenChange={(open) => !open && setSelectedRecipe(null)}
         onRequest={handleRequestRecipe}
+        canRequest={isAdmin}
       />
 
       {/* Request Dialog */}
+      {isAdmin && (
       <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -164,6 +170,7 @@ export default function RecipesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

@@ -37,6 +37,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import type { FoodRequest } from '@/hooks/use-food-requests';
 
 function RatingBadge({ rating }: { rating: number }) {
   const rounded = Math.round(rating * 10) / 10;
@@ -82,6 +83,8 @@ export default function FoodRatingsPage() {
   const createFoodRequest = useCreateFoodRequest();
   const deleteFoodRequest = useDeleteFoodRequest();
   const deleteMenuRating = useDeleteMenuRating();
+  const canCreateRequests = isAdmin;
+  const showRequestAnalysis = isAdmin;
 
   // Get all ratings for the selected dish
   const selectedDishRatings = useMemo(() => {
@@ -142,6 +145,7 @@ export default function FoodRatingsPage() {
   }, [summary]);
 
   const openRequestDialog = (foodName = '') => {
+    if (!canCreateRequests) return;
     setRequestFoodName(foodName);
     setRequestNotes('');
     setShowRequestDialog(true);
@@ -718,7 +722,7 @@ export default function FoodRatingsPage() {
                     Food requests from the family
                   </CardDescription>
                 </div>
-                {isAdmin && (
+                {canCreateRequests && (
                   <Button onClick={() => openRequestDialog()}>
                     <Send className="h-4 w-4 mr-2" />
                     New Request
@@ -732,7 +736,7 @@ export default function FoodRatingsPage() {
                   <p className="text-muted-foreground">
                     No food requests yet
                   </p>
-                  {isAdmin && (
+                  {canCreateRequests && (
                     <Button className="mt-4" onClick={() => openRequestDialog()}>
                       <Send className="h-4 w-4 mr-2" />
                       Make First Request
@@ -741,16 +745,18 @@ export default function FoodRatingsPage() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <FoodRequestInsights
-                    requests={foodRequests}
-                    userId={user?.id}
-                    canCreateRequests={isAdmin}
-                    onRequestFood={openRequestDialog}
-                  />
+                  {showRequestAnalysis && (
+                    <FoodRequestInsights
+                      requests={foodRequests}
+                      userId={user?.id}
+                      canCreateRequests={canCreateRequests}
+                      onRequestFood={openRequestDialog}
+                    />
+                  )}
 
                   {/* Pending Requests */}
                   {foodRequests.filter(r => r.status === 'pending').length > 0 && (
-                    <div className="space-y-3 border-t pt-6">
+                    <div className={cn("space-y-3", showRequestAnalysis ? "border-t pt-6" : "")}>
                       <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
                         <Clock className="h-4 w-4" />
                         Pending Requests
@@ -758,74 +764,17 @@ export default function FoodRatingsPage() {
                       {foodRequests
                         .filter(r => r.status === 'pending')
                         .map((request) => (
-                          <div
+                          <FoodRequestCard
                             key={request.id}
-                            className="p-3 sm:p-4 rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
-                          >
-                            <div className="flex items-start gap-3">
-                              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                                <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
-                                <AvatarFallback>
-                                  {request.requestedByUser?.fullName?.[0] || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-semibold text-sm sm:text-base truncate">{request.foodName}</p>
-                                {request.foodName !== request.canonicalFoodName && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Grouped as {request.canonicalFoodName}
-                                  </p>
-                                )}
-                                <p className="text-xs sm:text-sm text-muted-foreground">
-                                  by {request.requestedByUser?.fullName || 'Unknown'}
-                                </p>
-                                {request.notes && (
-                                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 italic line-clamp-2">
-                                    &quot;{request.notes}&quot;
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {format(new Date(request.createdAt), 'MMM d, h:mm a')}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 mt-3 justify-end">
-                              {/* Cancel button - visible to the requester */}
-                              {user?.id === request.requestedBy && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => deleteFoodRequest.mutate(request.id)}
-                                  disabled={deleteFoodRequest.isPending}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 h-8 text-xs sm:text-sm"
-                                >
-                                  {deleteFoodRequest.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <>
-                                      <X className="h-4 w-4 sm:mr-1" />
-                                      <span className="hidden sm:inline">Cancel</span>
-                                    </>
-                                  )}
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                onClick={() => completeFoodRequest.mutate(request.id)}
-                                disabled={completeFoodRequest.isPending}
-                                className="bg-green-600 hover:bg-green-700 h-8 text-xs sm:text-sm"
-                              >
-                                {completeFoodRequest.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <Check className="h-4 w-4 sm:mr-1" />
-                                    <span className="hidden sm:inline">Complete</span>
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
+                            request={request}
+                            tone="pending"
+                            currentUserId={user?.id}
+                            canCancel={user?.id === request.requestedBy}
+                            onCancel={() => deleteFoodRequest.mutate(request.id)}
+                            isCancelling={deleteFoodRequest.isPending}
+                            onComplete={() => completeFoodRequest.mutate(request.id)}
+                            isCompleting={completeFoodRequest.isPending}
+                          />
                         ))}
                     </div>
                   )}
@@ -839,45 +788,13 @@ export default function FoodRatingsPage() {
                       </h3>
                       {foodRequests
                         .filter(r => r.status === 'completed')
-                        .slice(0, 10)
                         .map((request) => (
-                          <div
+                          <FoodRequestCard
                             key={request.id}
-                            className="p-3 sm:p-4 rounded-lg border bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
-                          >
-                            <div className="flex items-start gap-3">
-                              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                                <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
-                                <AvatarFallback>
-                                  {request.requestedByUser?.fullName?.[0] || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="font-semibold text-sm sm:text-base line-through text-muted-foreground truncate">
-                                    {request.foodName}
-                                  </p>
-                                  <Badge variant="secondary" className="bg-green-100 text-green-700 flex-shrink-0 text-xs">
-                                    <Check className="h-3 w-3 sm:mr-1" />
-                                    <span className="hidden sm:inline">Done</span>
-                                  </Badge>
-                                </div>
-                                <p className="text-xs sm:text-sm text-muted-foreground">
-                                  by {request.requestedByUser?.fullName || 'Unknown'}
-                                </p>
-                                {request.foodName !== request.canonicalFoodName && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Grouped as {request.canonicalFoodName}
-                                  </p>
-                                )}
-                                {request.completedAt && (
-                                  <p className="text-xs text-green-600 mt-1">
-                                    Completed {format(new Date(request.completedAt), 'MMM d, yyyy')}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                            request={request}
+                            tone="completed"
+                            currentUserId={user?.id}
+                          />
                         ))}
                     </div>
                   )}
@@ -891,40 +808,13 @@ export default function FoodRatingsPage() {
                       </h3>
                       {foodRequests
                         .filter(r => r.status === 'declined')
-                        .slice(0, 10)
                         .map((request) => (
-                          <div
+                          <FoodRequestCard
                             key={request.id}
-                            className="p-3 sm:p-4 rounded-lg border bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
-                          >
-                            <div className="flex items-start gap-3">
-                              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                                <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
-                                <AvatarFallback>
-                                  {request.requestedByUser?.fullName?.[0] || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="font-semibold text-sm sm:text-base text-muted-foreground truncate">
-                                    {request.foodName}
-                                  </p>
-                                  <Badge variant="outline" className="flex-shrink-0 text-xs">
-                                    <X className="h-3 w-3 sm:mr-1" />
-                                    <span className="hidden sm:inline">Declined</span>
-                                  </Badge>
-                                </div>
-                                <p className="text-xs sm:text-sm text-muted-foreground">
-                                  by {request.requestedByUser?.fullName || 'Unknown'}
-                                </p>
-                                {request.foodName !== request.canonicalFoodName && (
-                                  <p className="text-xs text-muted-foreground">
-                                    Grouped as {request.canonicalFoodName}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                            request={request}
+                            tone="declined"
+                            currentUserId={user?.id}
+                          />
                         ))}
                     </div>
                   )}
@@ -1054,6 +944,7 @@ export default function FoodRatingsPage() {
       </Dialog>
 
       {/* Request Food Dialog */}
+      {canCreateRequests && (
       <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -1116,6 +1007,137 @@ export default function FoodRatingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
+    </div>
+  );
+}
+
+function FoodRequestCard({
+  request,
+  tone,
+  currentUserId,
+  canCancel = false,
+  onCancel,
+  isCancelling = false,
+  onComplete,
+  isCompleting = false,
+}: {
+  request: FoodRequest;
+  tone: 'pending' | 'completed' | 'declined';
+  currentUserId?: string;
+  canCancel?: boolean;
+  onCancel?: () => void;
+  isCancelling?: boolean;
+  onComplete?: () => void;
+  isCompleting?: boolean;
+}) {
+  const isPending = tone === 'pending';
+  const isCompleted = tone === 'completed';
+  const isDeclined = tone === 'declined';
+
+  return (
+    <div
+      className={cn(
+        "p-3 sm:p-4 rounded-lg border",
+        isPending && "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800",
+        isCompleted && "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
+        isDeclined && "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+          <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
+          <AvatarFallback>
+            {request.requestedByUser?.fullName?.[0] || 'U'}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p
+              className={cn(
+                "font-semibold text-sm sm:text-base break-words",
+                isCompleted && "line-through text-muted-foreground",
+                isDeclined && "text-muted-foreground"
+              )}
+            >
+              {request.foodName}
+            </p>
+            {isCompleted && (
+              <Badge variant="secondary" className="bg-green-100 text-green-700 flex-shrink-0 text-xs">
+                <Check className="h-3 w-3 sm:mr-1" />
+                <span className="hidden sm:inline">Done</span>
+              </Badge>
+            )}
+            {isDeclined && (
+              <Badge variant="outline" className="flex-shrink-0 text-xs">
+                <X className="h-3 w-3 sm:mr-1" />
+                <span className="hidden sm:inline">Declined</span>
+              </Badge>
+            )}
+          </div>
+          {request.foodName !== request.canonicalFoodName && (
+            <p className="text-xs text-muted-foreground">
+              Grouped as {request.canonicalFoodName}
+            </p>
+          )}
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            by {request.requestedByUser?.fullName || 'Unknown'}
+          </p>
+          {request.notes && (
+            <div className="mt-2 rounded-md border bg-background/70 p-3 text-xs sm:text-sm text-foreground">
+              <p className="mb-1 font-medium text-muted-foreground">Notes</p>
+              <p className="whitespace-pre-wrap break-words italic">&quot;{request.notes}&quot;</p>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mt-2">
+            Requested {format(new Date(request.createdAt), 'MMM d, h:mm a')}
+          </p>
+          {request.completedAt && (
+            <p className="text-xs text-green-600 mt-1">
+              Completed {format(new Date(request.completedAt), 'MMM d, yyyy')}
+            </p>
+          )}
+        </div>
+      </div>
+      {isPending && (
+        <div className="flex gap-2 mt-3 justify-end">
+          {canCancel && currentUserId === request.requestedBy && onCancel && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onCancel}
+              disabled={isCancelling}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 h-8 text-xs sm:text-sm"
+            >
+              {isCancelling ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <X className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Cancel</span>
+                </>
+              )}
+            </Button>
+          )}
+          {onComplete && (
+            <Button
+              size="sm"
+              onClick={onComplete}
+              disabled={isCompleting}
+              className="bg-green-600 hover:bg-green-700 h-8 text-xs sm:text-sm"
+            >
+              {isCompleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Check className="h-4 w-4 sm:mr-1" />
+                  <span className="hidden sm:inline">Complete</span>
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -10,9 +10,10 @@ interface RecipeCardProps {
   recipe: RecipeWithMedia;
   onClick: (recipe: RecipeWithMedia) => void;
   onRequest: (recipe: RecipeWithMedia) => void;
+  canRequest?: boolean;
 }
 
-export function RecipeCard({ recipe, onClick, onRequest }: RecipeCardProps) {
+export function RecipeCard({ recipe, onClick, onRequest, canRequest = true }: RecipeCardProps) {
   // Find hero image or first media item
   const heroMedia = recipe.media?.find(m => m.isHero) || recipe.media?.[0];
 
@@ -51,16 +52,18 @@ export function RecipeCard({ recipe, onClick, onRequest }: RecipeCardProps) {
       <CardContent className="p-4">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-semibold text-lg line-clamp-2 flex-1">{recipe.title}</h3>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequest(recipe);
-            }}
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          {canRequest && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRequest(recipe);
+              }}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

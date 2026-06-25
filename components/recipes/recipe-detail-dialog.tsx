@@ -40,6 +40,7 @@ interface RecipeDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRequest: (recipe: RecipeWithMedia) => void;
+  canRequest?: boolean;
 }
 
 export function RecipeDetailDialog({
@@ -47,6 +48,7 @@ export function RecipeDetailDialog({
   open,
   onOpenChange,
   onRequest,
+  canRequest = true,
 }: RecipeDetailDialogProps) {
   const t = useTranslations();
   const router = useRouter();
@@ -198,10 +200,12 @@ export function RecipeDetailDialog({
 
               {/* Actions */}
               <div className="flex flex-wrap gap-2 pt-4 border-t">
-                <Button onClick={() => onRequest(recipe)}>
-                  <Send className="h-4 w-4 mr-2" />
-                  {t('recipes.requestThisDish')}
-                </Button>
+                {canRequest && (
+                  <Button onClick={() => onRequest(recipe)}>
+                    <Send className="h-4 w-4 mr-2" />
+                    {t('recipes.requestThisDish')}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handleEdit}>
                   <Pencil className="h-4 w-4 mr-2" />
                   {t('common.edit')}
