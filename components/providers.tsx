@@ -6,6 +6,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { NotificationPopupProvider } from '@/contexts/notification-popup-context';
 import { LocaleSync } from '@/components/locale-sync';
 import { Toaster } from '@/components/ui/sonner';
+import { AccountSwitchBanner } from '@/components/admin/account-switch-banner';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         <NotificationPopupProvider>
           <LocaleSync />
+          <AccountSwitchBanner />
           {children}
           <Toaster position="top-right" richColors closeButton />
         </NotificationPopupProvider>
