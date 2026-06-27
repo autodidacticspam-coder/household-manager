@@ -1,10 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { Check, GitMerge, History, Loader2, RotateCcw } from 'lucide-react';
+import { ArrowLeftRight, Check, GitMerge, History, Loader2, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -40,13 +42,37 @@ export function FoodMergeReview({
   mergeHistory,
 }: FoodMergeReviewProps) {
   const [mergeTargets, setMergeTargets] = useState<Record<string, string>>({});
+  const [manualSourceName, setManualSourceName] = useState('');
+  const [manualCanonicalName, setManualCanonicalName] = useState('');
+  const sourceDatalistId = useId();
+  const canonicalDatalistId = useId();
   const createMenuItemMerges = useCreateMenuItemMerges();
   const undoMenuItemMerge = useUndoMenuItemMerge();
 
   const foodNameStats = useMemo(() => buildFoodNameStats(ratings), [ratings]);
+  const foodNameOptions = useMemo(
+    () => foodNameStats.map((item) => item.name).sort((a, b) => a.localeCompare(b)),
+    [foodNameStats]
+  );
+  const activeSourceNames = useMemo(
+    () => new Set(activeMerges.map((merge) => normalizeFoodName(merge.sourceName))),
+    [activeMerges]
+  );
   const potentialMergeGroups = useMemo(
     () => findPotentialFoodMergeGroups(foodNameStats, activeMerges),
     [foodNameStats, activeMerges]
+  );
+  const normalizedManualSource = normalizeFoodName(manualSourceName);
+  const normalizedManualCanonical = normalizeFoodName(manualCanonicalName);
+  const manualSourceAlreadyMerged = Boolean(
+    normalizedManualSource && activeSourceNames.has(normalizedManualSource)
+  );
+  const canCreateManualMerge = Boolean(
+    normalizedManualSource &&
+    normalizedManualCanonical &&
+    normalizedManualSource !== normalizedManualCanonical &&
+    !manualSourceAlreadyMerged &&
+    !createMenuItemMerges.isPending
   );
 
   const approveMerge = (groupId: string, itemNames: string[], recommendedName: string) => {
@@ -62,8 +88,106 @@ export function FoodMergeReview({
     });
   };
 
+  const createManualMerge = () => {
+    if (!canCreateManualMerge) return;
+
+    createMenuItemMerges.mutate({
+      canonicalName: manualCanonicalName,
+      sourceNames: [manualSourceName],
+      note: 'Manual merge from food ratings merge review',
+    }, {
+      onSuccess: () => {
+        setManualSourceName('');
+        setManualCanonicalName('');
+      },
+    });
+  };
+
+  const swapManualMergeNames = () => {
+    setManualSourceName(manualCanonicalName);
+    setManualCanonicalName(manualSourceName);
+  };
+
   return (
     <div className="space-y-8">
+      <div className="rounded-lg border bg-background p-4">
+        <div className="mb-4 flex items-start gap-3">
+          <GitMerge className="mt-0.5 h-5 w-5 text-muted-foreground" />
+          <div>
+            <h3 className="text-sm font-semibold">Manual Merge</h3>
+            <p className="text-sm text-muted-foreground">
+              Merge a rated dish into the exact name that should be used in ratings and request analytics.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] lg:items-end">
+          <div className="space-y-2">
+            <Label htmlFor="manual-merge-source">Rated dish</Label>
+            <Input
+              id="manual-merge-source"
+              list={sourceDatalistId}
+              value={manualSourceName}
+              onChange={(event) => setManualSourceName(event.target.value)}
+              placeholder="Duck confit with Chinese 5 spice and citrus glaze"
+            />
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="hidden lg:inline-flex"
+            onClick={swapManualMergeNames}
+            aria-label="Swap manual merge source and canonical dish"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
+          </Button>
+
+          <div className="space-y-2">
+            <Label htmlFor="manual-merge-canonical">Canonical dish</Label>
+            <Input
+              id="manual-merge-canonical"
+              list={canonicalDatalistId}
+              value={manualCanonicalName}
+              onChange={(event) => setManualCanonicalName(event.target.value)}
+              placeholder="Duck confit"
+            />
+          </div>
+
+          <Button
+            type="button"
+            onClick={createManualMerge}
+            disabled={!canCreateManualMerge}
+            className="w-full lg:w-auto"
+          >
+            {createMenuItemMerges.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <GitMerge className="h-4 w-4" />
+            )}
+            Merge
+          </Button>
+        </div>
+
+        <datalist id={sourceDatalistId}>
+          {foodNameOptions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+        <datalist id={canonicalDatalistId}>
+          {foodNameOptions.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
+
+        {manualSourceAlreadyMerged && (
+          <p className="mt-3 text-sm text-amber-600">
+            This rated dish is already merged. Unmerge it in the history table before changing its canonical dish.
+          </p>
+        )}
+      </div>
+
       <div className="rounded-lg border bg-muted/30 p-4">
         <div className="mb-4 flex items-start gap-3">
           <GitMerge className="mt-0.5 h-5 w-5 text-muted-foreground" />

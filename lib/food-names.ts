@@ -34,6 +34,95 @@ const STOP_WORDS = new Set([
   'style',
 ]);
 
+const GENERIC_SINGLE_TOKEN_CORES = new Set([
+  'bean',
+  'beef',
+  'bowl',
+  'bread',
+  'burger',
+  'chicken',
+  'curry',
+  'duck',
+  'dumpling',
+  'egg',
+  'fish',
+  'fry',
+  'lamb',
+  'meat',
+  'noodle',
+  'pasta',
+  'pork',
+  'potato',
+  'rice',
+  'salad',
+  'sandwich',
+  'seafood',
+  'shrimp',
+  'side',
+  'soup',
+  'steak',
+  'taco',
+  'tofu',
+  'vegetable',
+  'veggie',
+  'wrap',
+]);
+
+const OUTER_MODIFIERS = new Set([
+  'asian',
+  'baked',
+  'bbq',
+  'blackened',
+  'braised',
+  'broiled',
+  'caramelized',
+  'charred',
+  'chinese',
+  'classic',
+  'crispy',
+  'fresh',
+  'french',
+  'garlic',
+  'glazed',
+  'grilled',
+  'herb',
+  'honey',
+  'house',
+  'italian',
+  'japanese',
+  'korean',
+  'lemon',
+  'lime',
+  'mexican',
+  'roasted',
+  'sauteed',
+  'seared',
+  'slow',
+  'smoked',
+  'spicy',
+  'sweet',
+  'thai',
+  'toasted',
+  'warm',
+]);
+
+const CORE_CONNECTOR_PATTERNS = [
+  /\bserved\s+(?:with|over|on|in)\b/,
+  /\btopped\s+with\b/,
+  /\bfinished\s+with\b/,
+  /\bdrizzled\s+with\b/,
+  /\bglazed\s+with\b/,
+  /\bgarnished\s+with\b/,
+  /\bpaired\s+with\b/,
+  /\baccompanied\s+by\b/,
+  /\balongside\b/,
+  /\bwith\b/,
+  /\bover\b/,
+  /\bon\b/,
+  /\bin\b/,
+  /\bplus\b/,
+];
+
 export function normalizeFoodName(name: string): string {
   return name
     .toLowerCase()
@@ -89,12 +178,24 @@ function singularizeToken(token: string): string {
 }
 
 function foodNameTokens(name: string): string[] {
-  const tokens = normalizeFoodName(name)
-    .split(' ')
-    .map(singularizeToken)
+  const tokens = orderedFoodNameTokens(name)
     .filter((token) => token.length > 1 && !STOP_WORDS.has(token));
 
   return Array.from(new Set(tokens)).sort();
+}
+
+function orderedFoodNameTokens(name: string): string[] {
+  const seen = new Set<string>();
+
+  return normalizeFoodName(name)
+    .split(' ')
+    .map(singularizeToken)
+    .filter((token) => token.length > 1 && !STOP_WORDS.has(token))
+    .filter((token) => {
+      if (seen.has(token)) return false;
+      seen.add(token);
+      return true;
+    });
 }
 
 function levenshteinDistance(a: string, b: string): number {
@@ -135,6 +236,100 @@ function tokenSimilarity(a: string[], b: string[]): number {
   return intersection / union;
 }
 
+function isSpecificCoreTokens(tokens: string[]): boolean {
+  if (tokens.length >= 2) {
+    return !tokens.every((token) => GENERIC_SINGLE_TOKEN_CORES.has(token));
+  }
+
+  return tokens.length === 1 && !GENERIC_SINGLE_TOKEN_CORES.has(tokens[0]);
+}
+
+function isSpecificCorePhrase(name: string): boolean {
+  return isSpecificCoreTokens(orderedFoodNameTokens(name));
+}
+
+function tokensToName(tokens: string[]): string {
+  return tokens.join(' ');
+}
+
+function stripOuterModifiers(tokens: string[]): string[] {
+  let start = 0;
+  let end = tokens.length;
+
+  while (end - start > 1 && OUTER_MODIFIERS.has(tokens[start])) {
+    const nextTokens = tokens.slice(start + 1, end);
+    if (!isSpecificCoreTokens(nextTokens)) break;
+    start++;
+  }
+
+  while (end - start > 1 && OUTER_MODIFIERS.has(tokens[end - 1])) {
+    const nextTokens = tokens.slice(start, end - 1);
+    if (!isSpecificCoreTokens(nextTokens)) break;
+    end--;
+  }
+
+  return tokens.slice(start, end);
+}
+
+function addCoreCandidate(candidates: Set<string>, name: string) {
+  const tokens = orderedFoodNameTokens(name);
+  if (!isSpecificCoreTokens(tokens)) return;
+
+  candidates.add(tokensToName(tokens));
+
+  const strippedTokens = stripOuterModifiers(tokens);
+  if (isSpecificCoreTokens(strippedTokens)) {
+    candidates.add(tokensToName(strippedTokens));
+  }
+}
+
+function getCoreCandidates(name: string): string[] {
+  const normalized = normalizeFoodName(name);
+  const candidates = new Set<string>();
+
+  addCoreCandidate(candidates, normalized);
+
+  for (const pattern of CORE_CONNECTOR_PATTERNS) {
+    const match = normalized.match(pattern);
+    if (match?.index === undefined || match.index <= 0) continue;
+
+    addCoreCandidate(candidates, normalized.slice(0, match.index));
+  }
+
+  return Array.from(candidates).sort((a, b) => a.length - b.length);
+}
+
+function getPrimaryCore(name: string): { name: string; tokens: string[] } {
+  const candidates = getCoreCandidates(name);
+  const coreName = candidates[0] || normalizeFoodName(name);
+
+  return {
+    name: coreName,
+    tokens: orderedFoodNameTokens(coreName),
+  };
+}
+
+function hasSharedSpecificPrefix(a: string[], b: string[]): boolean {
+  const shared: string[] = [];
+  const limit = Math.min(a.length, b.length);
+
+  for (let index = 0; index < limit; index++) {
+    if (a[index] !== b[index]) break;
+    shared.push(a[index]);
+  }
+
+  return shared.length >= 2 && isSpecificCoreTokens(shared);
+}
+
+function hasSpecificContainment(shorterName: string, longerName: string): boolean {
+  if (!shorterName || shorterName === longerName) return false;
+  if (!isSpecificCorePhrase(shorterName)) return false;
+
+  return longerName.startsWith(`${shorterName} `) ||
+    longerName.includes(` ${shorterName} `) ||
+    longerName.endsWith(` ${shorterName}`);
+}
+
 function similarityScore(a: string, b: string): { score: number; reason: string } {
   const normalizedA = normalizeFoodName(a);
   const normalizedB = normalizeFoodName(b);
@@ -143,15 +338,48 @@ function similarityScore(a: string, b: string): { score: number; reason: string 
     return { score: 1, reason: 'Same normalized name' };
   }
 
+  const coreA = getPrimaryCore(a);
+  const coreB = getPrimaryCore(b);
+  const coreCandidatesA = new Set(getCoreCandidates(a));
+  const sharedCore = getCoreCandidates(b).find((candidate) => coreCandidatesA.has(candidate));
+
+  if (sharedCore && isSpecificCorePhrase(sharedCore)) {
+    return { score: 0.97, reason: `Same core dish: ${sharedCore}` };
+  }
+
+  const shorterCore = coreA.name.length <= coreB.name.length ? coreA.name : coreB.name;
+  const longerCore = coreA.name.length <= coreB.name.length ? coreB.name : coreA.name;
+
+  if (hasSpecificContainment(shorterCore, longerCore)) {
+    return { score: 0.94, reason: `One name expands on ${shorterCore}` };
+  }
+
+  const shorterNormalized = normalizedA.length <= normalizedB.length ? normalizedA : normalizedB;
+  const longerNormalized = normalizedA.length <= normalizedB.length ? normalizedB : normalizedA;
+
+  if (hasSpecificContainment(shorterNormalized, longerNormalized)) {
+    return { score: 0.93, reason: `One name adds details to ${shorterNormalized}` };
+  }
+
+  if (hasSharedSpecificPrefix(coreA.tokens, coreB.tokens)) {
+    const sharedTokens: string[] = [];
+    const limit = Math.min(coreA.tokens.length, coreB.tokens.length);
+
+    for (let index = 0; index < limit; index++) {
+      if (coreA.tokens[index] !== coreB.tokens[index]) break;
+      sharedTokens.push(coreA.tokens[index]);
+    }
+
+    return { score: 0.9, reason: `Same leading dish name: ${tokensToName(sharedTokens)}` };
+  }
+
   const editDistance = levenshteinDistance(normalizedA, normalizedB);
   const editSimilarity = 1 - editDistance / Math.max(normalizedA.length, normalizedB.length);
 
   const tokensA = foodNameTokens(a);
   const tokensB = foodNameTokens(b);
   const overlap = tokenSimilarity(tokensA, tokensB);
-  const shorter = normalizedA.length < normalizedB.length ? normalizedA : normalizedB;
-  const longer = normalizedA.length < normalizedB.length ? normalizedB : normalizedA;
-  const containment = shorter.length >= 8 && longer.includes(shorter);
+  const containment = hasSpecificContainment(shorterNormalized, longerNormalized);
 
   const score = Math.max(editSimilarity, overlap, containment ? 0.86 : 0);
 
@@ -174,7 +402,7 @@ function shouldSuggestMerge(a: string, b: string): { shouldSuggest: boolean; sco
   const similarity = similarityScore(a, b);
 
   return {
-    shouldSuggest: similarity.score >= 0.86,
+    shouldSuggest: similarity.score >= 0.84,
     score: similarity.score,
     reason: similarity.reason,
   };
