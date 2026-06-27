@@ -21,12 +21,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2, BookOpen, GitMerge } from 'lucide-react';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2, BookOpen, GitMerge, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings, useDeleteMenuRating } from '@/hooks/use-menu-ratings';
 import { useFoodRequests, useCompleteFoodRequest, useCreateFoodRequest, usePendingFoodRequestsCount, useDeleteFoodRequest } from '@/hooks/use-food-requests';
 import { useMenuItemMerges } from '@/hooks/use-menu-item-merges';
+import { AdminMenuCatalog } from '@/components/food/admin-menu-catalog';
 import { FoodMergeReview } from '@/components/food/food-merge-review';
 import { FoodRequestInsights } from '@/components/food/food-request-insights';
 import Link from 'next/link';
@@ -306,10 +307,16 @@ export default function FoodRatingsPage() {
             )}
           </TabsTrigger>
           {isAdmin && (
-            <TabsTrigger value="merges" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
-              <GitMerge className="h-4 w-4" />
-              <span className="hidden sm:inline">Merge Review</span>
-            </TabsTrigger>
+            <>
+              <TabsTrigger value="catalog" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+                <Tags className="h-4 w-4" />
+                <span className="hidden sm:inline">Catalog</span>
+              </TabsTrigger>
+              <TabsTrigger value="merges" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+                <GitMerge className="h-4 w-4" />
+                <span className="hidden sm:inline">Merge Review</span>
+              </TabsTrigger>
+            </>
           )}
         </TabsList>
 
@@ -846,6 +853,13 @@ export default function FoodRatingsPage() {
             </Card>
           </TabsContent>
         )}
+
+        {isAdmin && (
+          <TabsContent value="catalog">
+            <AdminMenuCatalog searchTerm={searchTerm} />
+          </TabsContent>
+        )}
+
       </Tabs>
 
       {/* Dish Details Dialog */}
