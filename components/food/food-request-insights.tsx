@@ -46,7 +46,7 @@ export function FoodRequestInsights({
     () => requestGroups.filter((group) => group.myRequests > 0),
     [requestGroups]
   );
-  const favoriteGroups = (myRequestGroups.length > 0 ? myRequestGroups : requestGroups).slice(0, 6);
+  const favoriteGroups = (myRequestGroups.length > 0 ? myRequestGroups : requestGroups).slice(0, 21);
 
   const stats = useMemo(() => {
     const myRequests = requests.filter((request) => request.requestedBy === userId).length;
