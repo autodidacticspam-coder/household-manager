@@ -237,9 +237,7 @@ function tokenSimilarity(a: string[], b: string[]): number {
 }
 
 function isSpecificCoreTokens(tokens: string[]): boolean {
-  if (tokens.length >= 2) {
-    return !tokens.every((token) => GENERIC_SINGLE_TOKEN_CORES.has(token));
-  }
+  if (tokens.length >= 2) return true;
 
   return tokens.length === 1 && !GENERIC_SINGLE_TOKEN_CORES.has(tokens[0]);
 }
