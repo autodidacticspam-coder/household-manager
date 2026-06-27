@@ -856,7 +856,7 @@ export default function FoodRatingsPage() {
 
         {isAdmin && (
           <TabsContent value="catalog">
-            <AdminMenuCatalog searchTerm={searchTerm} />
+            <AdminMenuCatalog />
           </TabsContent>
         )}
 

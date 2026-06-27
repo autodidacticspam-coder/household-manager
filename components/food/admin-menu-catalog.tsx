@@ -6,6 +6,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Check, Loader2, Plus, Search, Tags } f
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -32,10 +33,6 @@ import {
 } from '@/hooks/use-admin-menu-catalog';
 import { cn } from '@/lib/utils';
 
-type AdminMenuCatalogProps = {
-  searchTerm: string;
-};
-
 type CatalogSortField = 'name' | 'tags' | 'averageRating' | 'totalRatings' | 'timesServed' | 'lastServedAt';
 type CatalogSortDirection = 'asc' | 'desc';
 
@@ -48,14 +45,14 @@ const CATALOG_SORT_OPTIONS: { field: CatalogSortField; label: string }[] = [
   { field: 'lastServedAt', label: 'Last Seen' },
 ];
 
-export function AdminMenuCatalog({ searchTerm }: AdminMenuCatalogProps) {
+export function AdminMenuCatalog() {
+  const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [selectedTagSlugs, setSelectedTagSlugs] = useState<CoreMenuTagSlug[]>([]);
   const [showUntaggedOnly, setShowUntaggedOnly] = useState(false);
   const [sortField, setSortField] = useState<CatalogSortField>('name');
   const [sortDirection, setSortDirection] = useState<CatalogSortDirection>('asc');
   const { data: coreTags = [], isLoading: tagsLoading } = useCoreMenuTags();
   const { data: catalogItems = [], isLoading: itemsLoading } = useAdminMenuCatalogItems({
-    search: searchTerm,
     tagSlugs: selectedTagSlugs,
   });
   const toggleTag = useToggleMenuItemTag();
@@ -69,16 +66,20 @@ export function AdminMenuCatalog({ searchTerm }: AdminMenuCatalogProps) {
     () => new Set(CORE_MENU_TAGS.map((tag) => tag.slug)),
     []
   );
+  const effectiveCatalogSearchTerm = catalogSearchTerm.trim();
   const visibleItems = useMemo(() => {
+    const searchFilteredItems = effectiveCatalogSearchTerm
+      ? catalogItems.filter((item) => matchesCatalogSearch(item, effectiveCatalogSearchTerm))
+      : catalogItems;
     const filteredItems = showUntaggedOnly
-      ? catalogItems.filter((item) =>
+      ? searchFilteredItems.filter((item) =>
         !item.tags.some((tag) => coreSlugSet.has(tag.slug as CoreMenuTagSlug))
       )
-      : catalogItems;
+      : searchFilteredItems;
 
     return sortMenuCatalogItems(filteredItems, sortField, sortDirection);
-  }, [catalogItems, coreSlugSet, showUntaggedOnly, sortDirection, sortField]);
-  const trimmedSearch = searchTerm.trim();
+  }, [catalogItems, coreSlugSet, effectiveCatalogSearchTerm, showUntaggedOnly, sortDirection, sortField]);
+  const trimmedSearch = effectiveCatalogSearchTerm;
   const canAddSearchedDish = trimmedSearch.length > 1 &&
     selectedTagSlugs.length === 0 &&
     !showUntaggedOnly &&
@@ -146,6 +147,15 @@ export function AdminMenuCatalog({ searchTerm }: AdminMenuCatalogProps) {
               <span className="truncate">Add &quot;{trimmedSearch}&quot;</span>
             </Button>
           )}
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={catalogSearchTerm}
+            onChange={(event) => setCatalogSearchTerm(event.target.value)}
+            placeholder="Search catalog..."
+            className="pl-10"
+          />
         </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
@@ -554,4 +564,29 @@ function getCoreTagSortValue(item: AdminMenuCatalogItem): string {
     .filter((tag) => itemTagSlugs.has(tag.slug))
     .map((tag) => tag.label)
     .join(' ');
+}
+
+function matchesCatalogSearch(item: AdminMenuCatalogItem, searchTerm: string): boolean {
+  const tokens = searchTerm
+    .toLowerCase()
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  if (tokens.length === 0) return true;
+
+  const itemTagSlugs = new Set(item.tags.map((tag) => tag.slug));
+  const searchable = [
+    item.name,
+    item.category || '',
+    item.searchText || '',
+    ...item.aliases,
+    ...item.mealTypes,
+    ...item.tags.map((tag) => tag.name),
+    ...CORE_MENU_TAGS
+      .filter((tag) => itemTagSlugs.has(tag.slug))
+      .flatMap((tag) => [tag.label, tag.name]),
+  ].join(' ').toLowerCase();
+
+  return tokens.every((token) => searchable.includes(token));
 }
