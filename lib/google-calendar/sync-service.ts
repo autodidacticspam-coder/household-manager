@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { getApiAdminClient } from '@/lib/supabase/api-helpers';
 import {
   getValidAccessToken,
@@ -7,8 +8,10 @@ import {
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
-  deleteAllSyncedEvents,
+  listSyncedEvents,
+  runWithConcurrency,
   type SyncFilters,
+  type GoogleCalendarEvent,
 } from './calendar-service';
 import {
   taskToCalendarEvent,
@@ -24,29 +27,78 @@ interface SyncResult {
   error?: string;
   debug?: {
     version: string;
-    deletedFromGoogle?: number;
-    deleteErrors?: number;
+    desiredCount: number;
+    existingCount: number;
+    created: number;
+    updated: number;
+    deleted: number;
+    unchanged: number;
+    failed: number;
+    firstError?: string;
     tasksCount: number;
-    tasksFound?: number;
-    firstTaskError?: string;
     leaveCount: number;
     schedulesCount: number;
     importantDatesCount: number;
     childLogsCount: number;
     dateRange: { start: string; end: string };
     filters?: SyncFilters;
-    totalTasksInDb?: number | null;
-    sampleTasks?: Array<{ id: string; title: string; due_date: string }>;
+  };
+}
+
+interface DesiredEvent {
+  eventType: string;
+  sourceId: string;
+  event: GoogleCalendarEvent;
+  contentHash: string;
+}
+
+/**
+ * Hash the visible payload of an event so reconciliation can tell whether an
+ * already-synced Google event still matches what we would create today.
+ */
+function computeContentHash(event: GoogleCalendarEvent): string {
+  const payload = JSON.stringify({
+    summary: event.summary,
+    description: event.description || '',
+    start: event.start,
+    end: event.end,
+    colorId: event.colorId || '',
+  });
+  return createHash('sha1').update(payload).digest('hex');
+}
+
+function withSyncProperties(event: GoogleCalendarEvent, contentHash: string): GoogleCalendarEvent {
+  return {
+    ...event,
+    extendedProperties: {
+      private: {
+        ...(event.extendedProperties?.private || {}),
+        contentHash,
+      },
+    },
   };
 }
 
 /**
- * Sync all events for a user based on their filters
+ * Sync all events for a user based on their filters.
+ *
+ * This is a reconciliation, not a rebuild: we list the events our sync owns
+ * in Google Calendar (identified by private extended properties), diff them
+ * against what the database says should exist, and only create/update/delete
+ * the differences. Repeat syncs with no changes make almost no API calls, so
+ * the sync stays fast and cannot leave duplicates behind when interrupted.
  */
 export async function syncAllEventsForUser(userId: string): Promise<SyncResult> {
   const supabase = getApiAdminClient();
   const debug: NonNullable<SyncResult['debug']> = {
-    version: 'v4',
+    version: 'v8-reconcile',
+    desiredCount: 0,
+    existingCount: 0,
+    created: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+    failed: 0,
     tasksCount: 0,
     leaveCount: 0,
     schedulesCount: 0,
@@ -55,7 +107,6 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
     dateRange: { start: '', end: '' },
   };
 
-  // Get access token and filters
   const accessToken = await getValidAccessToken(userId);
   if (!accessToken) {
     return { success: false, error: 'No valid access token', debug };
@@ -77,74 +128,165 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   const endDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
   debug.dateRange = { start: startDate, end: endDate };
 
-  // Always query total tasks count for debugging (regardless of filters)
-  const { count: totalCount, error: countError } = await supabase
-    .from('tasks')
-    .select('*', { count: 'exact', head: true });
-
-  debug.totalTasksInDb = totalCount;
-  if (countError) {
-    console.error('Error counting tasks:', countError);
-  }
-
-  // Get sample tasks for debugging
-  const { data: sampleData } = await supabase
-    .from('tasks')
-    .select('id, title, due_date')
-    .limit(3);
-  debug.sampleTasks = (sampleData || []).map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
-
   try {
-    // Remove any previously-synced Google events before rebuilding the feed.
-    // Without this, a second full sync recreates the same logical events and
-    // leaves duplicate copies behind in the user's calendar.
-    const deleteResult = await deleteAllSyncedEvents(accessToken, calendarId);
-    debug.deletedFromGoogle = deleteResult.deleted;
-    debug.deleteErrors = deleteResult.errors;
+    // 1. Build the desired event set from the database
+    const desired = new Map<string, DesiredEvent>();
 
-    if (deleteResult.errors > 0) {
-      return {
-        success: false,
-        error: `Failed to remove ${deleteResult.errors} existing synced calendar events before rebuilding sync`,
-        debug,
-      };
+    if (filters.tasks) {
+      debug.tasksCount = addDesiredEvents(desired, 'task', await buildTaskEvents(startDate, endDate));
+    }
+    if (filters.leave) {
+      debug.leaveCount = addDesiredEvents(desired, 'leave', await buildLeaveEvents(startDate, endDate));
+    }
+    if (filters.schedules) {
+      debug.schedulesCount = addDesiredEvents(desired, 'schedule', await buildScheduleEvents(startDate, endDate));
+    }
+    if (filters.importantDates) {
+      debug.importantDatesCount = addDesiredEvents(desired, 'important_date', await buildImportantDateEvents());
+    }
+    debug.childLogsCount = addDesiredEvents(
+      desired,
+      'child_log',
+      await buildChildLogEvents(startDate, endDate, filters.childLogs)
+    );
+    debug.desiredCount = desired.size;
+
+    // 2. List what our sync currently owns in Google Calendar
+    const existing = await listSyncedEvents(accessToken, calendarId);
+    debug.existingCount = existing.length;
+
+    // 3. Diff. Keep at most one Google event per desired key; everything
+    //    else our sync owns (duplicates, stale filters, old junk) is deleted.
+    const keptByKey = new Map<string, { googleEventId: string; contentHash?: string }>();
+    const toDelete: string[] = [];
+
+    for (const event of existing) {
+      const key = `${event.sourceType}:${event.sourceId || ''}`;
+      const wanted = desired.get(key);
+      if (!wanted || keptByKey.has(key)) {
+        toDelete.push(event.id);
+        continue;
+      }
+      keptByKey.set(key, { googleEventId: event.id, contentHash: event.contentHash });
     }
 
-    // Clear existing synced events for this user (fresh sync)
+    const toCreate: DesiredEvent[] = [];
+    const toUpdate: Array<{ desired: DesiredEvent; googleEventId: string }> = [];
+    for (const [key, want] of desired) {
+      const kept = keptByKey.get(key);
+      if (!kept) {
+        toCreate.push(want);
+      } else if (kept.contentHash !== want.contentHash) {
+        toUpdate.push({ desired: want, googleEventId: kept.googleEventId });
+      } else {
+        debug.unchanged++;
+      }
+    }
+
+    let firstError: string | undefined;
+
+    // 4. Apply deletions
+    const deleteResults = await runWithConcurrency(toDelete, 4, (eventId) =>
+      deleteCalendarEvent(accessToken, calendarId, eventId)
+    );
+    for (const result of deleteResults) {
+      if (result.success) debug.deleted++;
+      else {
+        debug.failed++;
+        firstError = firstError || result.error;
+      }
+    }
+
+    interface OpResult {
+      ok: boolean;
+      eventType?: string;
+      sourceId?: string;
+      googleEventId?: string;
+      error?: string;
+    }
+
+    // 5. Apply updates (recreate if the event vanished from Google)
+    const updateResults: OpResult[] = await runWithConcurrency(toUpdate, 4, async ({ desired: want, googleEventId }) => {
+      const body = withSyncProperties(want.event, want.contentHash);
+      const result = await updateCalendarEvent(accessToken, calendarId, googleEventId, body);
+      if (result.notFound) {
+        const created = await createCalendarEvent(accessToken, calendarId, body);
+        return created.success && created.eventId
+          ? { ok: true, eventType: want.eventType, sourceId: want.sourceId, googleEventId: created.eventId }
+          : { ok: false, error: created.error };
+      }
+      return result.success
+        ? { ok: true, eventType: want.eventType, sourceId: want.sourceId, googleEventId }
+        : { ok: false, error: result.error };
+    });
+
+    // 6. Apply creations
+    const createResults: OpResult[] = await runWithConcurrency(toCreate, 4, async (want) => {
+      const body = withSyncProperties(want.event, want.contentHash);
+      const result = await createCalendarEvent(accessToken, calendarId, body);
+      return result.success && result.eventId
+        ? { ok: true, eventType: want.eventType, sourceId: want.sourceId, googleEventId: result.eventId }
+        : { ok: false, error: result.error };
+    });
+
+    for (const result of updateResults) {
+      if (result.ok) debug.updated++;
+      else {
+        debug.failed++;
+        firstError = firstError || result.error;
+      }
+    }
+    for (const result of createResults) {
+      if (result.ok) debug.created++;
+      else {
+        debug.failed++;
+        firstError = firstError || result.error;
+      }
+    }
+
+    // 7. Rebuild the tracking table to mirror the final state in Google.
+    //    Kept events first, then successful updates/creates overwrite by key.
+    type SyncedRow = { user_id: string; event_type: string; source_id: string; google_event_id: string };
+    const rowsByKey = new Map<string, SyncedRow>();
+    for (const [key, kept] of keptByKey) {
+      const want = desired.get(key)!;
+      rowsByKey.set(key, {
+        user_id: userId,
+        event_type: want.eventType,
+        source_id: want.sourceId,
+        google_event_id: kept.googleEventId,
+      });
+    }
+    for (const result of [...updateResults, ...createResults]) {
+      if (result.ok && result.eventType && result.sourceId && result.googleEventId) {
+        rowsByKey.set(`${result.eventType}:${result.sourceId}`, {
+          user_id: userId,
+          event_type: result.eventType,
+          source_id: result.sourceId,
+          google_event_id: result.googleEventId,
+        });
+      }
+    }
+
     await supabase
       .from('google_calendar_synced_events')
       .delete()
       .eq('user_id', userId);
 
-    // Sync tasks
-    if (filters.tasks) {
-      const taskResult = await syncTasks(userId, accessToken, calendarId, startDate, endDate);
-      debug.tasksCount = taskResult.count;
-      debug.tasksFound = taskResult.tasksFound;
-      debug.firstTaskError = taskResult.firstError;
-      debug.totalTasksInDb = taskResult.totalInDb;
-      debug.sampleTasks = taskResult.sampleTasks;
+    const allRows = Array.from(rowsByKey.values());
+    for (let i = 0; i < allRows.length; i += 500) {
+      const { error: insertError } = await supabase
+        .from('google_calendar_synced_events')
+        .insert(allRows.slice(i, i + 500));
+      if (insertError) {
+        console.error('Error saving synced events:', insertError);
+      }
     }
 
-    // Sync leave
-    if (filters.leave) {
-      debug.leaveCount = await syncLeave(userId, accessToken, calendarId, startDate, endDate);
-    }
+    debug.firstError = firstError;
 
-    // Sync schedules
-    if (filters.schedules) {
-      debug.schedulesCount = await syncSchedules(userId, accessToken, calendarId, startDate, endDate);
-    }
-
-    // Sync important dates
-    if (filters.importantDates) {
-      debug.importantDatesCount = await syncImportantDates(userId, accessToken, calendarId);
-    }
-
-    // Sync child logs
-    debug.childLogsCount = await syncChildLogs(userId, accessToken, calendarId, startDate, endDate, filters.childLogs);
-
-    // Update last_synced timestamp
+    // 8. Record completion. Individual event failures don't invalidate the
+    //    pass; the next reconciliation will retry just the missing pieces.
     await supabase
       .from('google_calendar_tokens')
       .update({ last_synced: new Date().toISOString() })
@@ -157,32 +299,28 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
   }
 }
 
-interface TaskSyncResult {
-  count: number;
-  totalInDb: number | null;
-  tasksFound: number;
-  firstError?: string;
-  sampleTasks: Array<{ id: string; title: string; due_date: string }>;
+function addDesiredEvents(
+  desired: Map<string, DesiredEvent>,
+  eventType: string,
+  events: Array<{ sourceId: string; event: GoogleCalendarEvent }>
+): number {
+  for (const { sourceId, event } of events) {
+    desired.set(`${eventType}:${sourceId}`, {
+      eventType,
+      sourceId,
+      event,
+      contentHash: computeContentHash(event),
+    });
+  }
+  return events.length;
 }
 
-async function syncTasks(
-  userId: string,
-  accessToken: string,
-  calendarId: string,
+async function buildTaskEvents(
   startDate: string,
   endDate: string
-): Promise<TaskSyncResult> {
+): Promise<Array<{ sourceId: string; event: GoogleCalendarEvent }>> {
   const supabase = getApiAdminClient();
-  const result: TaskSyncResult = { count: 0, totalInDb: null, tasksFound: 0, sampleTasks: [] };
 
-  // First, test query to count all tasks
-  const { count: totalCount } = await supabase
-    .from('tasks')
-    .select('*', { count: 'exact', head: true });
-
-  result.totalInDb = totalCount;
-
-  // Get tasks in date range
   const { data: tasks } = await supabase
     .from('tasks')
     .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
@@ -190,21 +328,9 @@ async function syncTasks(
     .lte('due_date', endDate)
     .order('due_date');
 
-  // Get sample tasks for debugging
-  if (!tasks || tasks.length === 0) {
-    const { data: allTasks } = await supabase
-      .from('tasks')
-      .select('id, title, due_date')
-      .limit(5);
-    result.sampleTasks = (allTasks || []).map(t => ({ id: t.id, title: t.title, due_date: t.due_date }));
-  }
-
-  if (!tasks) return result;
-
-  result.tasksFound = tasks.length;
-
-  for (const task of tasks) {
-    const event = taskToCalendarEvent({
+  return (tasks || []).map((task) => ({
+    sourceId: task.id,
+    event: taskToCalendarEvent({
       id: task.id,
       title: task.title,
       description: task.description,
@@ -216,30 +342,16 @@ async function syncTasks(
       endTime: task.end_time,
       status: task.status,
       priority: task.priority,
-    });
-
-    const createResult = await createCalendarEvent(accessToken, calendarId, event);
-    if (createResult.success && createResult.eventId) {
-      await saveSyncedEvent(userId, 'task', task.id, createResult.eventId);
-      result.count++;
-    } else if (!result.firstError && createResult.error) {
-      // Capture first error for debugging
-      result.firstError = createResult.error;
-    }
-  }
-  return result;
+    }),
+  }));
 }
 
-async function syncLeave(
-  userId: string,
-  accessToken: string,
-  calendarId: string,
+async function buildLeaveEvents(
   startDate: string,
   endDate: string
-): Promise<number> {
+): Promise<Array<{ sourceId: string; event: GoogleCalendarEvent }>> {
   const supabase = getApiAdminClient();
 
-  // Get approved leave requests in date range
   const { data: leaveRequests } = await supabase
     .from('leave_requests')
     .select(`
@@ -251,41 +363,32 @@ async function syncLeave(
       user:users!leave_requests_user_id_fkey(full_name)
     `)
     .eq('status', 'approved')
-    .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+    .lte('start_date', endDate)
+    .gte('end_date', startDate);
 
-  if (!leaveRequests) return 0;
-
-  let syncedCount = 0;
-  for (const leave of leaveRequests) {
+  return (leaveRequests || []).map((leave) => {
     const user = leave.user as unknown as { full_name: string } | null;
-    const event = leaveToCalendarEvent({
-      id: leave.id,
-      employeeName: user?.full_name || 'Employee',
-      startDate: leave.start_date,
-      endDate: leave.end_date,
-      leaveType: leave.leave_type,
-      status: leave.status,
-    });
-
-    const result = await createCalendarEvent(accessToken, calendarId, event);
-    if (result.success && result.eventId) {
-      await saveSyncedEvent(userId, 'leave', leave.id, result.eventId);
-      syncedCount++;
-    }
-  }
-  return syncedCount;
+    return {
+      sourceId: leave.id,
+      event: leaveToCalendarEvent({
+        id: leave.id,
+        employeeName: user?.full_name || 'Employee',
+        startDate: leave.start_date,
+        endDate: leave.end_date,
+        leaveType: leave.leave_type,
+        status: leave.status,
+      }),
+    };
+  });
 }
 
-async function syncSchedules(
-  userId: string,
-  accessToken: string,
-  calendarId: string,
+async function buildScheduleEvents(
   startDate: string,
   endDate: string
-): Promise<number> {
+): Promise<Array<{ sourceId: string; event: GoogleCalendarEvent }>> {
   const supabase = getApiAdminClient();
+  const events: Array<{ sourceId: string; event: GoogleCalendarEvent }> = [];
 
-  // Get employee schedules and generate events for each day in range
   const { data: schedules } = await supabase
     .from('employee_schedules')
     .select(`
@@ -298,9 +401,6 @@ async function syncSchedules(
     `)
     .eq('is_active', true);
 
-  if (!schedules || schedules.length === 0) return 0;
-
-  // Get schedule overrides for the date range
   const { data: overrides } = await supabase
     .from('schedule_overrides')
     .select('schedule_id, override_date, start_time, end_time, is_cancelled')
@@ -309,20 +409,86 @@ async function syncSchedules(
 
   const overrideMap = new Map<string, { start_time: string | null; end_time: string | null; is_cancelled: boolean }>();
   for (const override of overrides || []) {
-    const key = `${override.schedule_id}-${override.override_date}`;
-    overrideMap.set(key, {
+    overrideMap.set(`${override.schedule_id}-${override.override_date}`, {
       start_time: override.start_time,
       end_time: override.end_time,
       is_cancelled: override.is_cancelled,
     });
   }
 
-  // Get approved leave requests to exclude schedule on days off
+  const leaveDaysSet = await getLeaveDaysSet(startDate, endDate);
+
+  const start = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dayOfWeek = d.getDay();
+    const dateStr = format(d, 'yyyy-MM-dd');
+
+    for (const schedule of schedules || []) {
+      if (schedule.day_of_week !== dayOfWeek) continue;
+      if (leaveDaysSet.has(`${schedule.user_id}-${dateStr}`)) continue;
+
+      const localId = `${schedule.id}-${dateStr}`;
+      const override = overrideMap.get(localId);
+      if (override?.is_cancelled) continue;
+
+      const user = schedule.user as unknown as { full_name: string } | null;
+      events.push({
+        sourceId: localId,
+        event: scheduleToCalendarEvent({
+          id: localId,
+          employeeName: user?.full_name || 'Employee',
+          date: dateStr,
+          startTime: override?.start_time || schedule.start_time,
+          endTime: override?.end_time || schedule.end_time,
+        }),
+      });
+    }
+  }
+
+  const { data: oneOffSchedules } = await supabase
+    .from('schedule_one_offs')
+    .select(`
+      id,
+      user_id,
+      schedule_date,
+      start_time,
+      end_time,
+      user:users!schedule_one_offs_user_id_fkey(full_name)
+    `)
+    .gte('schedule_date', startDate)
+    .lte('schedule_date', endDate);
+
+  for (const schedule of oneOffSchedules || []) {
+    if (leaveDaysSet.has(`${schedule.user_id}-${schedule.schedule_date}`)) continue;
+
+    const user = schedule.user as unknown as { full_name: string } | null;
+    const localId = `one-off-${schedule.id}`;
+    events.push({
+      sourceId: localId,
+      event: scheduleToCalendarEvent({
+        id: localId,
+        employeeName: user?.full_name || 'Employee',
+        date: schedule.schedule_date,
+        startTime: schedule.start_time,
+        endTime: schedule.end_time,
+      }),
+    });
+  }
+
+  return events;
+}
+
+async function getLeaveDaysSet(startDate: string, endDate: string): Promise<Set<string>> {
+  const supabase = getApiAdminClient();
+
   const { data: approvedLeaves } = await supabase
     .from('leave_requests')
     .select('user_id, start_date, end_date, selected_dates')
     .eq('status', 'approved')
-    .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+    .lte('start_date', endDate)
+    .gte('end_date', startDate);
 
   const leaveDaysSet = new Set<string>();
   for (const leave of approvedLeaves || []) {
@@ -339,146 +505,56 @@ async function syncSchedules(
       }
     }
   }
-
-  let syncedCount = 0;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dayOfWeek = d.getDay();
-    const dateStr = format(d, 'yyyy-MM-dd');
-
-    for (const schedule of schedules) {
-      if (schedule.day_of_week === dayOfWeek) {
-        if (leaveDaysSet.has(`${schedule.user_id}-${dateStr}`)) {
-          continue;
-        }
-
-        const user = schedule.user as unknown as { full_name: string } | null;
-        const localId = `${schedule.id}-${dateStr}`;
-        const override = overrideMap.get(localId);
-
-        if (override?.is_cancelled) {
-          continue;
-        }
-
-        const event = scheduleToCalendarEvent({
-          id: localId,
-          employeeName: user?.full_name || 'Employee',
-          date: dateStr,
-          startTime: override?.start_time || schedule.start_time,
-          endTime: override?.end_time || schedule.end_time,
-        });
-
-        const result = await createCalendarEvent(accessToken, calendarId, event);
-        if (result.success && result.eventId) {
-          await saveSyncedEvent(userId, 'schedule', localId, result.eventId);
-          syncedCount++;
-        }
-      }
-    }
-  }
-
-  // Also sync one-off schedules
-  const { data: oneOffSchedules } = await supabase
-    .from('schedule_one_offs')
-    .select(`
-      id,
-      user_id,
-      schedule_date,
-      start_time,
-      end_time,
-      user:users!schedule_one_offs_user_id_fkey(full_name)
-    `)
-    .gte('schedule_date', startDate)
-    .lte('schedule_date', endDate);
-
-  for (const schedule of oneOffSchedules || []) {
-    if (leaveDaysSet.has(`${schedule.user_id}-${schedule.schedule_date}`)) {
-      continue;
-    }
-
-    const user = schedule.user as unknown as { full_name: string } | null;
-    const localId = `one-off-${schedule.id}`;
-    const event = scheduleToCalendarEvent({
-      id: localId,
-      employeeName: user?.full_name || 'Employee',
-      date: schedule.schedule_date,
-      startTime: schedule.start_time,
-      endTime: schedule.end_time,
-    });
-
-    const result = await createCalendarEvent(accessToken, calendarId, event);
-    if (result.success && result.eventId) {
-      await saveSyncedEvent(userId, 'schedule', localId, result.eventId);
-      syncedCount++;
-    }
-  }
-
-  return syncedCount;
+  return leaveDaysSet;
 }
 
-async function syncImportantDates(
-  userId: string,
-  accessToken: string,
-  calendarId: string
-): Promise<number> {
+async function buildImportantDateEvents(): Promise<Array<{ sourceId: string; event: GoogleCalendarEvent }>> {
   const supabase = getApiAdminClient();
 
-  // Get employees with important dates
   const { data: employees } = await supabase
     .from('users')
     .select('id, full_name, important_dates')
     .not('important_dates', 'is', null);
 
-  if (!employees) return 0;
-
-  let syncedCount = 0;
+  const events: Array<{ sourceId: string; event: GoogleCalendarEvent }> = [];
   const currentYear = new Date().getFullYear();
 
-  for (const employee of employees) {
+  for (const employee of employees || []) {
     const dates = employee.important_dates as Array<{ label: string; date: string }> | null;
     if (!dates) continue;
 
     for (const importantDate of dates) {
-      const event = importantDateToCalendarEvent({
-        id: `${employee.id}-${importantDate.label}`,
-        employeeName: employee.full_name,
-        label: importantDate.label,
-        date: importantDate.date,
-        year: currentYear,
+      const sourceId = `${employee.id}-${importantDate.label}`;
+      events.push({
+        sourceId,
+        event: importantDateToCalendarEvent({
+          id: sourceId,
+          employeeName: employee.full_name,
+          label: importantDate.label,
+          date: importantDate.date,
+          year: currentYear,
+        }),
       });
-
-      const result = await createCalendarEvent(accessToken, calendarId, event);
-      if (result.success && result.eventId) {
-        await saveSyncedEvent(userId, 'important_date', `${employee.id}-${importantDate.label}`, result.eventId);
-        syncedCount++;
-      }
     }
   }
-  return syncedCount;
+  return events;
 }
 
-async function syncChildLogs(
-  userId: string,
-  accessToken: string,
-  calendarId: string,
+async function buildChildLogEvents(
   startDate: string,
   endDate: string,
   logFilters: SyncFilters['childLogs']
-): Promise<number> {
+): Promise<Array<{ sourceId: string; event: GoogleCalendarEvent }>> {
   const supabase = getApiAdminClient();
 
-  // Build category filter
   const categories: string[] = [];
   if (logFilters.sleep) categories.push('sleep');
   if (logFilters.food) categories.push('food');
   if (logFilters.poop) categories.push('poop');
   if (logFilters.shower) categories.push('shower');
 
-  if (categories.length === 0) return 0;
+  if (categories.length === 0) return [];
 
-  // Get child logs in date range
   const { data: logs } = await supabase
     .from('child_logs')
     .select(`
@@ -494,28 +570,21 @@ async function syncChildLogs(
     .gte('log_date', startDate)
     .lte('log_date', endDate);
 
-  if (!logs) return 0;
-
-  let syncedCount = 0;
-  for (const log of logs) {
+  return (logs || []).map((log) => {
     const child = log.child as unknown as { name: string } | null;
-    const event = childLogToCalendarEvent({
-      id: log.id,
-      childName: child?.name || 'Child',
-      category: log.category as 'sleep' | 'food' | 'poop' | 'shower',
-      logDate: log.log_date,
-      logTime: log.log_time,
-      description: log.description,
-      endTime: log.end_time,
-    });
-
-    const result = await createCalendarEvent(accessToken, calendarId, event);
-    if (result.success && result.eventId) {
-      await saveSyncedEvent(userId, 'child_log', log.id, result.eventId);
-      syncedCount++;
-    }
-  }
-  return syncedCount;
+    return {
+      sourceId: log.id,
+      event: childLogToCalendarEvent({
+        id: log.id,
+        childName: child?.name || 'Child',
+        category: log.category as 'sleep' | 'food' | 'poop' | 'shower',
+        logDate: log.log_date,
+        logTime: log.log_time,
+        description: log.description,
+        endTime: log.end_time,
+      }),
+    };
+  });
 }
 
 async function saveSyncedEvent(
@@ -536,6 +605,70 @@ async function saveSyncedEvent(
     }, {
       onConflict: 'user_id,event_type,source_id',
     });
+}
+
+/**
+ * Create or update a single event for one connected user, recreating it if
+ * the tracked Google event no longer exists.
+ */
+async function upsertEventForUser(
+  userId: string,
+  accessToken: string,
+  calendarId: string,
+  eventType: string,
+  sourceId: string,
+  event: GoogleCalendarEvent
+): Promise<void> {
+  const supabase = getApiAdminClient();
+  const body = withSyncProperties(event, computeContentHash(event));
+
+  const { data: syncedEvent } = await supabase
+    .from('google_calendar_synced_events')
+    .select('google_event_id')
+    .eq('user_id', userId)
+    .eq('event_type', eventType)
+    .eq('source_id', sourceId)
+    .single();
+
+  if (syncedEvent) {
+    const result = await updateCalendarEvent(accessToken, calendarId, syncedEvent.google_event_id, body);
+    if (result.success) return;
+    if (!result.notFound) return; // transient failure; next full sync repairs
+  }
+
+  // No tracked event (or it was deleted in Google): create it
+  const created = await createCalendarEvent(accessToken, calendarId, body);
+  if (created.success && created.eventId) {
+    await saveSyncedEvent(userId, eventType, sourceId, created.eventId);
+  }
+}
+
+async function deleteEventForUser(
+  userId: string,
+  accessToken: string,
+  calendarId: string,
+  eventType: string,
+  sourceId: string
+): Promise<void> {
+  const supabase = getApiAdminClient();
+
+  const { data: syncedEvent } = await supabase
+    .from('google_calendar_synced_events')
+    .select('google_event_id')
+    .eq('user_id', userId)
+    .eq('event_type', eventType)
+    .eq('source_id', sourceId)
+    .single();
+
+  if (syncedEvent) {
+    await deleteCalendarEvent(accessToken, calendarId, syncedEvent.google_event_id);
+    await supabase
+      .from('google_calendar_synced_events')
+      .delete()
+      .eq('user_id', userId)
+      .eq('event_type', eventType)
+      .eq('source_id', sourceId);
+  }
 }
 
 /**
@@ -584,53 +717,20 @@ export async function syncEventToConnectedUsers(
     if (!accessToken) continue;
 
     if (action === 'delete') {
-      // Find and delete the synced event
-      const { data: syncedEvent } = await supabase
-        .from('google_calendar_synced_events')
-        .select('google_event_id')
-        .eq('user_id', token.user_id)
-        .eq('event_type', eventType)
-        .eq('source_id', sourceId)
-        .single();
-
-      if (syncedEvent) {
-        await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
-        await supabase
-          .from('google_calendar_synced_events')
-          .delete()
-          .eq('user_id', token.user_id)
-          .eq('event_type', eventType)
-          .eq('source_id', sourceId);
-      }
-    } else if (action === 'update') {
-      // Find and update the synced event
-      const { data: syncedEvent } = await supabase
-        .from('google_calendar_synced_events')
-        .select('google_event_id')
-        .eq('user_id', token.user_id)
-        .eq('event_type', eventType)
-        .eq('source_id', sourceId)
-        .single();
-
-      if (syncedEvent && eventData) {
-        const event = mapEventData(eventType, eventData);
-        if (event) {
-          await updateCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id, event);
-        }
-      }
-    } else if (action === 'create' && eventData) {
+      await deleteEventForUser(token.user_id, accessToken, token.calendar_id, eventType, sourceId);
+    } else if (eventData) {
+      // create and update share the same upsert path, so an "update" for an
+      // event that was never synced (e.g. after a failed full sync) still
+      // lands in the calendar instead of being silently dropped.
       const event = mapEventData(eventType, eventData);
       if (event) {
-        const result = await createCalendarEvent(accessToken, token.calendar_id, event);
-        if (result.success && result.eventId) {
-          await saveSyncedEvent(token.user_id, eventType, sourceId, result.eventId);
-        }
+        await upsertEventForUser(token.user_id, accessToken, token.calendar_id, eventType, sourceId, event);
       }
     }
   }
 }
 
-function mapEventData(eventType: string, data: unknown): ReturnType<typeof taskToCalendarEvent> | null {
+function mapEventData(eventType: string, data: unknown): GoogleCalendarEvent | null {
   switch (eventType) {
     case 'task':
       return taskToCalendarEvent(data as Parameters<typeof taskToCalendarEvent>[0]);
@@ -678,39 +778,7 @@ export async function syncBaseScheduleChange(
     const accessToken = await getValidAccessToken(token.user_id);
     if (!accessToken) continue;
 
-    if (action === 'delete') {
-      const { data: syncedEvents } = await supabase
-        .from('google_calendar_synced_events')
-        .select('google_event_id, source_id')
-        .eq('user_id', token.user_id)
-        .eq('event_type', 'schedule')
-        .like('source_id', `${scheduleId}-%`);
-
-      for (const syncedEvent of syncedEvents || []) {
-        await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
-        await supabase
-          .from('google_calendar_synced_events')
-          .delete()
-          .eq('user_id', token.user_id)
-          .eq('event_type', 'schedule')
-          .eq('source_id', syncedEvent.source_id);
-      }
-
-      continue;
-    }
-
-    if (!scheduleData) {
-      continue;
-    }
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('full_name')
-      .eq('id', scheduleData.userId)
-      .single();
-
-    const employeeName = user?.full_name || 'Employee';
-
+    // Remove all occurrences of this schedule that we previously synced
     const { data: existingEvents } = await supabase
       .from('google_calendar_synced_events')
       .select('google_event_id, source_id')
@@ -727,6 +795,18 @@ export async function syncBaseScheduleChange(
         .eq('event_type', 'schedule')
         .eq('source_id', existing.source_id);
     }
+
+    if (action === 'delete' || !scheduleData) {
+      continue;
+    }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('full_name')
+      .eq('id', scheduleData.userId)
+      .single();
+
+    const employeeName = user?.full_name || 'Employee';
 
     const { data: overrides } = await supabase
       .from('schedule_overrides')
@@ -749,7 +829,8 @@ export async function syncBaseScheduleChange(
       .select('start_date, end_date, selected_dates')
       .eq('user_id', scheduleData.userId)
       .eq('status', 'approved')
-      .or(`start_date.lte.${endDate},end_date.gte.${startDate}`);
+      .lte('start_date', endDate)
+      .gte('end_date', startDate);
 
     const leaveDaysSet = new Set<string>();
     for (const leave of approvedLeaves || []) {
@@ -767,8 +848,8 @@ export async function syncBaseScheduleChange(
       }
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
 
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay();
@@ -780,18 +861,16 @@ export async function syncBaseScheduleChange(
       const override = overrideMap.get(dateStr);
       if (override?.is_cancelled) continue;
 
+      const localId = `${scheduleId}-${dateStr}`;
       const event = scheduleToCalendarEvent({
-        id: `${scheduleId}-${dateStr}`,
+        id: localId,
         employeeName,
         date: dateStr,
         startTime: override?.start_time || scheduleData.startTime,
         endTime: override?.end_time || scheduleData.endTime,
       });
 
-      const result = await createCalendarEvent(accessToken, token.calendar_id, event);
-      if (result.success && result.eventId) {
-        await saveSyncedEvent(token.user_id, 'schedule', `${scheduleId}-${dateStr}`, result.eventId);
-      }
+      await upsertEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId, event);
     }
   }
 }
@@ -842,40 +921,20 @@ export async function syncScheduleOverrideChange(
     const accessToken = await getValidAccessToken(token.user_id);
     if (!accessToken) continue;
 
-    const { data: syncedEvent } = await supabase
-      .from('google_calendar_synced_events')
-      .select('google_event_id')
-      .eq('user_id', token.user_id)
-      .eq('event_type', 'schedule')
-      .eq('source_id', localId)
-      .single();
-
-    if (action === 'delete' || (overrideData && !overrideData.isCancelled)) {
-      const event = scheduleToCalendarEvent({
-        id: localId,
-        employeeName,
-        date: overrideDate,
-        startTime: overrideData?.startTime || schedule.start_time,
-        endTime: overrideData?.endTime || schedule.end_time,
-      });
-
-      if (syncedEvent) {
-        await updateCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id, event);
-      } else {
-        const result = await createCalendarEvent(accessToken, token.calendar_id, event);
-        if (result.success && result.eventId) {
-          await saveSyncedEvent(token.user_id, 'schedule', localId, result.eventId);
-        }
-      }
-    } else if (overrideData?.isCancelled && syncedEvent) {
-      await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
-      await supabase
-        .from('google_calendar_synced_events')
-        .delete()
-        .eq('user_id', token.user_id)
-        .eq('event_type', 'schedule')
-        .eq('source_id', localId);
+    if (overrideData?.isCancelled && action !== 'delete') {
+      await deleteEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId);
+      continue;
     }
+
+    const event = scheduleToCalendarEvent({
+      id: localId,
+      employeeName,
+      date: overrideDate,
+      startTime: overrideData?.startTime || schedule.start_time,
+      endTime: overrideData?.endTime || schedule.end_time,
+    });
+
+    await upsertEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId, event);
   }
 }
 
@@ -909,24 +968,7 @@ export async function syncOneOffScheduleChange(
     if (!accessToken) continue;
 
     if (action === 'delete') {
-      const { data: syncedEvent } = await supabase
-        .from('google_calendar_synced_events')
-        .select('google_event_id')
-        .eq('user_id', token.user_id)
-        .eq('event_type', 'schedule')
-        .eq('source_id', localId)
-        .single();
-
-      if (syncedEvent) {
-        await deleteCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id);
-        await supabase
-          .from('google_calendar_synced_events')
-          .delete()
-          .eq('user_id', token.user_id)
-          .eq('event_type', 'schedule')
-          .eq('source_id', localId);
-      }
-
+      await deleteEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId);
       continue;
     }
 
@@ -949,21 +991,6 @@ export async function syncOneOffScheduleChange(
       endTime: scheduleData.endTime,
     });
 
-    const { data: syncedEvent } = await supabase
-      .from('google_calendar_synced_events')
-      .select('google_event_id')
-      .eq('user_id', token.user_id)
-      .eq('event_type', 'schedule')
-      .eq('source_id', localId)
-      .single();
-
-    if (action === 'update' && syncedEvent) {
-      await updateCalendarEvent(accessToken, token.calendar_id, syncedEvent.google_event_id, event);
-    } else {
-      const result = await createCalendarEvent(accessToken, token.calendar_id, event);
-      if (result.success && result.eventId) {
-        await saveSyncedEvent(token.user_id, 'schedule', localId, result.eventId);
-      }
-    }
+    await upsertEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId, event);
   }
 }

@@ -64,6 +64,93 @@ interface TokenRecord {
 }
 
 /**
+ * Fetch against the Google Calendar API with retry on rate limits and
+ * transient server errors. Google's per-user quota (~10 QPS) is easy to hit
+ * during a full sync, so 403 rateLimitExceeded / 429 / 5xx are retried with
+ * exponential backoff, honoring Retry-After when present.
+ */
+async function googleFetch(
+  url: string,
+  init: RequestInit,
+  maxAttempts = 5
+): Promise<Response> {
+  let lastResponse: Response | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url, init);
+    } catch (error) {
+      // Network error: retry with backoff
+      if (attempt === maxAttempts) throw error;
+      await sleep(backoffMs(attempt));
+      continue;
+    }
+
+    if (response.ok || response.status === 404 || response.status === 410) {
+      return response;
+    }
+
+    const retryable =
+      response.status === 429 ||
+      response.status >= 500 ||
+      (response.status === 403 && (await isRateLimit403(response.clone())));
+
+    if (!retryable || attempt === maxAttempts) {
+      return response;
+    }
+
+    const retryAfter = Number(response.headers.get('retry-after'));
+    await sleep(retryAfter > 0 ? retryAfter * 1000 : backoffMs(attempt));
+    lastResponse = response;
+  }
+
+  return lastResponse!;
+}
+
+async function isRateLimit403(response: Response): Promise<boolean> {
+  try {
+    const body = await response.json();
+    const reason = body?.error?.errors?.[0]?.reason || '';
+    return reason === 'rateLimitExceeded' || reason === 'userRateLimitExceeded';
+  } catch {
+    return false;
+  }
+}
+
+function backoffMs(attempt: number): number {
+  return Math.min(1000 * 2 ** (attempt - 1), 16000) + Math.floor(Math.random() * 250);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Run async tasks over items with bounded concurrency, spacing task starts
+ * so we stay under Google's per-user QPS quota.
+ */
+export async function runWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i]);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
+
+/**
  * Get a valid access token for a user, refreshing if necessary
  */
 export async function getValidAccessToken(userId: string): Promise<string | null> {
@@ -114,9 +201,14 @@ async function refreshAccessToken(userId: string, refreshToken: string): Promise
     });
 
     if (!response.ok) {
-      console.error('Failed to refresh token:', await response.text());
-      // Token might be revoked, clean up
-      await deleteUserToken(userId);
+      const errorText = await response.text();
+      console.error('Failed to refresh token:', errorText);
+      // Only drop the connection when Google says the grant itself is dead
+      // (revoked or expired refresh token). Transient failures (network,
+      // 5xx, rate limits) must not silently disconnect the calendar.
+      if (errorText.includes('invalid_grant')) {
+        await deleteUserToken(userId);
+      }
       return null;
     }
 
@@ -191,7 +283,7 @@ export async function createCalendarEvent(
   event: GoogleCalendarEvent
 ): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
-    const response = await fetch(
+    const response = await googleFetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`,
       {
         method: 'POST',
@@ -225,9 +317,9 @@ export async function updateCalendarEvent(
   calendarId: string,
   eventId: string,
   event: GoogleCalendarEvent
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; notFound?: boolean; error?: string }> {
   try {
-    const response = await fetch(
+    const response = await googleFetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
       {
         method: 'PUT',
@@ -238,6 +330,12 @@ export async function updateCalendarEvent(
         body: JSON.stringify(event),
       }
     );
+
+    // The tracked event no longer exists in Google (deleted by hand or by a
+    // failed sync). Callers should recreate it instead of failing.
+    if (response.status === 404 || response.status === 410) {
+      return { success: false, notFound: true, error: `HTTP ${response.status}` };
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -261,7 +359,7 @@ export async function deleteCalendarEvent(
   eventId: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(
+    const response = await googleFetch(
       `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
       {
         method: 'DELETE',
@@ -271,8 +369,8 @@ export async function deleteCalendarEvent(
       }
     );
 
-    // 404 means already deleted, which is fine
-    if (!response.ok && response.status !== 404) {
+    // 404/410 means already deleted, which is fine
+    if (!response.ok && response.status !== 404 && response.status !== 410) {
       const errorText = await response.text();
       console.error('Failed to delete calendar event:', errorText);
       return { success: false, error: errorText };
@@ -285,11 +383,12 @@ export async function deleteCalendarEvent(
   }
 }
 
-interface SyncedCalendarEvent {
+export interface SyncedCalendarEvent {
   id: string;
   summary: string;
   sourceType: string;
   sourceId?: string;
+  contentHash?: string;
 }
 
 /**
@@ -321,7 +420,7 @@ export async function listSyncedEvents(
       url.searchParams.set('pageToken', pageToken);
     }
 
-    const response = await fetch(url.toString(), {
+    const response = await googleFetch(url.toString(), {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
       },
@@ -343,6 +442,7 @@ export async function listSyncedEvents(
         summary: event.summary || '',
         sourceType,
         sourceId: event.extendedProperties?.private?.sourceId,
+        contentHash: event.extendedProperties?.private?.contentHash,
       });
     }
 
@@ -354,7 +454,7 @@ export async function listSyncedEvents(
 
 /**
  * Delete all events created by our sync from Google Calendar.
- * We do this before rebuilding a full sync so repeated syncs stay idempotent.
+ * Used when disconnecting; the full sync itself reconciles instead.
  */
 export async function deleteAllSyncedEvents(
   accessToken: string,
@@ -367,20 +467,16 @@ export async function deleteAllSyncedEvents(
 
   let deleted = 0;
   let errors = 0;
-  const CONCURRENCY = 10;
 
-  for (let i = 0; i < events.length; i += CONCURRENCY) {
-    const chunk = events.slice(i, i + CONCURRENCY);
-    const results = await Promise.all(
-      chunk.map((event) => deleteCalendarEvent(accessToken, calendarId, event.id))
-    );
+  const results = await runWithConcurrency(events, 4, (event) =>
+    deleteCalendarEvent(accessToken, calendarId, event.id)
+  );
 
-    for (const result of results) {
-      if (result.success) {
-        deleted++;
-      } else {
-        errors++;
-      }
+  for (const result of results) {
+    if (result.success) {
+      deleted++;
+    } else {
+      errors++;
     }
   }
 

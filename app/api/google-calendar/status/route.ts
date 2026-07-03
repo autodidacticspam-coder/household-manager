@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data: token } = await supabase
       .from('google_calendar_tokens')
-      .select('calendar_id, sync_filters, google_email, updated_at')
+      .select('calendar_id, sync_filters, google_email, updated_at, last_synced')
       .eq('user_id', user.id)
       .single();
 
@@ -30,7 +30,7 @@ export async function GET() {
       email: token.google_email || null,
       calendarId: token.calendar_id,
       filters: (token.sync_filters as SyncFilters) || DEFAULT_SYNC_FILTERS,
-      lastSynced: token.updated_at,
+      lastSynced: token.last_synced || null,
     });
   } catch (error) {
     console.error('Status check error:', error);

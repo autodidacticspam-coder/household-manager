@@ -5,6 +5,8 @@ import { syncAllEventsForUser } from '@/lib/google-calendar/sync-service';
 // Disable caching for this route
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+// A first sync after a long gap can need a few hundred Google API calls
+export const maxDuration = 300;
 
 export async function POST() {
   try {
@@ -25,7 +27,7 @@ export async function POST() {
 
     const response = NextResponse.json({
       success: true,
-      routeVersion: 'v5',
+      routeVersion: 'v8',
       timestamp: new Date().toISOString(),
       debug: result.debug
     });
