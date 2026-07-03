@@ -7,6 +7,13 @@ import type { CreateTaskInput, UpdateTaskInput } from '@/lib/validators/task';
 import { toast } from 'sonner';
 import { useTranslations, useLocale } from 'next-intl';
 import { getTodayString } from '@/lib/date-utils';
+import { fetchAllRows } from '@/lib/supabase/pagination';
+
+// Strip characters that are significant in PostgREST's .or() grammar (and the
+// ilike wildcard) so a user's search text can't break or alter the filter.
+function sanitizeSearch(search: string): string {
+  return search.replace(/[,()"\\%*]/g, ' ').trim();
+}
 
 type SupportedLocale = 'en' | 'es' | 'zh';
 
@@ -25,42 +32,44 @@ export function useTasks(filters?: TaskFilters) {
   return useQuery({
     queryKey: ['tasks', filters, locale],
     queryFn: async () => {
-      let query = supabase
-        .from('tasks')
-        .select(`
-          *,
-          category:task_categories(*),
-          created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url),
-          completed_by_user:users!tasks_completed_by_fkey(id, full_name, avatar_url),
-          assignments:task_assignments(
+      const data = await fetchAllRows((from, to) => {
+        let query = supabase
+          .from('tasks')
+          .select(`
             *,
-            target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
-            target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
-          ),
-          videos:task_videos(*)
-        `)
-        .order('due_date', { ascending: true })
-        .limit(5000);
+            category:task_categories(*),
+            created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url),
+            completed_by_user:users!tasks_completed_by_fkey(id, full_name, avatar_url),
+            assignments:task_assignments(
+              *,
+              target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
+              target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
+            ),
+            videos:task_videos(*)
+          `)
+          .order('due_date', { ascending: true });
 
-      if (filters?.status && filters.status.length > 0) {
-        query = query.in('status', filters.status);
-      }
+        if (filters?.status && filters.status.length > 0) {
+          query = query.in('status', filters.status);
+        }
 
-      if (filters?.priority && filters.priority.length > 0) {
-        query = query.in('priority', filters.priority);
-      }
+        if (filters?.priority && filters.priority.length > 0) {
+          query = query.in('priority', filters.priority);
+        }
 
-      if (filters?.categoryId && filters.categoryId.length > 0) {
-        query = query.in('category_id', filters.categoryId);
-      }
+        if (filters?.categoryId && filters.categoryId.length > 0) {
+          query = query.in('category_id', filters.categoryId);
+        }
 
-      if (filters?.search) {
-        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
-      }
+        if (filters?.search) {
+          const safe = sanitizeSearch(filters.search);
+          if (safe) {
+            query = query.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
+          }
+        }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
+        return query.range(from, to);
+      });
 
       // Filter repeating tasks - show only next occurrence for pending/in_progress
       // Always filter unless specifically viewing only completed tasks
@@ -199,25 +208,26 @@ export function useMyTasks(userId?: string) {
 
       const groupIds = (userGroups || []).map((g) => g.group_id);
 
-      // Get tasks
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          category:task_categories(*),
-          created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url),
-          completed_by_user:users!tasks_completed_by_fkey(id, full_name, avatar_url),
-          assignments:task_assignments(
+      // Get tasks (paged: an employee can accumulate well over 1000 rows)
+      const data = await fetchAllRows((from, to) =>
+        supabase
+          .from('tasks')
+          .select(`
             *,
-            target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
-            target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
-          ),
-          videos:task_videos(*)
-        `)
-        .order('due_date', { ascending: true, nullsFirst: false })
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+            category:task_categories(*),
+            created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url),
+            completed_by_user:users!tasks_completed_by_fkey(id, full_name, avatar_url),
+            assignments:task_assignments(
+              *,
+              target_user:users!task_assignments_target_user_id_fkey(id, full_name, avatar_url),
+              target_group:employee_groups!task_assignments_target_group_id_fkey(id, name)
+            ),
+            videos:task_videos(*)
+          `)
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .order('created_at', { ascending: false })
+          .range(from, to)
+      );
 
       // Filter tasks assigned to this user
       const assignedTasks = (data || []).filter((task) => {
@@ -612,13 +622,14 @@ export function usePendingTasks() {
   return useQuery({
     queryKey: ['pending-tasks'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('id, title, status, priority, due_date, created_at, created_by')
-        .in('status', ['pending', 'in_progress'])
-        .order('due_date', { ascending: true, nullsFirst: false });
-
-      if (error) throw error;
+      const data = await fetchAllRows<{ id: string; title: string; status: string; priority: string; due_date: string | null; created_at: string | null; created_by: string | null }>((from, to) =>
+        supabase
+          .from('tasks')
+          .select('id, title, status, priority, due_date, created_at, created_by')
+          .in('status', ['pending', 'in_progress'])
+          .order('due_date', { ascending: true, nullsFirst: false })
+          .range(from, to)
+      );
 
       // Group tasks by title + created_at to identify repeat batches
       // (tasks created from the same repeat batch have identical title and created_at)
@@ -722,13 +733,15 @@ export function useExpiringTasks() {
   return useQuery({
     queryKey: ['expiring-tasks'],
     queryFn: async () => {
-      // Fetch ALL tasks to properly count batch sizes (including completed)
-      const { data: allTasksForCounting, error: countError } = await supabase
-        .from('tasks')
-        .select('title, created_at, created_by')
-        .limit(20000);
-
-      if (countError) throw countError;
+      // Fetch ALL tasks to properly count batch sizes (including completed).
+      // Paged: the table exceeds PostgREST's per-response cap, and an
+      // undercount here would break the batch "last occurrence" detection.
+      const allTasksForCounting = await fetchAllRows<{ title: string; created_at: string | null; created_by: string | null }>((from, to) =>
+        supabase
+          .from('tasks')
+          .select('title, created_at, created_by')
+          .range(from, to)
+      );
 
       // Build a map of batch sizes (including completed tasks)
       const batchSizes = new Map<string, number>();
@@ -738,20 +751,21 @@ export function useExpiringTasks() {
         batchSizes.set(batchKey, (batchSizes.get(batchKey) || 0) + 1);
       }
 
-      // Fetch pending/in_progress tasks with full details
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          id, title, due_date, created_at, created_by,
-          category:task_categories(id, name, color, icon),
-          created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url)
-        `)
-        .in('status', ['pending', 'in_progress'])
-        .order('due_date', { ascending: true })
-        .limit(10000);
+      // Fetch pending/in_progress tasks with full details (paged)
+      const data = await fetchAllRows<{ id: string; title: string; due_date: string | null; created_at: string | null; created_by: string | null; category: unknown; created_by_user: unknown }>((from, to) =>
+        supabase
+          .from('tasks')
+          .select(`
+            id, title, due_date, created_at, created_by,
+            category:task_categories(id, name, color, icon),
+            created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url)
+          `)
+          .in('status', ['pending', 'in_progress'])
+          .order('due_date', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-      if (!data) return [];
+      if (!data.length) return [];
 
       // Group pending/in_progress tasks by batch
       const taskBatches = new Map<string, typeof data>();

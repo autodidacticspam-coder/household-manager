@@ -89,9 +89,11 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
     return acc;
   }, {} as Record<number, typeof schedules>);
 
-  const formatTimeInput = (value: string, setter: (v: string) => void) => {
+  const formatTimeInput = (value: string, previous: string, setter: (v: string) => void) => {
     let val = value.replace(/[^\d:]/g, '');
-    if (val.length === 2 && !val.includes(':')) {
+    // Only auto-insert the colon while adding characters, not while deleting,
+    // otherwise backspacing past "10:" immediately re-inserts the colon.
+    if (val.length === 2 && !val.includes(':') && value.length >= previous.length) {
       val = val + ':';
     }
     if (val.length <= 5) setter(val);
@@ -181,7 +183,7 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
                 type="text"
                 inputMode="numeric"
                 value={newStartTime}
-                onChange={(e) => formatTimeInput(e.target.value, setNewStartTime)}
+                onChange={(e) => formatTimeInput(e.target.value, newStartTime, setNewStartTime)}
                 placeholder="9:00"
                 className="w-20"
               />
@@ -219,7 +221,7 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
                 type="text"
                 inputMode="numeric"
                 value={newEndTime}
-                onChange={(e) => formatTimeInput(e.target.value, setNewEndTime)}
+                onChange={(e) => formatTimeInput(e.target.value, newEndTime, setNewEndTime)}
                 placeholder="5:00"
                 className="w-20"
               />

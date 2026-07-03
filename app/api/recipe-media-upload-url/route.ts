@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getApiAuthUser } from '@/lib/supabase/api-helpers';
 
 export async function POST(request: NextRequest) {
   try {
+    // Require a signed-in user: this mints a writable signed URL into a
+    // public bucket, so it must not be reachable anonymously.
+    const user = await getApiAuthUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { fileName, mediaType } = await request.json();
 
     if (!fileName) {

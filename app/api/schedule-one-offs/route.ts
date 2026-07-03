@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getApiAuthUser, getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncOneOffScheduleChange } from '@/lib/google-calendar/sync-service';
 
 export async function POST(request: Request) {
   try {
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { user } = await requireApiAdminRole();
 
     const body = await request.json();
     const { userId, scheduleDate, startTime, endTime } = body;
@@ -44,7 +41,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(schedule);
   } catch (error) {
-    console.error('Error in POST /api/schedule-one-offs:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error: message, status } = handleApiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

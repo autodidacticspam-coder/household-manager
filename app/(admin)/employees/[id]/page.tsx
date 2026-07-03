@@ -262,8 +262,10 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
       // Don't count holidays as days missed
       if (request.leaveType === 'holiday') return false;
 
-      // Filter by leave type
-      if (daysMissedType !== 'both' && request.leaveType !== daysMissedType) return false;
+      // Filter by leave type, treating the legacy 'pto' value as 'vacation'.
+      const canonicalType = request.leaveType === 'pto' ? 'vacation' : request.leaveType;
+      const wantedType = daysMissedType === 'pto' ? 'vacation' : daysMissedType;
+      if (wantedType !== 'both' && canonicalType !== wantedType) return false;
 
       // Check if any day of the request falls within the period
       const requestDates = getRequestDates(request);

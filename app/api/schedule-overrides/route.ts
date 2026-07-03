@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getApiAuthUser, getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncScheduleOverrideChange } from '@/lib/google-calendar/sync-service';
 
 export async function POST(request: Request) {
   try {
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const { user } = await requireApiAdminRole();
 
     const body = await request.json();
     const { scheduleId, overrideDate, startTime, endTime, isCancelled, notes } = body;
@@ -79,17 +76,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error in POST /api/schedule-overrides:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error: message, status } = handleApiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
 export async function DELETE(request: Request) {
   try {
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireApiAdminRole();
 
     const { searchParams } = new URL(request.url);
     const scheduleId = searchParams.get('scheduleId');
@@ -118,7 +112,7 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/schedule-overrides:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error: message, status } = handleApiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

@@ -292,7 +292,9 @@ export default function LeaveRequestsPage() {
       const startDate = format(sortedDates[0], 'yyyy-MM-dd');
       const endDate = format(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd');
       const selectedDatesStr = sortedDates.map(d => format(d, 'yyyy-MM-dd'));
-      const leaveType = addingLeaveType === 'vacation' ? 'pto' : 'sick';
+      // Store the canonical 'vacation' value (migration 022). Writing the
+      // legacy 'pto' here is what made leave-type filters miss these rows.
+      const leaveType = addingLeaveType === 'vacation' ? 'vacation' : 'sick';
 
       const { error } = await supabase
         .from('leave_requests')

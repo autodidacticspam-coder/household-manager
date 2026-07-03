@@ -72,7 +72,7 @@ export async function POST(
       .single();
 
     if (balance) {
-      const updateField = leaveRequest.leave_type === 'vacation' ? 'vacation_used' : 'sick_used';
+      const updateField = (leaveRequest.leave_type === 'vacation' || leaveRequest.leave_type === 'pto') ? 'vacation_used' : 'sick_used';
       const currentUsed = parseFloat(balance[updateField]);
       const newUsed = currentUsed + parseFloat(leaveRequest.total_days);
 

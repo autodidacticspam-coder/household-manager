@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "update-calendar": "node -e \"require('fs').writeFileSync('hooks/use-calendar.ts', require('fs').readFileSync('/tmp/calendar-update.txt', 'utf8'))\""
+    "lint": "eslint"
   },
   "dependencies": {
     "@capacitor/cli": "^8.0.0",

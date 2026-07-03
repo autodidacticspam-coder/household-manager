@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getApiAuthUser, getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncBaseScheduleChange } from '@/lib/google-calendar/sync-service';
 
 export async function POST(request: Request) {
   try {
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    // Schedules are admin-managed; the RLS-bypassing admin client below must
+    // be gated on the admin role, not just any signed-in user.
+    await requireApiAdminRole();
 
     const body = await request.json();
     const { userId, dayOfWeek, startTime, endTime } = body;
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(schedule);
   } catch (error) {
-    console.error('Error in POST /api/schedules:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error: message, status } = handleApiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

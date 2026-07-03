@@ -5,6 +5,19 @@ import { createClient } from '@/lib/supabase/client';
 import type { DateRange } from '@/types';
 import { getTodayString } from '@/lib/date-utils';
 
+// completed_at is a full timestamp, but date ranges are day-only. Comparing
+// `completed_at <= 'YYYY-MM-DD'` (= midnight) drops everything completed during
+// the final day. Use an exclusive upper bound of the day after instead.
+function endOfRangeExclusive(dateStr: string | undefined): string | undefined {
+  if (!dateStr) return dateStr;
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 type SimpleEmployeeReport = {
   employee: {
     id: string;
@@ -55,7 +68,7 @@ export function useTeamStats(dateRange: DateRange) {
         .select('*', { count: 'exact', head: true })
         .eq('status', 'completed')
         .gte('completed_at', dateRange.startDate)
-        .lte('completed_at', dateRange.endDate);
+        .lt('completed_at', endOfRangeExclusive(dateRange.endDate));
 
       // Get pending tasks (not including recurring tasks from past days)
       const { data: pendingTasks } = await supabase
@@ -182,7 +195,7 @@ export function useEmployeeReport(employeeId: string, dateRange: DateRange) {
         `)
         .eq('status', 'completed')
         .gte('completed_at', dateRange.startDate)
-        .lte('completed_at', dateRange.endDate);
+        .lt('completed_at', endOfRangeExclusive(dateRange.endDate));
 
       const tasksByCategory: Record<string, number> = {};
       (categoryTasks || []).forEach((task) => {
@@ -238,7 +251,7 @@ export function useTaskCompletionTrend(dateRange: DateRange) {
         .select('completed_at')
         .eq('status', 'completed')
         .gte('completed_at', dateRange.startDate)
-        .lte('completed_at', dateRange.endDate)
+        .lt('completed_at', endOfRangeExclusive(dateRange.endDate))
         .order('completed_at');
 
       // Group by date

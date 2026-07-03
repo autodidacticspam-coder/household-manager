@@ -31,13 +31,18 @@ export async function DELETE(
     // Use date only (10 chars: YYYY-MM-DD) to handle timestamp variations
     const createdDate = task.created_at?.slice(0, 10) || '';
 
-    // Get all tasks with same title, created_by, and future due_date
-    const { data: batchTasks, error: batchError } = await supabaseAdmin
+    // Get all tasks with same title, created_by, and future due_date.
+    // A NULL-due_date task has no "future" siblings and NULL fails the gte
+    // filter, so restrict to just this task in that case.
+    let batchQuery = supabaseAdmin
       .from('tasks')
       .select('id, due_date, created_at, created_by')
       .eq('title', task.title)
-      .eq('created_by', task.created_by)
-      .gte('due_date', task.due_date || '1970-01-01');
+      .eq('created_by', task.created_by);
+    batchQuery = task.due_date
+      ? batchQuery.gte('due_date', task.due_date)
+      : batchQuery.eq('id', taskId);
+    const { data: batchTasks, error: batchError } = await batchQuery;
 
     if (batchError) {
       console.error('Error fetching batch tasks:', batchError);

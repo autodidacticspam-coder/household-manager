@@ -8,6 +8,8 @@
     "new": "Nuevo",
     "saving": "Guardando...",
     "saved": "Guardado",
+    "deleted": "Eliminado",
+    "optional": "(opcional)",
     "saveChanges": "Guardar Cambios",
     "cancel": "Cancelar",
     "delete": "Eliminar",
@@ -153,6 +155,7 @@
     "completed": "Completada",
     "pending": "Pendiente",
     "inProgress": "En Progreso",
+    "in_progress": "En Progreso",
     "overdue": "Vencida",
     "priorities": {
       "low": "Baja",
@@ -548,7 +551,9 @@
     "notFound": "No encontrado",
     "unauthorized": "No tienes permiso para acceder a esto",
     "validation": "Por favor, revisa tu entrada e inténtalo de nuevo",
-    "network": "Error de red. Por favor, verifica tu conexión."
+    "network": "Error de red. Por favor, verifica tu conexión.",
+    "saveFailed": "Error al guardar. Por favor, inténtalo de nuevo.",
+    "deleteFailed": "Error al eliminar. Por favor, inténtalo de nuevo."
   },
   "childLogs": {
     "title": "Registro de Niños",

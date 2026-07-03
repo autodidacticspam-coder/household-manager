@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getApiAuthUser, getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncOneOffScheduleChange } from '@/lib/google-calendar/sync-service';
 
 export async function PUT(
@@ -7,10 +7,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireApiAdminRole();
 
     const { id } = await params;
     const body = await request.json();
@@ -62,8 +59,8 @@ export async function PUT(
 
     return NextResponse.json(schedule);
   } catch (error) {
-    console.error('Error in PUT /api/schedule-one-offs/[id]:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error: message, status } = handleApiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -72,10 +69,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await requireApiAdminRole();
 
     const { id } = await params;
     const supabase = getApiAdminClient();
@@ -96,7 +90,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/schedule-one-offs/[id]:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error: message, status } = handleApiError(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }

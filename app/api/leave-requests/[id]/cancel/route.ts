@@ -59,7 +59,7 @@ export async function DELETE(
         .single();
 
       if (balance) {
-        const updateField = leaveRequest.leave_type === 'vacation' ? 'vacation_used' : 'sick_used';
+        const updateField = (leaveRequest.leave_type === 'vacation' || leaveRequest.leave_type === 'pto') ? 'vacation_used' : 'sick_used';
         const currentUsed = parseFloat(balance[updateField]);
         const newUsed = Math.max(0, currentUsed - parseFloat(leaveRequest.total_days));
 

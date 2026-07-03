@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+// YYYY-MM-DD. Bad date strings otherwise flow into the repeat generator and
+// spin its date loops forever.
+const dateString = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format');
+
 export const taskPrioritySchema = z.enum(['low', 'medium', 'high', 'urgent']);
 export const taskStatusSchema = z.enum(['pending', 'in_progress', 'completed']);
 export const assignmentTargetTypeSchema = z.enum(['user', 'group', 'all', 'all_admins']);
@@ -55,7 +61,7 @@ export const createTaskSchema = z.object({
   description: z.string().max(5000).nullable().optional(),
   categoryId: z.string().uuid().nullable().optional(),
   priority: taskPrioritySchema.optional(),
-  dueDate: z.string().nullable().optional(),
+  dueDate: dateString.nullable().optional(),
   dueTime: z.string().nullable().optional(),
   isAllDay: z.boolean().optional(),
   isActivity: z.boolean().optional(),
@@ -68,7 +74,7 @@ export const createTaskSchema = z.object({
   // New repeat system - generates multiple task instances
   repeatDays: z.array(z.number().min(0).max(6)).optional(), // 0=Sun, 1=Mon, ..., 6=Sat
   repeatInterval: repeatIntervalSchema,
-  repeatEndDate: z.string().nullable().optional(), // Required when repeatInterval is set
+  repeatEndDate: dateString.nullable().optional(), // Required when repeatInterval is set
 });
 
 export const updateTaskSchema = createTaskSchema.partial().extend({

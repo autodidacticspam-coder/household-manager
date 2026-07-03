@@ -22,8 +22,12 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (search) {
-      // Search in title and ingredients
-      query = query.or(`title.ilike.%${search}%,ingredients.cs.[{"item":"${search}"}]`);
+      // Strip characters that are significant in PostgREST's .or() grammar
+      // (and the ilike wildcard) so the search term can't alter the filter.
+      const safe = search.replace(/[,()"\\%*]/g, ' ').trim();
+      if (safe) {
+        query = query.or(`title.ilike.%${safe}%,ingredients.cs.[{"item":"${safe}"}]`);
+      }
     }
 
     const { data: recipes, error } = await query;

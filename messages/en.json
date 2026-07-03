@@ -8,6 +8,8 @@
     "new": "New",
     "saving": "Saving...",
     "saved": "Saved",
+    "deleted": "Deleted",
+    "optional": "(optional)",
     "saveChanges": "Save Changes",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -153,6 +155,7 @@
     "completed": "Completed",
     "pending": "Pending",
     "inProgress": "In Progress",
+    "in_progress": "In Progress",
     "overdue": "Overdue",
     "priorities": {
       "low": "Low",
@@ -548,7 +551,9 @@
     "notFound": "Not found",
     "unauthorized": "You don't have permission to access this",
     "validation": "Please check your input and try again",
-    "network": "Network error. Please check your connection."
+    "network": "Network error. Please check your connection.",
+    "saveFailed": "Failed to save. Please try again.",
+    "deleteFailed": "Failed to delete. Please try again."
   },
   "childLogs": {
     "title": "Child Log",

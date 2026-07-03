@@ -130,27 +130,33 @@ export async function approveLeaveRequest(
     .single();
 
   if (balance) {
-    const updateField = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? 'pto_used' : 'sick_used';
+    const updateField = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? 'vacation_used' : 'sick_used';
     const currentUsed = parseFloat(balance[updateField]);
     const newUsed = currentUsed + parseFloat(request.total_days);
 
-    await supabase
+    const { error: balanceError } = await supabase
       .from('leave_balances')
       .update({ [updateField]: newUsed })
       .eq('id', balance.id);
+    if (balanceError) {
+      console.error('Leave balance update error:', balanceError);
+    }
   } else {
     // Create balance entry if it doesn't exist
-    const ptoUsed = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? parseFloat(request.total_days) : 0;
+    const vacationUsed = (request.leave_type === 'vacation' || request.leave_type === 'pto') ? parseFloat(request.total_days) : 0;
     const sickUsed = request.leave_type === 'sick' ? parseFloat(request.total_days) : 0;
 
-    await supabase
+    const { error: balanceError } = await supabase
       .from('leave_balances')
       .insert({
         user_id: request.user_id,
         year: requestYear,
-        pto_used: ptoUsed,
+        vacation_used: vacationUsed,
         sick_used: sickUsed,
       });
+    if (balanceError) {
+      console.error('Leave balance insert error:', balanceError);
+    }
   }
 
   revalidatePath('/time-off');

@@ -192,7 +192,7 @@ export function useDeleteTaskVideo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success('Video removed');
     },
     onError: (error: Error) => {

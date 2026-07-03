@@ -1,30 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTaskReminderPush, sendTaskExpirationPush } from '@/lib/notifications/push-service';
-import { formatDateString } from '@/lib/date-utils';
+import { getZonedParts, getZonedDateString } from '@/lib/timezone';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const cronSecret = process.env.CRON_SECRET;
 
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
+  // Verify cron secret for security. Fail closed if the secret is not
+  // configured, otherwise this push-notification blaster would be wide open.
   const authHeader = request.headers.get('authorization');
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const now = new Date();
-    const today = formatDateString(now);
+    // Task due_date/due_time are household wall-clock; the server runs in UTC,
+    // so derive "today" and the reminder window in the household timezone.
+    const today = getZonedDateString(now);
 
     // Calculate time 15 minutes from now
     const targetTime = new Date(now.getTime() + 15 * 60 * 1000);
 
     // Allow a 1-minute window around the target time (cron runs every minute)
-    const windowStart = new Date(targetTime.getTime() - 30 * 1000).toTimeString().slice(0, 8);
-    const windowEnd = new Date(targetTime.getTime() + 30 * 1000).toTimeString().slice(0, 8);
+    const windowStart = getZonedParts(new Date(targetTime.getTime() - 30 * 1000)).time;
+    const windowEnd = getZonedParts(new Date(targetTime.getTime() + 30 * 1000)).time;
 
     // Find high/urgent priority tasks due within the time window that are not completed
     const { data: tasks, error: tasksError } = await supabase
@@ -117,9 +120,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check for expiring repeating tasks (run once daily at 9 AM)
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+    // Check for expiring repeating tasks (run once daily at 9 AM household time)
+    const zonedNow = getZonedParts(now);
+    const currentHour = zonedNow.hour;
+    const currentMinute = zonedNow.minute;
     let expirationNotificationsSent = 0;
     let expirationNotificationsFailed = 0;
 
@@ -128,7 +132,7 @@ export async function GET(request: NextRequest) {
       // Calculate date 7 days from now
       const sevenDaysFromNow = new Date(now);
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-      const targetDate = formatDateString(sevenDaysFromNow);
+      const targetDate = getZonedDateString(sevenDaysFromNow);
 
       // Fetch all pending tasks to find repeating batches expiring in 7 days
       const { data: allTasks, error: allTasksError } = await supabase

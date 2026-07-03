@@ -31,14 +31,7 @@ export async function GET() {
       state,
     });
 
-    console.log('Auth URL params:', {
-      client_id: process.env.GOOGLE_CLIENT_ID?.substring(0, 20) + '...',
-      redirect_uri: process.env.GOOGLE_REDIRECT_URI,
-      scope: SCOPES.join(' '),
-    });
-
     const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`;
-    console.log('Generated auth URL with scopes:', SCOPES);
 
     return NextResponse.json({ url: authUrl });
   } catch (error) {

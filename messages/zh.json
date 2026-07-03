@@ -8,6 +8,8 @@
     "new": "新建",
     "saving": "保存中...",
     "saved": "已保存",
+    "deleted": "已删除",
+    "optional": "（可选）",
     "saveChanges": "保存更改",
     "cancel": "取消",
     "delete": "删除",
@@ -153,6 +155,7 @@
     "completed": "已完成",
     "pending": "待处理",
     "inProgress": "进行中",
+    "in_progress": "进行中",
     "overdue": "已逾期",
     "priorities": {
       "low": "低",
@@ -548,7 +551,9 @@
     "notFound": "未找到",
     "unauthorized": "您没有权限访问",
     "validation": "请检查您的输入后重试",
-    "network": "网络错误，请检查您的连接。"
+    "network": "网络错误，请检查您的连接。",
+    "saveFailed": "保存失败，请重试。",
+    "deleteFailed": "删除失败，请重试。"
   },
   "childLogs": {
     "title": "儿童记录",

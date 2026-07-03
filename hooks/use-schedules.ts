@@ -88,6 +88,7 @@ export function useCreateSchedule() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedules', variables.userId] });
       queryClient.invalidateQueries({ queryKey: ['all-employee-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('common.saved'));
     },
     onError: (error) => {
@@ -125,6 +126,7 @@ export function useUpdateSchedule() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedules', variables.userId] });
       queryClient.invalidateQueries({ queryKey: ['all-employee-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('common.saved'));
     },
     onError: (error) => {
@@ -153,6 +155,7 @@ export function useDeleteSchedule() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedules', variables.userId] });
       queryClient.invalidateQueries({ queryKey: ['all-employee-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('common.deleted'));
     },
     onError: (error) => {

@@ -13,9 +13,10 @@ const cronSecret = process.env.CRON_SECRET;
  * events that individual change-triggered syncs missed.
  */
 export async function GET(request: NextRequest) {
-  // Verify cron secret for security
+  // Verify cron secret for security. Fail closed if the secret is not
+  // configured so this full-resync endpoint can't be triggered anonymously.
   const authHeader = request.headers.get('authorization');
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

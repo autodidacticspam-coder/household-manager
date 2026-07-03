@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatTime12h } from '@/lib/format-time';
+import { parseLocalDate } from '@/lib/date-utils';
 import { onNotificationTap } from '@/hooks/use-push-notifications';
 
 type NotificationData = {
@@ -80,7 +81,8 @@ export function NotificationPopupProvider({ children }: { children: ReactNode })
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return null;
-    const date = new Date(dateStr);
+    // Date-only string: parse as local so it doesn't shift a day in US zones.
+    const date = parseLocalDate(dateStr);
     return date.toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { subDays, format } from 'date-fns';
-import { getTodayString, formatDateString } from '@/lib/date-utils';
+import { getTodayString, formatDateString, parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -191,11 +191,11 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
-                    tickFormatter={(value) => format(new Date(value), 'MMM d')}
+                    tickFormatter={(value) => format(parseLocalDate(value), 'MMM d')}
                   />
                   <YAxis />
                   <Tooltip
-                    labelFormatter={(value) => format(new Date(value), 'MMM d, yyyy')}
+                    labelFormatter={(value) => format(parseLocalDate(value as string), 'MMM d, yyyy')}
                   />
                   <Line
                     type="monotone"

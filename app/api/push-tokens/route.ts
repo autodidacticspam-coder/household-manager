@@ -64,36 +64,7 @@ export async function GET(_request: NextRequest) {
   }
 }
 
-// POST - Manually register a push token
-export async function POST(request: NextRequest) {
-  try {
-    const { userId, token, platform = 'ios' } = await request.json();
-
-    if (!userId || !token) {
-      return NextResponse.json({ error: 'userId and token are required' }, { status: 400 });
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { error } = await supabase
-      .from('user_push_tokens')
-      .upsert({
-        user_id: userId,
-        token,
-        platform,
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,token',
-      });
-
-    if (error) {
-      console.error('Error saving push token:', error);
-      return NextResponse.json({ error: 'Failed to save token' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    const { error, status } = handleApiError(err);
-    return NextResponse.json({ error }, { status });
-  }
-}
+// Registration goes through /api/push-tokens/register, which binds the token
+// to the authenticated session user. There is intentionally no POST here: an
+// unauthenticated POST that trusts a caller-supplied userId would let anyone
+// point a victim's push notifications at their own device.

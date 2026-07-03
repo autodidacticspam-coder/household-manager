@@ -330,7 +330,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
         }
       }
       if (filters.showLeave !== false) {
-        let q = supabase.from('leave_requests').select('*, user:users!leave_requests_user_id_fkey(id, full_name)').eq('status', 'approved').or('start_date.lte.' + filters.endDate + ',end_date.gte.' + filters.startDate);
+        // Overlap test is an AND (starts on/before range end AND ends on/after
+        // range start). Using .or() here matched every approved leave ever.
+        let q = supabase.from('leave_requests').select('*, user:users!leave_requests_user_id_fkey(id, full_name)').eq('status', 'approved').lte('start_date', filters.endDate).gte('end_date', filters.startDate);
         if (filters.userId) q = q.eq('user_id', filters.userId);
         const { data: leaves, error } = await q;
         if (error) throw error;
@@ -593,12 +595,14 @@ export function useCalendarEvents(filters: CalendarFilters) {
           });
         }
 
-        // Fetch approved leave requests to exclude schedule on days off
+        // Fetch approved leave requests to exclude schedule on days off.
+        // Overlap is an AND of the two bounds, not an .or() (which matched all).
         const { data: approvedLeaves } = await supabase
           .from('leave_requests')
           .select('user_id, start_date, end_date, selected_dates')
           .eq('status', 'approved')
-          .or(`start_date.lte.${filters.endDate},end_date.gte.${filters.startDate}`);
+          .lte('start_date', filters.endDate)
+          .gte('end_date', filters.startDate);
 
         // Create a Set of "userId-date" for days with approved leave
         const leaveDaysSet = new Set<string>();

@@ -11,6 +11,7 @@ import {
   getDate,
   isBefore,
   isAfter,
+  isValid,
 } from 'date-fns';
 import { parseLocalDate, formatDateString } from './date-utils';
 
@@ -87,6 +88,12 @@ export function generateTaskDates(input: TaskGenerationInput): string[] {
 
   const start = parseLocalDate(startDate);
   const end = parseLocalDate(endDate);
+
+  // Guard against unparseable dates: date-fns comparisons against an Invalid
+  // Date always return false, which would spin the generation loops forever.
+  if (!isValid(start) || !isValid(end)) {
+    return [];
+  }
 
   if (isAfter(start, end)) {
     return [];
