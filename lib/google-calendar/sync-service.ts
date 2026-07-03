@@ -4,7 +4,7 @@ import {
   getValidAccessToken,
   getUserCalendarId,
   getUserSyncFilters,
-  DEFAULT_SYNC_FILTERS,
+  normalizeSyncFilters,
   createCalendarEvent,
   updateCalendarEvent,
   deleteCalendarEvent,
@@ -132,8 +132,9 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
     // 1. Build the desired event set from the database
     const desired = new Map<string, DesiredEvent>();
 
-    if (filters.tasks) {
-      debug.tasksCount = addDesiredEvents(desired, 'task', await buildTaskEvents(startDate, endDate));
+    if (filters.tasks || filters.activities) {
+      const taskEvents = await buildTaskEvents(startDate, endDate, filters.tasks, filters.activities);
+      debug.tasksCount = addDesiredEvents(desired, 'task', taskEvents);
     }
     if (filters.leave) {
       debug.leaveCount = addDesiredEvents(desired, 'leave', await buildLeaveEvents(startDate, endDate));
@@ -317,16 +318,28 @@ function addDesiredEvents(
 
 async function buildTaskEvents(
   startDate: string,
-  endDate: string
+  endDate: string,
+  includeTasks: boolean,
+  includeActivities: boolean
 ): Promise<Array<{ sourceId: string; event: GoogleCalendarEvent }>> {
   const supabase = getApiAdminClient();
 
-  const { data: tasks } = await supabase
+  // "Tasks" and "Activities" (timed events like lessons) are separate sync
+  // filters but share the tasks table, split by the is_activity flag.
+  let query = supabase
     .from('tasks')
     .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
     .gte('due_date', startDate)
     .lte('due_date', endDate)
     .order('due_date');
+
+  if (includeTasks && !includeActivities) {
+    query = query.eq('is_activity', false);
+  } else if (includeActivities && !includeTasks) {
+    query = query.eq('is_activity', true);
+  }
+
+  const { data: tasks } = await query;
 
   return (tasks || []).map((task) => ({
     sourceId: task.id,
@@ -682,12 +695,16 @@ export async function syncEventToConnectedUsers(
 ): Promise<void> {
   const supabase = getApiAdminClient();
 
-  // Map event type to filter path
-  const filterPath = eventType === 'child_log'
-    ? null // Child logs need category-specific handling
-    : eventType === 'important_date'
+  // Map event type to filter path. Note the filter keys are plural
+  // ('schedules'), not the singular event type; tasks and child logs get
+  // special handling below.
+  const filterPath = eventType === 'important_date'
     ? 'importantDates'
-    : eventType;
+    : eventType === 'schedule'
+    ? 'schedules'
+    : eventType === 'leave'
+    ? 'leave'
+    : null;
 
   // Get all connected users with their filters
   const { data: tokens } = await supabase
@@ -697,11 +714,21 @@ export async function syncEventToConnectedUsers(
   if (!tokens) return;
 
   for (const token of tokens) {
-    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    const filters = normalizeSyncFilters(token.sync_filters);
 
     // Check if user has this filter enabled
     let shouldSync = false;
-    if (filterPath) {
+    if (eventType === 'task') {
+      // Timed activities (lessons, sports) and plain to-dos are separate
+      // filters. Deletes carry no event data, so allow them when either
+      // filter is on — deleting an event that was never synced is a no-op.
+      const isActivity = (eventData as { isActivity?: boolean } | undefined)?.isActivity === true;
+      shouldSync = action === 'delete'
+        ? filters.tasks || filters.activities
+        : isActivity
+        ? filters.activities
+        : filters.tasks;
+    } else if (filterPath) {
       shouldSync = filters[filterPath as keyof Omit<SyncFilters, 'childLogs'>] === true;
     } else if (eventType === 'child_log' && eventData) {
       // Check specific child log category
@@ -772,7 +799,7 @@ export async function syncBaseScheduleChange(
   const endDate = format(addDays(new Date(), 90), 'yyyy-MM-dd');
 
   for (const token of tokens) {
-    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    const filters = normalizeSyncFilters(token.sync_filters);
     if (!filters.schedules) continue;
 
     const accessToken = await getValidAccessToken(token.user_id);
@@ -915,7 +942,7 @@ export async function syncScheduleOverrideChange(
   if (!tokens) return;
 
   for (const token of tokens) {
-    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    const filters = normalizeSyncFilters(token.sync_filters);
     if (!filters.schedules) continue;
 
     const accessToken = await getValidAccessToken(token.user_id);
@@ -961,7 +988,7 @@ export async function syncOneOffScheduleChange(
   if (!tokens) return;
 
   for (const token of tokens) {
-    const filters = (token.sync_filters as SyncFilters | null) || DEFAULT_SYNC_FILTERS;
+    const filters = normalizeSyncFilters(token.sync_filters);
     if (!filters.schedules) continue;
 
     const accessToken = await getValidAccessToken(token.user_id);

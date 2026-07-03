@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthUser, getApiAdminClient } from '@/lib/supabase/api-helpers';
-import { DEFAULT_SYNC_FILTERS, type SyncFilters } from '@/lib/google-calendar/calendar-service';
+import { DEFAULT_SYNC_FILTERS, normalizeSyncFilters } from '@/lib/google-calendar/calendar-service';
 
 export async function GET() {
   try {
@@ -29,7 +29,7 @@ export async function GET() {
       connected: true,
       email: token.google_email || null,
       calendarId: token.calendar_id,
-      filters: (token.sync_filters as SyncFilters) || DEFAULT_SYNC_FILTERS,
+      filters: normalizeSyncFilters(token.sync_filters),
       lastSynced: token.last_synced || null,
     });
   } catch (error) {

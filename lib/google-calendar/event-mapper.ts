@@ -75,13 +75,16 @@ export function taskToCalendarEvent(task: TaskData): GoogleCalendarEvent {
   let start: GoogleCalendarEvent['start'];
   let end: GoogleCalendarEvent['end'];
 
-  if (task.isAllDay || !task.dueTime) {
-    start = { date: task.dueDate };
-    end = { date: task.dueDate };
-  } else if (task.isActivity && task.startTime && task.endTime) {
+  // Activities carry their times in startTime/endTime and usually have no
+  // dueTime, so this check must come before the all-day fallback — otherwise
+  // a 7:45-8:45 lesson lands on the calendar as an all-day banner.
+  if (task.isActivity && task.startTime && task.endTime) {
     // Activity with duration
     start = { dateTime: `${task.dueDate}T${task.startTime}`, timeZone: DEFAULT_TIMEZONE };
     end = { dateTime: `${task.dueDate}T${task.endTime}`, timeZone: DEFAULT_TIMEZONE };
+  } else if (task.isAllDay || !task.dueTime) {
+    start = { date: task.dueDate };
+    end = { date: task.dueDate };
   } else {
     // Timed task without duration (1 hour default)
     const startDateTime = `${task.dueDate}T${task.dueTime}`;

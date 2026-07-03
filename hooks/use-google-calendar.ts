@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 // Sync filter types (duplicated from calendar-service to avoid server-side imports)
 export interface SyncFilters {
   tasks: boolean;
+  activities: boolean;
   leave: boolean;
   schedules: boolean;
   importantDates: boolean;
@@ -16,6 +17,7 @@ export interface SyncFilters {
 
 export const DEFAULT_SYNC_FILTERS: SyncFilters = {
   tasks: true,
+  activities: true,
   leave: true,
   schedules: true,
   importantDates: true,

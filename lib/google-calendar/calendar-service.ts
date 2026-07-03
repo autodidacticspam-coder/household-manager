@@ -7,6 +7,7 @@ const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3';
 // Sync filter types
 export interface SyncFilters {
   tasks: boolean;
+  activities: boolean;
   leave: boolean;
   schedules: boolean;
   importantDates: boolean;
@@ -20,6 +21,7 @@ export interface SyncFilters {
 
 export const DEFAULT_SYNC_FILTERS: SyncFilters = {
   tasks: true,
+  activities: true,
   leave: true,
   schedules: true,
   importantDates: true,
@@ -30,6 +32,22 @@ export const DEFAULT_SYNC_FILTERS: SyncFilters = {
     shower: true,
   },
 };
+
+/**
+ * Fill in any filter keys missing from stored settings (e.g. "activities"
+ * was added after users had already saved filters).
+ */
+export function normalizeSyncFilters(raw: unknown): SyncFilters {
+  const stored = (raw || {}) as Partial<SyncFilters>;
+  return {
+    ...DEFAULT_SYNC_FILTERS,
+    ...stored,
+    childLogs: {
+      ...DEFAULT_SYNC_FILTERS.childLogs,
+      ...(stored.childLogs || {}),
+    },
+  };
+}
 
 // Google Calendar event format
 export interface GoogleCalendarEvent {
@@ -257,7 +275,7 @@ export async function getUserSyncFilters(userId: string): Promise<SyncFilters | 
 
   if (!token) return null;
 
-  return (token.sync_filters as SyncFilters) || DEFAULT_SYNC_FILTERS;
+  return normalizeSyncFilters(token.sync_filters);
 }
 
 /**
@@ -530,7 +548,7 @@ export async function getUsersWithFilterEnabled(
 
   return tokens
     .filter((token) => {
-      const filters = (token.sync_filters as SyncFilters) || DEFAULT_SYNC_FILTERS;
+      const filters = normalizeSyncFilters(token.sync_filters);
       // Navigate the filter path (e.g., "tasks" or "childLogs.sleep")
       const parts = filterPath.split('.');
       let value: unknown = filters;

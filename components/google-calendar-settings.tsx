@@ -30,6 +30,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
+  Activity,
   Calendar,
   CheckSquare,
   Clock,
@@ -243,6 +244,20 @@ export function GoogleCalendarSettings() {
                   <Label htmlFor="sync-tasks" className="flex items-center cursor-pointer">
                     <CheckSquare className="h-4 w-4 mr-2 text-indigo-500" />
                     {t('calendar.showTasks')}
+                  </Label>
+                </div>
+
+                {/* Activities */}
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="sync-activities"
+                    checked={status.filters.activities}
+                    onCheckedChange={(checked) => handleFilterChange('activities', !!checked)}
+                    disabled={updateFilters.isPending}
+                  />
+                  <Label htmlFor="sync-activities" className="flex items-center cursor-pointer">
+                    <Activity className="h-4 w-4 mr-2 text-emerald-500" />
+                    {t('calendar.showActivities')}
                   </Label>
                 </div>
 
