@@ -6,6 +6,24 @@ import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
 import { addDays, addWeeks, addMonths, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
 
+/**
+ * Build FullCalendar start/end ISO strings for a shift. When the end time is
+ * not after the start time, the shift runs overnight into the next day; put
+ * the end on the following date so the event has a positive duration.
+ * Without this, an end <= start produces a negative-duration event that
+ * FullCalendar can't render as a selectable block — making it impossible to
+ * click or delete from the calendar.
+ */
+function buildShiftTimes(dateStr: string, startTime: string, endTime: string): { start: string; end: string } {
+  const start = `${dateStr}T${startTime}`;
+  if (endTime > startTime) {
+    return { start, end: `${dateStr}T${endTime}` };
+  }
+  const next = addDays(parseLocalDate(dateStr), 1);
+  const nextDateStr = format(next, 'yyyy-MM-dd');
+  return { start, end: `${nextDateStr}T${endTime}` };
+}
+
 // Type for Supabase user join results
 type UserJoinResult = { id: string; full_name: string; avatar_url?: string | null } | null;
 
@@ -655,12 +673,13 @@ export function useCalendarEvents(filters: CalendarFilters) {
               const endTime = override?.end_time || schedule.end_time;
               const hasOverride = !!override;
 
+              const shiftTimes = buildShiftTimes(dateStr, startTime, endTime);
               events.push({
                 id: `schedule-${schedule.id}-${dateStr}`,
                 type: 'schedule',
                 title: `${user.full_name}`,
-                start: `${dateStr}T${startTime}`,
-                end: `${dateStr}T${endTime}`,
+                start: shiftTimes.start,
+                end: shiftTimes.end,
                 allDay: false,
                 color: '#94a3b8', // soft gray for schedules
                 resourceId: schedule.id,
@@ -717,12 +736,13 @@ export function useCalendarEvents(filters: CalendarFilters) {
               continue;
             }
 
+            const oneOffTimes = buildShiftTimes(dateStr, schedule.start_time, schedule.end_time);
             events.push({
               id: `one-off-schedule-${schedule.id}`,
               type: 'schedule',
               title: `${user.full_name}`,
-              start: `${dateStr}T${schedule.start_time}`,
-              end: `${dateStr}T${schedule.end_time}`,
+              start: oneOffTimes.start,
+              end: oneOffTimes.end,
               allDay: false,
               color: '#94a3b8', // soft gray - same as regular schedules
               resourceId: schedule.id,
