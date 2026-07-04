@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { useCompleteTask, useDeleteTask, useDeleteFutureTasks, useTaskBatchInfo, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
-import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule } from '@/hooks/use-schedules';
+import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule, useUpdateOneOffSchedule, useDeleteOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
 import { useDeleteChildLog } from '@/hooks/use-child-logs';
 import { useCancelLeaveRequest } from '@/hooks/use-leave';
@@ -225,6 +225,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const updateTaskStatus = useUpdateTaskStatus();
   const upsertOverride = useUpsertScheduleOverride();
   const deleteOverride = useDeleteScheduleOverride();
+  const updateOneOff = useUpdateOneOffSchedule();
+  const deleteOneOff = useDeleteOneOffSchedule();
   const createOneOffSchedule = useCreateOneOffSchedule();
   const deleteChildLog = useDeleteChildLog();
   const cancelLeaveRequest = useCancelLeaveRequest();
@@ -1260,42 +1262,64 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                         >
                           {t('employees.editScheduleInstance')}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="w-full"
-                          disabled={upsertOverride.isPending}
-                          onClick={async () => {
-                            await upsertOverride.mutateAsync({
-                              scheduleId: String(selectedEvent.extendedProps.scheduleId),
-                              overrideDate: String(selectedEvent.extendedProps.scheduleDate),
-                              isCancelled: true,
-                            });
-                            setSelectedEvent(null);
-                            refetch();
-                          }}
-                        >
-                          {upsertOverride.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                          {t('employees.cancelShiftForDay')}
-                        </Button>
-                        {Boolean(selectedEvent.extendedProps.hasOverride) && (
+                        {Boolean(selectedEvent.extendedProps.isOneOff) ? (
+                          // One-off shifts are a single dated row: delete the row
+                          // itself. (Cancelling via an override only applies to
+                          // recurring schedules and does nothing for a one-off.)
                           <Button
                             size="sm"
-                            variant="ghost"
+                            variant="destructive"
                             className="w-full"
-                            disabled={deleteOverride.isPending}
+                            disabled={deleteOneOff.isPending}
                             onClick={async () => {
-                              await deleteOverride.mutateAsync({
-                                scheduleId: String(selectedEvent.extendedProps.scheduleId),
-                                overrideDate: String(selectedEvent.extendedProps.scheduleDate),
-                              });
+                              await deleteOneOff.mutateAsync(String(selectedEvent.extendedProps.oneOffScheduleId));
                               setSelectedEvent(null);
                               refetch();
                             }}
                           >
-                            {deleteOverride.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                            {t('employees.restoreOriginal')}
+                            {deleteOneOff.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            {t('employees.deleteShift')}
                           </Button>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="w-full"
+                              disabled={upsertOverride.isPending}
+                              onClick={async () => {
+                                await upsertOverride.mutateAsync({
+                                  scheduleId: String(selectedEvent.extendedProps.scheduleId),
+                                  overrideDate: String(selectedEvent.extendedProps.scheduleDate),
+                                  isCancelled: true,
+                                });
+                                setSelectedEvent(null);
+                                refetch();
+                              }}
+                            >
+                              {upsertOverride.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                              {t('employees.cancelShiftForDay')}
+                            </Button>
+                            {Boolean(selectedEvent.extendedProps.hasOverride) && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="w-full"
+                                disabled={deleteOverride.isPending}
+                                onClick={async () => {
+                                  await deleteOverride.mutateAsync({
+                                    scheduleId: String(selectedEvent.extendedProps.scheduleId),
+                                    overrideDate: String(selectedEvent.extendedProps.scheduleDate),
+                                  });
+                                  setSelectedEvent(null);
+                                  refetch();
+                                }}
+                              >
+                                {deleteOverride.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                {t('employees.restoreOriginal')}
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     )}
@@ -1378,24 +1402,33 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                       <Button
                         size="sm"
                         className="flex-1"
-                        disabled={!editStartTime || !editEndTime || upsertOverride.isPending}
+                        disabled={!editStartTime || !editEndTime || upsertOverride.isPending || updateOneOff.isPending}
                         onClick={async () => {
                           const startTime24 = formatTime24h(`${editStartTime} ${editStartAmPm}`);
                           const endTime24 = formatTime24h(`${editEndTime} ${editEndAmPm}`);
                           // Validate time format
                           if (!startTime24 || !endTime24) return;
-                          await upsertOverride.mutateAsync({
-                            scheduleId: String(selectedEvent.extendedProps.scheduleId),
-                            overrideDate: String(selectedEvent.extendedProps.scheduleDate),
-                            startTime: startTime24,
-                            endTime: endTime24,
-                          });
+                          if (Boolean(selectedEvent.extendedProps.isOneOff)) {
+                            // Editing a one-off updates its own row, not an override.
+                            await updateOneOff.mutateAsync({
+                              id: String(selectedEvent.extendedProps.oneOffScheduleId),
+                              startTime: startTime24,
+                              endTime: endTime24,
+                            });
+                          } else {
+                            await upsertOverride.mutateAsync({
+                              scheduleId: String(selectedEvent.extendedProps.scheduleId),
+                              overrideDate: String(selectedEvent.extendedProps.scheduleDate),
+                              startTime: startTime24,
+                              endTime: endTime24,
+                            });
+                          }
                           setEditingSchedule(false);
                           setSelectedEvent(null);
                           refetch();
                         }}
                       >
-                        {upsertOverride.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                        {(upsertOverride.isPending || updateOneOff.isPending) ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                         {t('common.save')}
                       </Button>
                       <Button
