@@ -289,7 +289,7 @@ A comprehensive dual-portal web application for household management with separa
    npm run dev
    ```
 
-6. Open [http://localhost:3000](http://localhost:3000)
+6. Open [http://household.localhost](http://household.localhost) or [http://localhost:3501](http://localhost:3501)
 
 ### Deployment
 
