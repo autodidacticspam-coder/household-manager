@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncBaseScheduleChange } from '@/lib/google-calendar/sync-service';
 
@@ -33,12 +33,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create schedule' }, { status: 500 });
     }
 
-    syncBaseScheduleChange(schedule.id, 'create', {
+    after(syncBaseScheduleChange(schedule.id, 'create', {
       userId,
       dayOfWeek,
       startTime,
       endTime,
-    }).catch((err) => console.error('Error syncing schedule to Google Calendar:', err));
+    }).catch((err) => console.error('Error syncing schedule to Google Calendar:', err)));
 
     return NextResponse.json(schedule);
   } catch (error) {

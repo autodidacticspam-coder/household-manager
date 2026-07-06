@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { updateTaskSchema, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
@@ -17,9 +17,9 @@ export async function DELETE(
     const supabaseAdmin = getApiAdminClient();
 
     // Trigger calendar sync delete before deleting from DB
-    syncEventToConnectedUsers('task', taskId, 'delete').catch(err =>
+    after(syncEventToConnectedUsers('task', taskId, 'delete').catch(err =>
       console.error('Calendar sync delete failed:', err)
-    );
+    ));
 
     const { error } = await supabaseAdmin
       .from('tasks')
@@ -280,7 +280,7 @@ export async function PUT(
       );
     }
 
-    syncEventToConnectedUsers('task', taskId, 'update', {
+    after(syncEventToConnectedUsers('task', taskId, 'update', {
       id: updatedTask.id,
       title: updatedTask.title,
       description: updatedTask.description,
@@ -292,7 +292,7 @@ export async function PUT(
       endTime: updatedTask.end_time,
       status: updatedTask.status,
       priority: updatedTask.priority,
-    }).catch(err => console.error('Calendar sync update failed:', err));
+    }).catch(err => console.error('Calendar sync update failed:', err)));
 
     let createdCount = 0;
 
@@ -405,7 +405,7 @@ export async function PUT(
           }
 
           for (const createdTask of createdTasks || []) {
-            syncEventToConnectedUsers('task', createdTask.id, 'create', {
+            after(syncEventToConnectedUsers('task', createdTask.id, 'create', {
               id: createdTask.id,
               title: createdTask.title,
               description: createdTask.description,
@@ -417,7 +417,7 @@ export async function PUT(
               endTime: createdTask.end_time,
               status: createdTask.status,
               priority: createdTask.priority,
-            }).catch(err => console.error('Calendar sync create failed:', err));
+            }).catch(err => console.error('Calendar sync create failed:', err)));
           }
         }
       }

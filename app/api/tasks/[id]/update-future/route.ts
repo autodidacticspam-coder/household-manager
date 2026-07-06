@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { updateTaskSchema, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
@@ -243,9 +243,9 @@ export async function PUT(
 
       if (deletedTaskIds.length > 0) {
         for (const deletedTaskId of deletedTaskIds) {
-          syncEventToConnectedUsers('task', deletedTaskId, 'delete').catch(err =>
+          after(syncEventToConnectedUsers('task', deletedTaskId, 'delete').catch(err =>
             console.error('Calendar sync delete failed:', err)
-          );
+          ));
         }
 
         const { error: deleteError } = await supabaseAdmin
@@ -371,7 +371,7 @@ export async function PUT(
       const createdTaskIdSet = new Set(createdTaskIds);
 
       for (const managedTask of managedTasks || []) {
-        syncEventToConnectedUsers('task', managedTask.id, createdTaskIdSet.has(managedTask.id) ? 'create' : 'update', {
+        after(syncEventToConnectedUsers('task', managedTask.id, createdTaskIdSet.has(managedTask.id) ? 'create' : 'update', {
           id: managedTask.id,
           title: managedTask.title,
           description: managedTask.description,
@@ -383,7 +383,7 @@ export async function PUT(
           endTime: managedTask.end_time,
           status: managedTask.status,
           priority: managedTask.priority,
-        }).catch(err => console.error('Calendar sync update failed:', err));
+        }).catch(err => console.error('Calendar sync update failed:', err)));
       }
     }
 

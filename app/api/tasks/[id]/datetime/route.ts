@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getApiAdminClient } from '@/lib/supabase/api-helpers';
 import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
@@ -65,7 +65,7 @@ export async function PUT(
       .single();
 
     if (updatedTask) {
-      syncEventToConnectedUsers('task', taskId, 'update', {
+      after(syncEventToConnectedUsers('task', taskId, 'update', {
         id: updatedTask.id,
         title: updatedTask.title,
         description: updatedTask.description,
@@ -77,7 +77,7 @@ export async function PUT(
         endTime: updatedTask.end_time,
         status: updatedTask.status,
         priority: updatedTask.priority,
-      }).catch(err => console.error('Calendar sync update failed:', err));
+      }).catch(err => console.error('Calendar sync update failed:', err)));
     }
 
     return NextResponse.json({ success: true });

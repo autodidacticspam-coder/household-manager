@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncScheduleOverrideChange } from '@/lib/google-calendar/sync-service';
 
@@ -68,11 +68,11 @@ export async function POST(request: Request) {
       result = data;
     }
 
-    syncScheduleOverrideChange(scheduleId, overrideDate, action, {
+    after(syncScheduleOverrideChange(scheduleId, overrideDate, action, {
       startTime: isCancelled ? null : startTime,
       endTime: isCancelled ? null : endTime,
       isCancelled: isCancelled || false,
-    }).catch((err) => console.error('Error syncing schedule override to Google Calendar:', err));
+    }).catch((err) => console.error('Error syncing schedule override to Google Calendar:', err)));
 
     return NextResponse.json(result);
   } catch (error) {
@@ -106,9 +106,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Failed to delete override' }, { status: 500 });
     }
 
-    syncScheduleOverrideChange(scheduleId, overrideDate, 'delete').catch((err) =>
+    after(syncScheduleOverrideChange(scheduleId, overrideDate, 'delete').catch((err) =>
       console.error('Error syncing schedule override deletion to Google Calendar:', err)
-    );
+    ));
 
     return NextResponse.json({ success: true });
   } catch (error) {

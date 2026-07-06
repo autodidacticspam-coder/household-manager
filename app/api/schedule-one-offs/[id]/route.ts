@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { requireApiAdminRole, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncOneOffScheduleChange } from '@/lib/google-calendar/sync-service';
 
@@ -50,12 +50,12 @@ export async function PUT(
       return NextResponse.json({ error: 'Failed to update schedule' }, { status: 500 });
     }
 
-    syncOneOffScheduleChange(id, 'update', {
+    after(syncOneOffScheduleChange(id, 'update', {
       userId: existing.user_id,
       scheduleDate: scheduleDate || existing.schedule_date,
       startTime,
       endTime,
-    }).catch((err) => console.error('Error syncing one-off schedule to Google Calendar:', err));
+    }).catch((err) => console.error('Error syncing one-off schedule to Google Calendar:', err)));
 
     return NextResponse.json(schedule);
   } catch (error) {
@@ -84,9 +84,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete schedule' }, { status: 500 });
     }
 
-    syncOneOffScheduleChange(id, 'delete').catch((err) =>
+    after(syncOneOffScheduleChange(id, 'delete').catch((err) =>
       console.error('Error syncing one-off schedule deletion to Google Calendar:', err)
-    );
+    ));
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createTaskSchema, type CreateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { sendTaskAssignedPush } from '@/lib/notifications/push-service';
@@ -265,9 +265,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Sync created tasks to Google Calendar (fire and forget)
+    // Sync created tasks to Google Calendar (kept alive past the response via after)
     for (const createdTask of tasks) {
-      syncEventToConnectedUsers('task', createdTask.id, 'create', {
+      after(syncEventToConnectedUsers('task', createdTask.id, 'create', {
         id: createdTask.id,
         title: createdTask.title,
         description: createdTask.description,
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
         endTime: createdTask.end_time,
         status: createdTask.status,
         priority: createdTask.priority,
-      }).catch(err => console.error('Calendar sync failed:', err));
+      }).catch(err => console.error('Calendar sync failed:', err)));
     }
 
     return NextResponse.json({
