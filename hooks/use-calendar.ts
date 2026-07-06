@@ -323,7 +323,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
                 start: times.start,
                 end: times.end,
                 allDay: task.is_all_day,
-                color: task.category?.color || '#60a5fa',
+                color: task.category?.color || (task.is_activity ? '#34d399' : '#60a5fa'),
                 resourceId: task.id,
                 extendedProps: {
                   status: instanceStatus,
@@ -343,7 +343,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
             }
           } else {
             const times = getEventTimes(task.due_date);
-            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || '#60a5fa', resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, isViewOnly, assignees } });
+            events.push({ id: 'task-' + task.id, type: 'task', title: task.title, start: times.start, end: times.end, allDay: task.is_all_day, color: task.category?.color || (task.is_activity ? '#34d399' : '#60a5fa'), resourceId: task.id, extendedProps: { status: task.status, priority: task.priority, category: task.category?.name, isActivity: task.is_activity, isViewOnly, assignees } });
           }
         }
       }

@@ -28,7 +28,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask, useDeleteTask, useDeleteFutureTasks, useTaskBatchInfo, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
+import { useCompleteTask, useCreateTask, useDeleteTask, useDeleteFutureTasks, useEmployeeGroups, useTaskBatchInfo, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule, useUpdateOneOffSchedule, useDeleteOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
 import { useDeleteChildLog } from '@/hooks/use-child-logs';
@@ -50,7 +50,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
 import { format, startOfMonth, endOfMonth, subWeeks, addWeeks } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus, PartyPopper } from 'lucide-react';
 
 // Helper function to handle time input formatting
 // Handles cases like: "0200" -> "2:00", "930" -> "9:30", backspacing, etc.
@@ -230,7 +230,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const createOneOffSchedule = useCreateOneOffSchedule();
   const deleteChildLog = useDeleteChildLog();
   const cancelLeaveRequest = useCancelLeaveRequest();
+  const createTask = useCreateTask();
   const { data: employees } = useEmployeesList();
+  const { data: employeeGroups } = useEmployeeGroups();
 
   // Task delete confirmation state
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
@@ -274,6 +276,26 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [newScheduleStartAmPm, setNewScheduleStartAmPm] = useState<'AM' | 'PM'>('AM');
   const [newScheduleEndTime, setNewScheduleEndTime] = useState('');
   const [newScheduleEndAmPm, setNewScheduleEndAmPm] = useState<'AM' | 'PM'>('PM');
+
+  // Add activity state (shares the date and time inputs with the schedule tab)
+  const [addDialogTab, setAddDialogTab] = useState<'schedule' | 'activity'>('schedule');
+  const [newActivityTitle, setNewActivityTitle] = useState('');
+  const [activityAllEmployees, setActivityAllEmployees] = useState(false);
+  const [activityGroupIds, setActivityGroupIds] = useState<string[]>([]);
+  const [activityUserIds, setActivityUserIds] = useState<string[]>([]);
+  const [showSpecificPeople, setShowSpecificPeople] = useState(false);
+
+  const toggleActivityGroup = (groupId: string, checked: boolean) => {
+    setActivityGroupIds((prev) =>
+      checked ? [...prev, groupId] : prev.filter((id) => id !== groupId)
+    );
+  };
+
+  const toggleActivityUser = (userId: string, checked: boolean) => {
+    setActivityUserIds((prev) =>
+      checked ? [...prev, userId] : prev.filter((id) => id !== userId)
+    );
+  };
 
   // Helper to parse time and set edit state
   const initScheduleEdit = (startTime: string, endTime: string) => {
@@ -328,6 +350,18 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setNewScheduleStartAmPm(defaultStartAmPm);
     setNewScheduleEndTime(defaultEndTime);
     setNewScheduleEndAmPm(defaultEndAmPm);
+
+    // Reset activity tab state - default visibility is Nanny + Teacher groups (admins always see everything)
+    const defaultViewerGroupIds = (employeeGroups || [])
+      .filter((g) => ['nanny', 'nannies', 'teacher', 'teachers'].includes(String(g.name).toLowerCase()))
+      .map((g) => g.id);
+    setAddDialogTab('schedule');
+    setNewActivityTitle('');
+    setActivityAllEmployees(false);
+    setActivityGroupIds(defaultViewerGroupIds);
+    setActivityUserIds([]);
+    setShowSpecificPeople(false);
+
     setAddScheduleDialog({
       open: true,
       date: clickedDate,
@@ -352,6 +386,45 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       scheduleDate,
       startTime: startTime24,
       endTime: endTime24,
+    });
+
+    setAddScheduleDialog(null);
+    refetch();
+  };
+
+  // Handle creating a new activity (stored as an activity task with viewers controlling visibility)
+  const handleCreateActivity = async () => {
+    if (!addScheduleDialog || !newActivityTitle.trim() || !newScheduleStartTime || !newScheduleEndTime) return;
+
+    const startTime24 = formatTime24h(`${newScheduleStartTime} ${newScheduleStartAmPm}`);
+    const endTime24 = formatTime24h(`${newScheduleEndTime} ${newScheduleEndAmPm}`);
+
+    // Validate time format
+    if (!startTime24 || !endTime24) return;
+
+    const viewers: { targetType: 'user' | 'group' | 'all'; targetUserId?: string; targetGroupId?: string }[] = [];
+    if (activityAllEmployees) {
+      viewers.push({ targetType: 'all' });
+    } else {
+      for (const groupId of activityGroupIds) {
+        viewers.push({ targetType: 'group', targetGroupId: groupId });
+      }
+      for (const userId of activityUserIds) {
+        viewers.push({ targetType: 'user', targetUserId: userId });
+      }
+    }
+
+    await createTask.mutateAsync({
+      title: newActivityTitle.trim(),
+      priority: 'medium',
+      dueDate: format(addScheduleDialog.date, 'yyyy-MM-dd'),
+      dueTime: startTime24,
+      isAllDay: false,
+      isActivity: true,
+      startTime: startTime24,
+      endTime: endTime24,
+      assignments: [],
+      viewers,
     });
 
     setAddScheduleDialog(null);
@@ -978,8 +1051,17 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               <CardTitle className="text-sm font-medium">
                 {selectedEvent.type === 'task' ? (
                   <span className="flex items-center">
-                    <CheckSquare className="h-4 w-4 mr-2 text-indigo-500" />
-                    {t('nav.tasks')}
+                    {selectedEvent.extendedProps.isActivity ? (
+                      <>
+                        <PartyPopper className="h-4 w-4 mr-2 text-emerald-500" />
+                        {t('calendar.activity')}
+                      </>
+                    ) : (
+                      <>
+                        <CheckSquare className="h-4 w-4 mr-2 text-indigo-500" />
+                        {t('nav.tasks')}
+                      </>
+                    )}
                   </span>
                 ) : selectedEvent.type === 'log' ? (
                   <span className="flex items-center">
@@ -1023,6 +1105,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
             {selectedEvent.type === 'task' && (
               <div className="mt-3 space-y-3">
+                {!!selectedEvent.extendedProps.isActivity && (
+                  <p className="text-sm text-muted-foreground">
+                    {format(selectedEvent.start, 'h:mm a')} - {format(selectedEvent.end, 'h:mm a')}
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {!!selectedEvent.extendedProps.status && (
                     <Badge variant="secondary">
@@ -1602,13 +1689,22 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add Schedule Dialog */}
+      {/* Add Schedule / Activity Dialog */}
       <Dialog open={!!addScheduleDialog?.open} onOpenChange={(open) => !open && setAddScheduleDialog(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              {t('employees.addSchedule')}
+              {addDialogTab === 'schedule' ? (
+                <>
+                  <Plus className="h-5 w-5" />
+                  {t('employees.addSchedule')}
+                </>
+              ) : (
+                <>
+                  <PartyPopper className="h-5 w-5" />
+                  {t('calendar.addActivity')}
+                </>
+              )}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1620,21 +1716,58 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               </p>
             )}
 
-            <div className="space-y-2">
-              <Label>{t('employees.selectEmployee')}</Label>
-              <Select value={newScheduleEmployee} onValueChange={setNewScheduleEmployee}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('common.select')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees?.map((emp) => (
-                    <SelectItem key={emp.id} value={emp.id}>
-                      {emp.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex rounded-md border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setAddDialogTab('schedule')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                  addDialogTab === 'schedule'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background hover:bg-muted'
+                }`}
+              >
+                {t('employees.workSchedule')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddDialogTab('activity')}
+                className={`flex-1 px-3 py-2 text-sm font-medium transition-colors border-l ${
+                  addDialogTab === 'activity'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background hover:bg-muted'
+                }`}
+              >
+                {t('calendar.activity')}
+              </button>
             </div>
+
+            {addDialogTab === 'schedule' ? (
+              <div className="space-y-2">
+                <Label>{t('employees.selectEmployee')}</Label>
+                <Select value={newScheduleEmployee} onValueChange={setNewScheduleEmployee}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('common.select')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees?.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>{t('calendar.activityName')}</Label>
+                <Input
+                  type="text"
+                  value={newActivityTitle}
+                  onChange={(e) => setNewActivityTitle(e.target.value)}
+                  placeholder={t('calendar.activityNamePlaceholder')}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>{t('employees.startTime')}</Label>
@@ -1711,16 +1844,74 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 </div>
               </div>
             </div>
+
+            {addDialogTab === 'activity' && (
+              <div className="space-y-2">
+                <Label>{t('calendar.visibleTo')}</Label>
+                <p className="text-xs text-muted-foreground">{t('calendar.visibleToNote')}</p>
+                <div className="space-y-2 rounded-md border p-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="activity-viewer-all"
+                      checked={activityAllEmployees}
+                      onCheckedChange={(checked) => setActivityAllEmployees(!!checked)}
+                    />
+                    <Label htmlFor="activity-viewer-all">{t('tasks.assignmentTypes.all')}</Label>
+                  </div>
+                  {!activityAllEmployees && (
+                    <>
+                      {employeeGroups?.map((group) => (
+                        <div key={group.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`activity-viewer-group-${group.id}`}
+                            checked={activityGroupIds.includes(group.id)}
+                            onCheckedChange={(checked) => toggleActivityGroup(group.id, !!checked)}
+                          />
+                          <Label htmlFor={`activity-viewer-group-${group.id}`}>{group.name}</Label>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground underline"
+                        onClick={() => setShowSpecificPeople(!showSpecificPeople)}
+                      >
+                        {showSpecificPeople ? t('calendar.hideSpecificPeople') : t('calendar.showSpecificPeople')}
+                      </button>
+                      {showSpecificPeople && (
+                        <div className="max-h-32 overflow-y-auto space-y-2 border-t pt-2">
+                          {employees
+                            ?.filter((emp) => emp.role === 'employee')
+                            .map((emp) => (
+                              <div key={emp.id} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`activity-viewer-user-${emp.id}`}
+                                  checked={activityUserIds.includes(emp.id)}
+                                  onCheckedChange={(checked) => toggleActivityUser(emp.id, !!checked)}
+                                />
+                                <Label htmlFor={`activity-viewer-user-${emp.id}`}>{emp.fullName}</Label>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddScheduleDialog(null)}>
               {t('common.cancel')}
             </Button>
             <Button
-              onClick={handleCreateSchedule}
-              disabled={!newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createOneOffSchedule.isPending}
+              onClick={addDialogTab === 'schedule' ? handleCreateSchedule : handleCreateActivity}
+              disabled={
+                addDialogTab === 'schedule'
+                  ? !newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createOneOffSchedule.isPending
+                  : !newActivityTitle.trim() || !newScheduleStartTime || !newScheduleEndTime || createTask.isPending
+              }
             >
-              {createOneOffSchedule.isPending ? (
+              {createOneOffSchedule.isPending || createTask.isPending ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
               {t('common.save')}
