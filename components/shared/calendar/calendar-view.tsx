@@ -49,8 +49,8 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
-import { format, startOfMonth, endOfMonth, subWeeks, addWeeks } from 'date-fns';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus, PartyPopper } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subWeeks, addWeeks, addYears } from 'date-fns';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus, PartyPopper, Repeat } from 'lucide-react';
 
 // Helper function to handle time input formatting
 // Handles cases like: "0200" -> "2:00", "930" -> "9:30", backspacing, etc.
@@ -285,6 +285,20 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [activityUserIds, setActivityUserIds] = useState<string[]>([]);
   const [showSpecificPeople, setShowSpecificPeople] = useState(false);
 
+  // Activity repeat state (same repeat system as tasks: multi-select days + interval + end date)
+  const [activityRepeatEnabled, setActivityRepeatEnabled] = useState(false);
+  const [activityRepeatDays, setActivityRepeatDays] = useState<number[]>([]);
+  const [activityRepeatInterval, setActivityRepeatInterval] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
+  const [activityRepeatEndDate, setActivityRepeatEndDate] = useState('');
+
+  const activityDayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+  const toggleActivityRepeatDay = (dayIndex: number) => {
+    setActivityRepeatDays((prev) =>
+      prev.includes(dayIndex) ? prev.filter((d) => d !== dayIndex) : [...prev, dayIndex].sort((a, b) => a - b)
+    );
+  };
+
   const toggleActivityGroup = (groupId: string, checked: boolean) => {
     setActivityGroupIds((prev) =>
       checked ? [...prev, groupId] : prev.filter((id) => id !== groupId)
@@ -361,6 +375,10 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setActivityGroupIds(defaultViewerGroupIds);
     setActivityUserIds([]);
     setShowSpecificPeople(false);
+    setActivityRepeatEnabled(false);
+    setActivityRepeatDays([dayOfWeek]);
+    setActivityRepeatInterval('weekly');
+    setActivityRepeatEndDate(format(addYears(clickedDate, 1), 'yyyy-MM-dd'));
 
     setAddScheduleDialog({
       open: true,
@@ -414,6 +432,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       }
     }
 
+    const repeating = activityRepeatEnabled && activityRepeatDays.length > 0 && !!activityRepeatEndDate;
+
     await createTask.mutateAsync({
       title: newActivityTitle.trim(),
       priority: 'medium',
@@ -425,6 +445,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       endTime: endTime24,
       assignments: [],
       viewers,
+      ...(repeating
+        ? {
+            repeatDays: activityRepeatDays,
+            repeatInterval: activityRepeatInterval,
+            repeatEndDate: activityRepeatEndDate,
+          }
+        : {}),
     });
 
     setAddScheduleDialog(null);
@@ -1847,6 +1874,84 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
             {addDialogTab === 'activity' && (
               <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="activity-repeat"
+                    checked={activityRepeatEnabled}
+                    onCheckedChange={(checked) => setActivityRepeatEnabled(!!checked)}
+                  />
+                  <Label htmlFor="activity-repeat" className="flex items-center gap-2 cursor-pointer">
+                    <Repeat className="h-4 w-4" />
+                    {t('calendar.repeat')}
+                  </Label>
+                </div>
+
+                {activityRepeatEnabled && (
+                  <div className="space-y-4 pl-6 border-l-2 border-primary/20">
+                    <div className="space-y-2">
+                      <Label>{t('calendar.selectDays')}</Label>
+                      <div className="flex flex-wrap gap-1">
+                        {activityDayKeys.map((dayKey, index) => (
+                          <button
+                            key={dayKey}
+                            type="button"
+                            onClick={() => toggleActivityRepeatDay(index)}
+                            className={`w-10 h-10 rounded-full text-xs font-semibold transition-colors ${
+                              activityRepeatDays.includes(index)
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted hover:bg-muted/80 text-muted-foreground'
+                            }`}
+                          >
+                            {t(`calendar.dayShort.${dayKey}`)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>{t('calendar.repeatFrequency')}</Label>
+                      <Select
+                        value={activityRepeatInterval}
+                        onValueChange={(v) => setActivityRepeatInterval(v as 'weekly' | 'biweekly' | 'monthly')}
+                      >
+                        <SelectTrigger className="w-48">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">{t('calendar.weekly')}</SelectItem>
+                          <SelectItem value="biweekly">{t('calendar.biweekly')}</SelectItem>
+                          <SelectItem value="monthly">{t('calendar.monthly')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>{t('calendar.repeatUntil')}</Label>
+                      <Input
+                        type="date"
+                        value={activityRepeatEndDate}
+                        onChange={(e) => setActivityRepeatEndDate(e.target.value)}
+                        min={addScheduleDialog ? format(addScheduleDialog.date, 'yyyy-MM-dd') : undefined}
+                      />
+                    </div>
+
+                    {activityRepeatDays.length > 0 && activityRepeatEndDate && (
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <p className="text-sm text-muted-foreground">
+                          {t('calendar.repeatPreview', {
+                            days: activityRepeatDays.map((d) => t(`calendar.dayShort.${activityDayKeys[d]}`)).join(', '),
+                            date: activityRepeatEndDate,
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {addDialogTab === 'activity' && (
+              <div className="space-y-2">
                 <Label>{t('calendar.visibleTo')}</Label>
                 <p className="text-xs text-muted-foreground">{t('calendar.visibleToNote')}</p>
                 <div className="space-y-2 rounded-md border p-3">
@@ -1908,7 +2013,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               disabled={
                 addDialogTab === 'schedule'
                   ? !newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createOneOffSchedule.isPending
-                  : !newActivityTitle.trim() || !newScheduleStartTime || !newScheduleEndTime || createTask.isPending
+                  : !newActivityTitle.trim() || !newScheduleStartTime || !newScheduleEndTime || createTask.isPending ||
+                    (activityRepeatEnabled && (activityRepeatDays.length === 0 || !activityRepeatEndDate))
               }
             >
               {createOneOffSchedule.isPending || createTask.isPending ? (
