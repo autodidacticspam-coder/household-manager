@@ -16,8 +16,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Clock, Plus, Trash2, Loader2 } from 'lucide-react';
-import { useEmployeeSchedules, useCreateSchedule, useDeleteSchedule } from '@/hooks/use-schedules';
+import { Clock, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react';
+import { useEmployeeSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule } from '@/hooks/use-schedules';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
 import { DAYS_OF_WEEK, DAYS_OF_WEEK_SHORT } from '@/types';
 
@@ -30,6 +30,7 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
   const t = useTranslations();
   const { data: schedules, isLoading } = useEmployeeSchedules(userId);
   const createSchedule = useCreateSchedule();
+  const updateSchedule = useUpdateSchedule();
   const deleteSchedule = useDeleteSchedule();
 
   // Form state for new schedule
@@ -41,6 +42,43 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
 
   // Delete confirmation
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Inline edit state for an existing shift
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editStartAmPm, setEditStartAmPm] = useState<'AM' | 'PM'>('AM');
+  const [editEndTime, setEditEndTime] = useState('');
+  const [editEndAmPm, setEditEndAmPm] = useState<'AM' | 'PM'>('PM');
+
+  const startEdit = (schedule: { id: string; startTime: string; endTime: string }) => {
+    // Parse "6:00 AM" style strings into the time input + AM/PM toggle pair
+    const [startStr, startPeriod] = formatTime12h(schedule.startTime).split(' ');
+    const [endStr, endPeriod] = formatTime12h(schedule.endTime).split(' ');
+    setEditStartTime(startStr);
+    setEditStartAmPm(startPeriod as 'AM' | 'PM');
+    setEditEndTime(endStr);
+    setEditEndAmPm(endPeriod as 'AM' | 'PM');
+    setEditId(schedule.id);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editId || !editStartTime || !editEndTime) return;
+    const schedule = (schedules || []).find((s) => s.id === editId);
+    if (!schedule) return;
+
+    const startTime24 = formatTime24h(`${editStartTime} ${editStartAmPm}`);
+    const endTime24 = formatTime24h(`${editEndTime} ${editEndAmPm}`);
+    if (!startTime24 || !endTime24) return;
+
+    await updateSchedule.mutateAsync({
+      id: editId,
+      userId,
+      dayOfWeek: schedule.dayOfWeek,
+      startTime: startTime24,
+      endTime: endTime24,
+    });
+    setEditId(null);
+  };
 
   const toggleDay = (dayIndex: number) => {
     setSelectedDays(prev =>
@@ -130,17 +168,120 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
                         key={schedule.id}
                         className="flex items-center justify-between bg-accent/50 rounded-lg px-3 py-2"
                       >
-                        <span className="text-sm">
-                          {formatTime12h(schedule.startTime)} - {formatTime12h(schedule.endTime)}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteId(schedule.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {editId === schedule.id ? (
+                          <div className="flex flex-wrap items-center gap-2 w-full">
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={editStartTime}
+                              onChange={(e) => formatTimeInput(e.target.value, editStartTime, setEditStartTime)}
+                              className="w-16 h-8"
+                            />
+                            <div className="flex rounded-lg border overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setEditStartAmPm('AM')}
+                                className={`px-2 py-1 text-xs font-semibold transition-colors ${
+                                  editStartAmPm === 'AM'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background hover:bg-muted'
+                                }`}
+                              >
+                                AM
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditStartAmPm('PM')}
+                                className={`px-2 py-1 text-xs font-semibold transition-colors ${
+                                  editStartAmPm === 'PM'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background hover:bg-muted'
+                                }`}
+                              >
+                                PM
+                              </button>
+                            </div>
+                            <span className="text-muted-foreground text-sm">-</span>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              value={editEndTime}
+                              onChange={(e) => formatTimeInput(e.target.value, editEndTime, setEditEndTime)}
+                              className="w-16 h-8"
+                            />
+                            <div className="flex rounded-lg border overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => setEditEndAmPm('AM')}
+                                className={`px-2 py-1 text-xs font-semibold transition-colors ${
+                                  editEndAmPm === 'AM'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background hover:bg-muted'
+                                }`}
+                              >
+                                AM
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditEndAmPm('PM')}
+                                className={`px-2 py-1 text-xs font-semibold transition-colors ${
+                                  editEndAmPm === 'PM'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-background hover:bg-muted'
+                                }`}
+                              >
+                                PM
+                              </button>
+                            </div>
+                            <div className="flex gap-1 ml-auto">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-green-600 hover:text-green-700"
+                                disabled={!editStartTime || !editEndTime || updateSchedule.isPending}
+                                onClick={handleSaveEdit}
+                              >
+                                {updateSchedule.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-muted-foreground"
+                                onClick={() => setEditId(null)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-sm">
+                              {formatTime12h(schedule.startTime)} - {formatTime12h(schedule.endTime)}
+                            </span>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-muted-foreground hover:text-foreground"
+                                onClick={() => startEdit(schedule)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-muted-foreground hover:text-destructive"
+                                onClick={() => setDeleteId(schedule.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
