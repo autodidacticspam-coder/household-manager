@@ -325,38 +325,27 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setEditingSchedule(true);
   };
 
-  // Handle clicking on empty time slot to add schedule
-  const handleDateClick = (info: { date: Date; dateStr: string; allDay: boolean }) => {
-    if (isEmployee) return; // Only admins can add schedules
-
-    const clickedDate = info.date;
+  // Shared opener for the add dialog, pre-filling times from a clicked slot or dragged range
+  const openAddDialog = (rangeStart: Date, rangeEnd: Date, allDay: boolean) => {
+    const clickedDate = rangeStart;
     const dayOfWeek = clickedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
-    // Pre-fill start time from clicked time slot if not all-day click
+    // All-day clicks (month view) get 9:00-10:00 AM defaults
     let defaultStartTime = '9:00';
     let defaultStartAmPm: 'AM' | 'PM' = 'AM';
-
-    if (!info.allDay) {
-      const hours = clickedDate.getHours();
-      const minutes = clickedDate.getMinutes();
-      const isPm = hours >= 12;
-      const h12 = hours % 12 || 12;
-      defaultStartTime = `${h12}:${minutes.toString().padStart(2, '0')}`;
-      defaultStartAmPm = isPm ? 'PM' : 'AM';
-    }
-
-    // Default end time is 1 hour after start
     let defaultEndTime = '10:00';
     let defaultEndAmPm: 'AM' | 'PM' = 'AM';
 
-    if (!info.allDay) {
-      const endDate = new Date(clickedDate.getTime() + 60 * 60 * 1000); // Add 1 hour
-      const hours = endDate.getHours();
-      const minutes = endDate.getMinutes();
-      const isPm = hours >= 12;
-      const h12 = hours % 12 || 12;
-      defaultEndTime = `${h12}:${minutes.toString().padStart(2, '0')}`;
-      defaultEndAmPm = isPm ? 'PM' : 'AM';
+    if (!allDay) {
+      const startHours = rangeStart.getHours();
+      const startMinutes = rangeStart.getMinutes();
+      defaultStartTime = `${startHours % 12 || 12}:${startMinutes.toString().padStart(2, '0')}`;
+      defaultStartAmPm = startHours >= 12 ? 'PM' : 'AM';
+
+      const endHours = rangeEnd.getHours();
+      const endMinutes = rangeEnd.getMinutes();
+      defaultEndTime = `${endHours % 12 || 12}:${endMinutes.toString().padStart(2, '0')}`;
+      defaultEndAmPm = endHours >= 12 ? 'PM' : 'AM';
     }
 
     setNewScheduleEmployee('');
@@ -385,6 +374,19 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       date: clickedDate,
       dayOfWeek,
     });
+  };
+
+  // Handle clicking on an empty time slot (defaults to a 1-hour block)
+  const handleDateClick = (info: { date: Date; dateStr: string; allDay: boolean }) => {
+    if (isEmployee) return; // Only admins can add schedules
+    openAddDialog(info.date, new Date(info.date.getTime() + 60 * 60 * 1000), info.allDay);
+  };
+
+  // Handle drag-selecting a time range - pre-fills the dragged start and end times
+  const handleSelect = (info: { start: Date; end: Date; allDay: boolean }) => {
+    if (isEmployee) return;
+    openAddDialog(info.start, info.end, info.allDay);
+    calendarRef.current?.getApi().unselect();
   };
 
   // Handle creating new one-off schedule
@@ -1044,6 +1046,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               eventClick={handleEventClick}
               dateClick={handleDateClick}
               selectable={!isEmployee}
+              select={handleSelect}
+              selectMirror={true}
+              selectMinDistance={5}
               datesSet={(dateInfo) => {
                 // Update visible range when calendar navigates
                 setVisibleRange({ start: dateInfo.start, end: dateInfo.end });
