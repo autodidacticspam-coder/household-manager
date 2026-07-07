@@ -44,8 +44,10 @@ export function formatTime24h(time12h: string): string | null {
   const minutes = match[2];
   const period = match[3].toUpperCase();
 
-  // Validate hours
+  // Validate hours and minutes ("9:75 PM" would otherwise become the
+  // invalid TIME value 21:75 and bounce off the database as a 500)
   if (hours < 1 || hours > 12) return null;
+  if (parseInt(minutes, 10) > 59) return null;
 
   if (period === 'PM' && hours !== 12) {
     hours += 12;
@@ -54,4 +56,51 @@ export function formatTime24h(time12h: string): string | null {
   }
 
   return `${hours.toString().padStart(2, '0')}:${minutes}`;
+}
+
+/**
+ * Format a time input field as the user types, handling entries like
+ * "0200" -> "2:00", "930" -> "9:30", and backspacing through the colon.
+ */
+export function formatTimeInput(value: string, previousValue: string): string {
+  // Remove non-digit and non-colon characters
+  const cleaned = value.replace(/[^\d:]/g, '');
+
+  // If user is backspacing, allow normal backspace behavior
+  if (cleaned.length < previousValue.length) {
+    if (previousValue.includes(':') && !cleaned.includes(':')) {
+      // User deleted through the colon, just return digits
+      return cleaned.replace(':', '');
+    }
+    return cleaned;
+  }
+
+  // Remove any existing colons for processing
+  const digitsOnly = cleaned.replace(/:/g, '');
+
+  // Limit to 4 digits total (HHMM)
+  const limited = digitsOnly.slice(0, 4);
+
+  if (limited.length === 0) {
+    return '';
+  }
+
+  if (limited.length <= 2) {
+    // Just hours or partial hours
+    return limited;
+  }
+
+  // 3 digits: H:MM (e.g., 930 -> 9:30)
+  if (limited.length === 3) {
+    return `${limited[0]}:${limited.slice(1)}`;
+  }
+
+  // 4 digits: HH:MM (e.g., 0930 -> 09:30, but 0200 -> 2:00)
+  const hours = limited.slice(0, 2);
+  const minutes = limited.slice(2);
+
+  // Remove leading zero for hours display (02 -> 2)
+  const displayHours = hours.replace(/^0/, '') || '0';
+
+  return `${displayHours}:${minutes}`;
 }

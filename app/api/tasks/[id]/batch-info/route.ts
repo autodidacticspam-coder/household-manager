@@ -33,35 +33,27 @@ export async function GET(
       );
     }
 
-    // Extract the date portion of created_at for batch matching
-    // This matches how the client groups tasks into batches
-    const createdDate = task.created_at?.slice(0, 10) || '';
-
-    // Find all tasks with same title, created_by, AND same created_at date
-    // This is the same batch key logic used in useTasks client-side
+    // Batch rows share one exact created_at timestamp by construction;
+    // matching only the date merged distinct same-titled batches created
+    // on the same day.
     let query = supabaseAdmin
       .from('tasks')
       .select('id, due_date, status, created_at')
-      .eq('title', task.title);
+      .eq('title', task.title)
+      .eq('created_at', task.created_at);
 
     if (task.created_by) {
       query = query.eq('created_by', task.created_by);
     }
 
-    const { data: allTasksWithTitle, error: batchError } = await query;
+    const { data: batchTasks, error: batchError } = await query;
 
-    if (batchError || !allTasksWithTitle) {
+    if (batchError || !batchTasks) {
       return NextResponse.json(
         { isRepeating: false, batchSize: 0, futureCount: 0 },
         { status: 200 }
       );
     }
-
-    // Filter to only tasks in the same batch (same created_at date)
-    const batchTasks = allTasksWithTitle.filter(t => {
-      const taskCreatedDate = t.created_at?.slice(0, 10) || '';
-      return taskCreatedDate === createdDate;
-    });
 
     // Count future pending/in_progress tasks (not completed)
     const futureCount = batchTasks.filter(t =>

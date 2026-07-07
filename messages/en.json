@@ -405,6 +405,7 @@
     "addActivity": "Add Activity",
     "activityName": "Activity Name",
     "activityNamePlaceholder": "e.g., Swim lesson, Doctor appointment",
+    "activityEndAfterStart": "End time must be after the start time",
     "visibleTo": "Who can see this",
     "visibleToNote": "Admins can always see activities",
     "showSpecificPeople": "Choose specific people",

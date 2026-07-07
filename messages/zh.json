@@ -405,6 +405,7 @@
     "addActivity": "添加活动",
     "activityName": "活动名称",
     "activityNamePlaceholder": "例如：游泳课、医生预约",
+    "activityEndAfterStart": "结束时间必须晚于开始时间",
     "visibleTo": "谁可以查看",
     "visibleToNote": "管理员始终可以查看活动",
     "showSpecificPeople": "选择指定人员",

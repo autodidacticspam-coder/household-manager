@@ -231,6 +231,7 @@ export function useCreateLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ['my-leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('leave.requestSubmitted'));
     },
     onError: (error: Error) => {
@@ -252,6 +253,7 @@ export function useApproveLeaveRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       toast.success(t('leave.requestApproved'));
     },
@@ -274,6 +276,7 @@ export function useDenyLeaveRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('leave.requestDenied'));
     },
     onError: (error: Error) => {
@@ -295,6 +298,7 @@ export function useCancelLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ['my-leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success('Leave request cancelled');
     },
     onError: (error: Error) => {

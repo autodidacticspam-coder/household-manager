@@ -13,6 +13,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // A non-cancellation override must carry times, otherwise the insert
+    // bounces off the valid_override_times CHECK constraint as a 500
+    if (!isCancelled && (!startTime || !endTime)) {
+      return NextResponse.json(
+        { error: 'startTime and endTime are required unless the shift is cancelled' },
+        { status: 400 }
+      );
+    }
+
     const supabase = getApiAdminClient();
 
     const { data: existing } = await supabase

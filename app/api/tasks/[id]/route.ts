@@ -16,11 +16,6 @@ export async function DELETE(
     await requireApiAdminRole();
     const supabaseAdmin = getApiAdminClient();
 
-    // Trigger calendar sync delete before deleting from DB
-    after(syncEventToConnectedUsers('task', taskId, 'delete').catch(err =>
-      console.error('Calendar sync delete failed:', err)
-    ));
-
     const { error } = await supabaseAdmin
       .from('tasks')
       .delete()
@@ -33,6 +28,12 @@ export async function DELETE(
         { status: 500 }
       );
     }
+
+    // Only remove the Google event once the DB delete is confirmed (the
+    // mapping row survives the task row's deletion, so ordering is safe)
+    after(syncEventToConnectedUsers('task', taskId, 'delete').catch(err =>
+      console.error('Calendar sync delete failed:', err)
+    ));
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -298,12 +299,23 @@ export async function PUT(
 
     if (repeatFieldsProvided) {
       if (shouldCreateRecurringTasks && updatedTask.due_date) {
+        // Skip dates that already exist in this batch: without this, a
+        // double-submit (or a batch member edited while batch-info errored)
+        // inserted a full duplicate set of future tasks.
+        const { data: existingSiblings } = await supabaseAdmin
+          .from('tasks')
+          .select('due_date')
+          .eq('title', updatedTask.title)
+          .eq('created_by', updatedTask.created_by)
+          .eq('created_at', updatedTask.created_at);
+        const existingDates = new Set((existingSiblings || []).map((s) => s.due_date));
+
         const futureDates = generateTaskDates({
           selectedDays: normalizedRepeatDays,
           repeatInterval: repeatInterval as RepeatInterval,
           startDate: updatedTask.due_date,
           endDate: repeatEndDate as string,
-        }).filter((date) => date > updatedTask.due_date);
+        }).filter((date) => date > updatedTask.due_date && !existingDates.has(date));
 
         if (futureDates.length > 0) {
           const taskInserts = futureDates.map((date) => ({

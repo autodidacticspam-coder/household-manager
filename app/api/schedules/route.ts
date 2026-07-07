@@ -15,6 +15,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Validate up front so bad input is a clear 400 instead of an opaque 500
+    // from the table's CHECK constraints
+    const timePattern = /^\d{1,2}:\d{2}(:\d{2})?$/;
+    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) {
+      return NextResponse.json({ error: 'dayOfWeek must be an integer between 0 and 6' }, { status: 400 });
+    }
+    if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
+      return NextResponse.json({ error: 'Times must be in HH:MM format' }, { status: 400 });
+    }
+
     const supabase = getApiAdminClient();
 
     const { data: schedule, error } = await supabase

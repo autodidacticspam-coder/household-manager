@@ -48,13 +48,36 @@ export async function POST(request: NextRequest) {
     // Determine dates for task creation
     let taskDates: (string | null)[] = [];
 
-    if (repeatDays && repeatDays.length > 0 && repeatInterval && repeatEndDate && taskData.dueDate) {
+    const repeatRequested = (repeatDays && repeatDays.length > 0) || repeatInterval || repeatEndDate;
+    const repeatComplete = repeatDays && repeatDays.length > 0 && repeatInterval && repeatEndDate && taskData.dueDate;
+
+    // A partial repeat request would silently fall through to a single
+    // (possibly dateless) task while reporting success
+    if (repeatRequested && !repeatComplete) {
+      return NextResponse.json(
+        { error: 'Repeating tasks need repeat days, a frequency, an end date, and a start date' },
+        { status: 400 }
+      );
+    }
+
+    if (repeatComplete) {
+      // Cap the horizon: an accidental far-future end date would insert tens
+      // of thousands of rows and dispatch a sync job for each
+      const maxEndDate = new Date(taskData.dueDate!);
+      maxEndDate.setFullYear(maxEndDate.getFullYear() + 2);
+      if (repeatEndDate! > maxEndDate.toISOString().slice(0, 10)) {
+        return NextResponse.json(
+          { error: 'Repeat end date can be at most 2 years after the start date' },
+          { status: 400 }
+        );
+      }
+
       // Generate multiple dates using the repeat system
       taskDates = generateTaskDates({
-        selectedDays: repeatDays,
+        selectedDays: repeatDays!,
         repeatInterval: repeatInterval as RepeatInterval,
-        startDate: taskData.dueDate,
-        endDate: repeatEndDate,
+        startDate: taskData.dueDate!,
+        endDate: repeatEndDate!,
       });
 
       if (taskDates.length === 0) {

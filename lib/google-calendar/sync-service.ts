@@ -153,7 +153,12 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
     debug.desiredCount = desired.size;
 
     // 2. List what our sync currently owns in Google Calendar
-    const existing = await listSyncedEvents(accessToken, calendarId);
+    // List only what this pass reconciles: events outside the desired window
+    // must stay untouched (they were instant-synced and will enter the window
+    // eventually). The +2d margin keeps overnight rollovers covered.
+    const listMin = new Date(`${startDate}T00:00:00Z`);
+    const listMax = addDays(new Date(`${endDate}T00:00:00Z`), 2);
+    const existing = await listSyncedEvents(accessToken, calendarId, listMin, listMax);
     debug.existingCount = existing.length;
 
     // 3. Diff. Keep at most one Google event per desired key; everything
@@ -269,18 +274,28 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
       }
     }
 
-    await supabase
-      .from('google_calendar_synced_events')
-      .delete()
-      .eq('user_id', userId);
+    // Remove mappings only for events this pass actually deleted, and upsert
+    // the rest. A blanket delete-all + insert raced with concurrent instant
+    // syncs (running via after()) and wiped mappings for events outside this
+    // pass's window, causing duplicate Google events on their next update.
+    for (let i = 0; i < toDelete.length; i += 200) {
+      const { error: deleteError } = await supabase
+        .from('google_calendar_synced_events')
+        .delete()
+        .eq('user_id', userId)
+        .in('google_event_id', toDelete.slice(i, i + 200));
+      if (deleteError) {
+        console.error('Error pruning synced events:', deleteError);
+      }
+    }
 
     const allRows = Array.from(rowsByKey.values());
     for (let i = 0; i < allRows.length; i += 500) {
-      const { error: insertError } = await supabase
+      const { error: upsertError } = await supabase
         .from('google_calendar_synced_events')
-        .insert(allRows.slice(i, i + 500));
-      if (insertError) {
-        console.error('Error saving synced events:', insertError);
+        .upsert(allRows.slice(i, i + 500), { onConflict: 'user_id,event_type,source_id' });
+      if (upsertError) {
+        console.error('Error saving synced events:', upsertError);
       }
     }
 
@@ -730,11 +745,17 @@ export async function syncEventToConnectedUsers(
         : filters.tasks;
     } else if (filterPath) {
       shouldSync = filters[filterPath as keyof Omit<SyncFilters, 'childLogs'>] === true;
-    } else if (eventType === 'child_log' && eventData) {
-      // Check specific child log category
-      const category = (eventData as { category?: string }).category;
-      if (category && filters.childLogs?.[category as keyof SyncFilters['childLogs']]) {
-        shouldSync = true;
+    } else if (eventType === 'child_log') {
+      if (action === 'delete') {
+        // Deletes carry no event data; allow when any child-log filter is on
+        // (deleting an event that was never synced is a no-op).
+        shouldSync = Object.values(filters.childLogs || {}).some(Boolean);
+      } else if (eventData) {
+        // Check specific child log category
+        const category = (eventData as { category?: string }).category;
+        if (category && filters.childLogs?.[category as keyof SyncFilters['childLogs']]) {
+          shouldSync = true;
+        }
       }
     }
 

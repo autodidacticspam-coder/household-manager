@@ -46,7 +46,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, synced: results.length, results });
+    // Surface per-user failures at the top level so cron monitoring can see
+    // a broken sync (e.g. all tokens expired) instead of a permanent 200
+    const allSucceeded = results.every((r) => r.success);
+    return NextResponse.json(
+      { success: allSucceeded, synced: results.length, results },
+      { status: allSucceeded ? 200 : 500 }
+    );
   } catch (error) {
     console.error('Calendar sync cron error:', error);
     return NextResponse.json(

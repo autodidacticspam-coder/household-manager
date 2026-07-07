@@ -46,7 +46,10 @@ export async function PUT(
     }
 
     after(syncBaseScheduleChange(id, 'update', {
-      userId: userId || existingSchedule.user_id,
+      // The UPDATE never changes user_id, so the sync must not trust a
+      // client-supplied one - it would rebuild the Google event under the
+      // wrong employee's name
+      userId: existingSchedule.user_id,
       dayOfWeek,
       startTime,
       endTime,

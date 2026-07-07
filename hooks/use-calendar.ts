@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { parseLocalDate } from '@/lib/date-utils';
 import { createClient } from '@/lib/supabase/client';
 import type { CalendarEvent } from '@/types';
-import { addDays, addWeeks, addMonths, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
+import { addDays, addWeeks, addMonths, differenceInCalendarDays, differenceInCalendarWeeks, isBefore, isAfter, isEqual, getDay, format } from 'date-fns';
 
 /**
  * Build FullCalendar start/end ISO strings for a shift. When the end time is
@@ -67,49 +67,58 @@ function expandRecurringTask(
   const dayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const allowedDays = byDays ? byDays.map(d => dayMap[d]) : null;
   let currentDate = taskStartDate;
+  // Occurrence index from the anchor date; monthly advancement recomputes
+  // from the anchor so a clamped short month (Jan 31 -> Feb 28) doesn't
+  // drift the whole series onto the 28th forever after.
+  let periodIndex = 0;
 
-  // Skip forward to the range start, accounting for interval
+  // Skip forward to the range start, accounting for interval. Calendar-day
+  // diffs (not raw milliseconds) so a DST boundary doesn't add a phantom
+  // period, and one interval of slack so BYDAY days earlier in the anchor
+  // week at the range boundary still get scanned - the in-range checks
+  // below filter any extras.
   if (isBefore(currentDate, rangeStart)) {
     if (freq === 'DAILY') {
-      const daysDiff = Math.ceil((rangeStart.getTime() - taskStartDate.getTime()) / 86400000);
-      const periodsToSkip = Math.floor(daysDiff / interval) * interval;
-      currentDate = addDays(taskStartDate, periodsToSkip);
+      const daysDiff = differenceInCalendarDays(rangeStart, taskStartDate);
+      periodIndex = Math.max(0, Math.floor(daysDiff / interval) * interval);
+      currentDate = addDays(taskStartDate, periodIndex);
     } else if (freq === 'WEEKLY') {
-      const weeksDiff = Math.ceil((rangeStart.getTime() - taskStartDate.getTime()) / 604800000);
-      const periodsToSkip = Math.floor(weeksDiff / interval) * interval;
-      currentDate = addWeeks(taskStartDate, periodsToSkip);
+      const weeksDiff = differenceInCalendarWeeks(rangeStart, taskStartDate);
+      periodIndex = Math.max(0, (Math.floor(weeksDiff / interval) - 1) * interval);
+      currentDate = addWeeks(taskStartDate, periodIndex);
     } else if (freq === 'MONTHLY') {
       const monthsDiff = (rangeStart.getFullYear() - taskStartDate.getFullYear()) * 12 + (rangeStart.getMonth() - taskStartDate.getMonth());
-      const periodsToSkip = Math.floor(monthsDiff / interval) * interval;
-      currentDate = addMonths(taskStartDate, Math.max(0, periodsToSkip));
+      periodIndex = Math.max(0, (Math.floor(monthsDiff / interval) - 1) * interval);
+      currentDate = addMonths(taskStartDate, periodIndex);
     }
   }
 
   let count = 0;
   while ((isBefore(currentDate, rangeEnd) || isEqual(currentDate, rangeEnd)) && count < 100) {
-    if ((isAfter(currentDate, rangeStart) || isEqual(currentDate, rangeStart)) && (isBefore(currentDate, rangeEnd) || isEqual(currentDate, rangeEnd))) {
-      if (freq === 'WEEKLY' && allowedDays) {
-        // For weekly with BYDAY, check each allowed day in the current week
-        for (let i = 0; i < 7; i++) {
-          const dayToCheck = addDays(currentDate, i - getDay(currentDate));
-          if (allowedDays.includes(getDay(dayToCheck)) &&
-              (isAfter(dayToCheck, rangeStart) || isEqual(dayToCheck, rangeStart)) &&
-              (isBefore(dayToCheck, rangeEnd) || isEqual(dayToCheck, rangeEnd)) &&
-              (isAfter(dayToCheck, taskStartDate) || isEqual(dayToCheck, taskStartDate))) {
-            const dateStr = format(dayToCheck, 'yyyy-MM-dd');
-            if (!occurrences.find(o => o.date === dateStr)) {
-              occurrences.push({ date: dateStr, instanceId: task.id + '-' + dateStr });
-            }
+    if (freq === 'WEEKLY' && allowedDays) {
+      // For weekly with BYDAY, check each allowed day in the current week.
+      // This scan must not be gated on the anchor day being in range - a
+      // BYDAY occurrence can fall inside the range while the anchor doesn't.
+      for (let i = 0; i < 7; i++) {
+        const dayToCheck = addDays(currentDate, i - getDay(currentDate));
+        if (allowedDays.includes(getDay(dayToCheck)) &&
+            (isAfter(dayToCheck, rangeStart) || isEqual(dayToCheck, rangeStart)) &&
+            (isBefore(dayToCheck, rangeEnd) || isEqual(dayToCheck, rangeEnd)) &&
+            (isAfter(dayToCheck, taskStartDate) || isEqual(dayToCheck, taskStartDate))) {
+          const dateStr = format(dayToCheck, 'yyyy-MM-dd');
+          if (!occurrences.find(o => o.date === dateStr)) {
+            occurrences.push({ date: dateStr, instanceId: task.id + '-' + dateStr });
           }
         }
-      } else {
-        occurrences.push({ date: format(currentDate, 'yyyy-MM-dd'), instanceId: task.id + '-' + format(currentDate, 'yyyy-MM-dd') });
       }
+    } else if (isAfter(currentDate, rangeStart) || isEqual(currentDate, rangeStart)) {
+      occurrences.push({ date: format(currentDate, 'yyyy-MM-dd'), instanceId: task.id + '-' + format(currentDate, 'yyyy-MM-dd') });
     }
     // Advance by interval
-    if (freq === 'DAILY') currentDate = addDays(currentDate, interval);
-    else if (freq === 'WEEKLY') currentDate = addWeeks(currentDate, interval);
-    else if (freq === 'MONTHLY') currentDate = addMonths(currentDate, interval);
+    periodIndex += interval;
+    if (freq === 'DAILY') currentDate = addDays(taskStartDate, periodIndex);
+    else if (freq === 'WEEKLY') currentDate = addWeeks(taskStartDate, periodIndex);
+    else if (freq === 'MONTHLY') currentDate = addMonths(taskStartDate, periodIndex);
     else break;
     count++;
   }
@@ -274,10 +283,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
               return { start: date, end: date };
             }
             if (task.is_activity && task.start_time && task.end_time) {
-              return {
-                start: date + 'T' + task.start_time,
-                end: date + 'T' + task.end_time
-              };
+              // buildShiftTimes rolls an end at/before the start to the next
+              // day so overnight activities still render
+              return buildShiftTimes(date, task.start_time, task.end_time);
             }
             // Regular task with due time
             return {
@@ -302,10 +310,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
               // Apply time override if exists
               if (timeOverride) {
                 if (task.is_activity && timeOverride.overrideStartTime && timeOverride.overrideEndTime) {
-                  times = {
-                    start: o.date + 'T' + timeOverride.overrideStartTime,
-                    end: o.date + 'T' + timeOverride.overrideEndTime
-                  };
+                  times = buildShiftTimes(o.date, timeOverride.overrideStartTime, timeOverride.overrideEndTime);
                 } else if (timeOverride.overrideTime) {
                   times = {
                     start: o.date + 'T' + timeOverride.overrideTime,
@@ -393,6 +398,20 @@ export function useCalendarEvents(filters: CalendarFilters) {
               holidayName,
             }
           };
+
+          // Partial-day leave (e.g. a 2-hour appointment) renders as a timed
+          // event on its day instead of an all-day banner
+          if (l.is_full_day === false && l.start_time && l.end_time) {
+            const leaveTimes = buildShiftTimes(l.start_date, l.start_time, l.end_time);
+            events.push({
+              id: 'leave-' + l.id,
+              ...baseEventProps,
+              allDay: false,
+              start: leaveTimes.start,
+              end: leaveTimes.end,
+            });
+            continue;
+          }
 
           // Use selected_dates if available for accurate display of non-contiguous dates
           if (l.selected_dates && Array.isArray(l.selected_dates) && l.selected_dates.length > 0) {
@@ -487,8 +506,10 @@ export function useCalendarEvents(filters: CalendarFilters) {
           let eventEnd = log.log_date + 'T' + log.log_time;
 
           if (log.category === 'sleep' && log.start_time && log.end_time) {
-            eventStart = log.log_date + 'T' + log.start_time;
-            eventEnd = log.log_date + 'T' + log.end_time;
+            // Overnight sleep (21:00 -> 06:30) rolls the end to the next day
+            const sleepTimes = buildShiftTimes(log.log_date, log.start_time, log.end_time);
+            eventStart = sleepTimes.start;
+            eventEnd = sleepTimes.end;
           }
 
           events.push({
@@ -531,7 +552,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
           const dates = profile.important_dates as { label: string; date: string }[] | null;
 
           if (user && dates && Array.isArray(dates)) {
-            for (const d of dates) {
+            for (const [dateIndex, d] of dates.entries()) {
               // Get month and day from the stored date
               const [, month, day] = d.date.split('-').map(Number);
 
@@ -541,13 +562,18 @@ export function useCalendarEvents(filters: CalendarFilters) {
 
               // Check for occurrences in both the start and end year of the range
               for (let year = rangeStartYear; year <= rangeEndYear; year++) {
-                const eventDate = new Date(year, month - 1, day);
+                let eventDate = new Date(year, month - 1, day);
+                // Feb 29 rolls over to Mar 1 in non-leap years; clamp to the
+                // last day of the intended month instead
+                if (eventDate.getMonth() !== month - 1) {
+                  eventDate = new Date(year, month, 0);
+                }
                 const eventDateStr = format(eventDate, 'yyyy-MM-dd');
 
                 if ((isAfter(eventDate, rangeStart) || isEqual(eventDate, rangeStart)) &&
                     (isBefore(eventDate, rangeEnd) || isEqual(eventDate, rangeEnd))) {
                   events.push({
-                    id: `important-${user.id}-${d.date}-${year}`,
+                    id: `important-${user.id}-${dateIndex}-${d.date}-${year}`,
                     type: 'important_date',
                     title: `🎂 ${d.label} (${user.full_name})`,
                     start: eventDateStr,
@@ -617,7 +643,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
         // Overlap is an AND of the two bounds, not an .or() (which matched all).
         const { data: approvedLeaves } = await supabase
           .from('leave_requests')
-          .select('user_id, start_date, end_date, selected_dates')
+          .select('user_id, start_date, end_date, selected_dates, is_full_day')
           .eq('status', 'approved')
           .lte('start_date', filters.endDate)
           .gte('end_date', filters.startDate);
@@ -625,8 +651,10 @@ export function useCalendarEvents(filters: CalendarFilters) {
         // Create a Set of "userId-date" for days with approved leave
         const leaveDaysSet = new Set<string>();
         for (const leave of approvedLeaves || []) {
+          // Partial-day leave doesn't hide the shift - the employee still works
+          if (leave.is_full_day === false) continue;
           // Use selected_dates if available, otherwise generate from range
-          if (leave.selected_dates && Array.isArray(leave.selected_dates)) {
+          if (leave.selected_dates && Array.isArray(leave.selected_dates) && leave.selected_dates.length > 0) {
             for (const dateStr of leave.selected_dates) {
               leaveDaysSet.add(`${leave.user_id}-${dateStr}`);
             }

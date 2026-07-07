@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Clock, Plus, Trash2, Loader2, Pencil, Check, X } from 'lucide-react';
 import { useEmployeeSchedules, useCreateSchedule, useUpdateSchedule, useDeleteSchedule } from '@/hooks/use-schedules';
-import { formatTime12h, formatTime24h } from '@/lib/format-time';
+import { formatTime12h, formatTime24h, formatTimeInput as formatTimeValue } from '@/lib/format-time';
 import { DAYS_OF_WEEK, DAYS_OF_WEEK_SHORT } from '@/types';
 
 type ScheduleEditorProps = {
@@ -127,14 +127,10 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
     return acc;
   }, {} as Record<number, typeof schedules>);
 
+  // Shared formatter handles 3-digit entries like "930" -> "9:30"; the old
+  // local version auto-coloned after 2 digits, mangling them into "93:0".
   const formatTimeInput = (value: string, previous: string, setter: (v: string) => void) => {
-    let val = value.replace(/[^\d:]/g, '');
-    // Only auto-insert the colon while adding characters, not while deleting,
-    // otherwise backspacing past "10:" immediately re-inserts the colon.
-    if (val.length === 2 && !val.includes(':') && value.length >= previous.length) {
-      val = val + ':';
-    }
-    if (val.length <= 5) setter(val);
+    setter(formatTimeValue(value, previous));
   };
 
   return (

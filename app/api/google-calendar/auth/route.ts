@@ -16,10 +16,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Generate state parameter for CSRF protection
-    // Format: base64(userId:randomBytes)
-    const randomBytes = crypto.randomBytes(16).toString('hex');
-    const state = Buffer.from(`${user.id}:${randomBytes}`).toString('base64');
+    // Generate state parameter for CSRF protection. The same value is stored
+    // in an HttpOnly cookie so the callback can verify the flow was started
+    // by this browser session — the callback must never trust the state's
+    // contents on its own.
+    const state = crypto.randomBytes(32).toString('hex');
 
     const params = new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID || '',
@@ -33,7 +34,15 @@ export async function GET() {
 
     const authUrl = `${GOOGLE_AUTH_URL}?${params.toString()}`;
 
-    return NextResponse.json({ url: authUrl });
+    const response = NextResponse.json({ url: authUrl });
+    response.cookies.set('gcal_oauth_state', state, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600, // 10 minutes to complete the consent screen
+    });
+    return response;
   } catch (error) {
     console.error('Error generating auth URL:', error);
     return NextResponse.json(

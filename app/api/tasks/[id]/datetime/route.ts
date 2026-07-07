@@ -47,22 +47,23 @@ export async function PUT(
       updateData.end_time = endTime;
     }
 
-    const { error } = await supabaseAdmin
+    const { data: updatedTask, error } = await supabaseAdmin
       .from('tasks')
       .update(updateData)
-      .eq('id', taskId);
+      .eq('id', taskId)
+      .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
+      .maybeSingle();
 
     if (error) {
       console.error('Task date/time update error:', error);
       return NextResponse.json({ error: 'Failed to update task date/time' }, { status: 500 });
     }
 
-    // Sync updated task to Google Calendar
-    const { data: updatedTask } = await supabaseAdmin
-      .from('tasks')
-      .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
-      .eq('id', taskId)
-      .single();
+    // An update matching zero rows isn't an error to Postgres; report it
+    // instead of returning success for a task that doesn't exist
+    if (!updatedTask) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
 
     if (updatedTask) {
       after(syncEventToConnectedUsers('task', taskId, 'update', {

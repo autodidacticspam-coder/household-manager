@@ -259,6 +259,12 @@ export async function deleteUserToken(userId: string): Promise<void> {
     .from('google_calendar_tokens')
     .delete()
     .eq('user_id', userId);
+  // Without a token the mappings can never be reconciled again; drop them so
+  // a future reconnect (possibly to a different Google account) starts clean.
+  await supabase
+    .from('google_calendar_synced_events')
+    .delete()
+    .eq('user_id', userId);
 }
 
 /**
@@ -416,16 +422,19 @@ export interface SyncedCalendarEvent {
  */
 export async function listSyncedEvents(
   accessToken: string,
-  calendarId: string
+  calendarId: string,
+  windowMin?: Date,
+  windowMax?: Date
 ): Promise<SyncedCalendarEvent[]> {
   const events: SyncedCalendarEvent[] = [];
   let pageToken: string | undefined;
 
-  const timeMin = new Date();
-  timeMin.setFullYear(timeMin.getFullYear() - 1);
-
-  const timeMax = new Date();
-  timeMax.setFullYear(timeMax.getFullYear() + 1);
+  // The listing window must cover the caller's desired-event window and no
+  // more: anything listed here that isn't in the desired set gets deleted,
+  // so listing wider than the reconciler builds (e.g. a full year) would
+  // delete instant-synced events that are merely outside the rebuild window.
+  const timeMin = windowMin ?? (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d; })();
+  const timeMax = windowMax ?? (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d; })();
 
   do {
     const url = new URL(`${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(calendarId)}/events`);

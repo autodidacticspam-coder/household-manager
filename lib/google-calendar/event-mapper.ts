@@ -80,17 +80,13 @@ export function taskToCalendarEvent(task: TaskData): GoogleCalendarEvent {
   // a 7:45-8:45 lesson lands on the calendar as an all-day banner.
   if (task.isActivity && task.startTime && task.endTime) {
     // Activity with duration
-    start = { dateTime: `${task.dueDate}T${task.startTime}`, timeZone: DEFAULT_TIMEZONE };
-    end = { dateTime: `${task.dueDate}T${task.endTime}`, timeZone: DEFAULT_TIMEZONE };
+    ({ start, end } = timedRange(task.dueDate, task.startTime, task.endTime));
   } else if (task.isAllDay || !task.dueTime) {
     start = { date: task.dueDate };
     end = { date: task.dueDate };
   } else {
     // Timed task without duration (1 hour default)
-    const startDateTime = `${task.dueDate}T${task.dueTime}`;
-    start = { dateTime: startDateTime, timeZone: DEFAULT_TIMEZONE };
-    const endTime = addHours(task.dueTime, 1);
-    end = { dateTime: `${task.dueDate}T${endTime}`, timeZone: DEFAULT_TIMEZONE };
+    ({ start, end } = timedRange(task.dueDate, task.dueTime, addHours(task.dueTime, 1)));
   }
 
   const event: GoogleCalendarEvent = {
@@ -136,12 +132,13 @@ export function leaveToCalendarEvent(leave: LeaveData): GoogleCalendarEvent {
  * Map a work schedule to Google Calendar event format
  */
 export function scheduleToCalendarEvent(schedule: ScheduleData): GoogleCalendarEvent {
+  const { start, end } = timedRange(schedule.date, schedule.startTime, schedule.endTime);
   return {
     summary: `${schedule.employeeName} - Work`,
     description: 'Work schedule',
     colorId: COLORS.schedule,
-    start: { dateTime: `${schedule.date}T${schedule.startTime}`, timeZone: DEFAULT_TIMEZONE },
-    end: { dateTime: `${schedule.date}T${schedule.endTime}`, timeZone: DEFAULT_TIMEZONE },
+    start,
+    end,
     extendedProperties: {
       private: {
         sourceType: 'schedule',
@@ -196,12 +193,11 @@ export function childLogToCalendarEvent(log: ChildLogData): GoogleCalendarEvent 
   let end: GoogleCalendarEvent['end'];
 
   if (log.category === 'sleep' && log.endTime) {
-    start = { dateTime: `${log.logDate}T${log.logTime}`, timeZone: DEFAULT_TIMEZONE };
-    end = { dateTime: `${log.logDate}T${log.endTime}`, timeZone: DEFAULT_TIMEZONE };
+    // Overnight sleep (e.g. 21:00 -> 06:30) rolls the end to the next day
+    ({ start, end } = timedRange(log.logDate, log.logTime, log.endTime));
   } else {
     // Other logs are point-in-time (30 min default)
-    start = { dateTime: `${log.logDate}T${log.logTime}`, timeZone: DEFAULT_TIMEZONE };
-    end = { dateTime: `${log.logDate}T${addMinutes(log.logTime, 30)}`, timeZone: DEFAULT_TIMEZONE };
+    ({ start, end } = timedRange(log.logDate, log.logTime, addMinutes(log.logTime, 30)));
   }
 
   return {
@@ -220,6 +216,31 @@ export function childLogToCalendarEvent(log: ChildLogData): GoogleCalendarEvent 
 }
 
 // Helper functions
+
+// Google requires full RFC3339 datetimes (seconds included). UI callers send
+// HH:mm while DB TIME columns carry HH:mm:ss — normalize so both paths embed
+// identical strings (otherwise Google rejects the instant-sync payloads and
+// the reconciler's content hashes never match the instant path's).
+function normalizeTime(time: string): string {
+  const [h = '0', m = '0', s = '0'] = time.split(':');
+  return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${(s || '0').padStart(2, '0')}`;
+}
+
+// Build a timed start/end pair; when the end time is not after the start
+// time the range crosses midnight, so the end lands on the following day.
+function timedRange(
+  date: string,
+  startTime: string,
+  endTime: string
+): { start: GoogleCalendarEvent['start']; end: GoogleCalendarEvent['end'] } {
+  const start = normalizeTime(startTime);
+  const end = normalizeTime(endTime);
+  const endDate = end > start ? date : addDays(date, 1);
+  return {
+    start: { dateTime: `${date}T${start}`, timeZone: DEFAULT_TIMEZONE },
+    end: { dateTime: `${endDate}T${end}`, timeZone: DEFAULT_TIMEZONE },
+  };
+}
 
 function addHours(time: string, hours: number): string {
   const [h, m, s] = time.split(':').map(Number);

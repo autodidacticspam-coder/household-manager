@@ -405,6 +405,7 @@
     "addActivity": "Agregar Actividad",
     "activityName": "Nombre de la Actividad",
     "activityNamePlaceholder": "p. ej., Clase de natación, Cita médica",
+    "activityEndAfterStart": "La hora de fin debe ser posterior a la hora de inicio",
     "visibleTo": "Quién puede verla",
     "visibleToNote": "Los administradores siempre pueden ver las actividades",
     "showSpecificPeople": "Elegir personas específicas",

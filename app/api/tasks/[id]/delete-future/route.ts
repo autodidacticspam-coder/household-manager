@@ -27,18 +27,18 @@ export async function DELETE(
       );
     }
 
-    // Find all tasks in the same batch (same title + created_by + date) with due_date >= this task's due_date
-    // Use date only (10 chars: YYYY-MM-DD) to handle timestamp variations
-    const createdDate = task.created_at?.slice(0, 10) || '';
-
-    // Get all tasks with same title, created_by, and future due_date.
+    // Find all tasks in the same batch with due_date >= this task's due_date.
+    // Batch rows are inserted with one exact created_at timestamp, so match
+    // it exactly - matching only the date merged two distinct same-titled
+    // batches created on the same day and deleted the other batch's tasks.
     // A NULL-due_date task has no "future" siblings and NULL fails the gte
     // filter, so restrict to just this task in that case.
     let batchQuery = supabaseAdmin
       .from('tasks')
       .select('id, due_date, created_at, created_by')
       .eq('title', task.title)
-      .eq('created_by', task.created_by);
+      .eq('created_by', task.created_by)
+      .eq('created_at', task.created_at);
     batchQuery = task.due_date
       ? batchQuery.gte('due_date', task.due_date)
       : batchQuery.eq('id', taskId);
@@ -52,11 +52,7 @@ export async function DELETE(
       );
     }
 
-    // Filter to only tasks in the same batch (matching created_at date)
-    const tasksToDelete = (batchTasks || []).filter(t => {
-      const tCreatedDate = t.created_at?.slice(0, 10) || '';
-      return tCreatedDate === createdDate;
-    });
+    const tasksToDelete = batchTasks || [];
 
     if (tasksToDelete.length === 0) {
       return NextResponse.json(
@@ -66,13 +62,6 @@ export async function DELETE(
     }
 
     const taskIdsToDelete = tasksToDelete.map(t => t.id);
-
-    // Trigger calendar sync delete for all tasks being deleted (kept alive past the response via after)
-    for (const deletingTaskId of taskIdsToDelete) {
-      after(syncEventToConnectedUsers('task', deletingTaskId, 'delete').catch(err =>
-        console.error('Calendar sync delete failed:', err)
-      ));
-    }
 
     // Delete all the tasks
     const { error: deleteError } = await supabaseAdmin
@@ -86,6 +75,15 @@ export async function DELETE(
         { error: 'Failed to delete tasks' },
         { status: 500 }
       );
+    }
+
+    // Only remove the Google events once the DB delete is confirmed -
+    // dispatching earlier destroyed calendar events for tasks that still
+    // existed whenever the delete failed.
+    for (const deletingTaskId of taskIdsToDelete) {
+      after(syncEventToConnectedUsers('task', deletingTaskId, 'delete').catch(err =>
+        console.error('Calendar sync delete failed:', err)
+      ));
     }
 
     return NextResponse.json({

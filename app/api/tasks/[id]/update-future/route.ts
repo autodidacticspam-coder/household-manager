@@ -45,13 +45,15 @@ export async function PUT(
       );
     }
 
-    const createdDate = task.created_at?.slice(0, 10) || '';
-
+    // Batch rows share one exact created_at timestamp by construction;
+    // matching only the date merged distinct same-titled batches created
+    // on the same day and rewrote the other batch's tasks.
     const { data: batchTasks, error: batchError } = await supabaseAdmin
       .from('tasks')
-      .select('id, due_date, created_at')
+      .select('id, due_date, status, created_at')
       .eq('title', task.title)
-      .eq('created_by', task.created_by);
+      .eq('created_by', task.created_by)
+      .eq('created_at', task.created_at);
 
     if (batchError) {
       console.error('Error fetching batch tasks:', batchError);
@@ -61,11 +63,7 @@ export async function PUT(
       );
     }
 
-    // Filter to only tasks in the same batch (matching created_at date)
-    const allBatchTasks = (batchTasks || []).filter((batchTask) => {
-      const taskCreatedDate = batchTask.created_at?.slice(0, 10) || '';
-      return taskCreatedDate === createdDate;
-    });
+    const allBatchTasks = batchTasks || [];
 
     const tasksFromCurrent = allBatchTasks.filter((batchTask) => {
       if (!task.due_date) {
@@ -137,11 +135,21 @@ export async function PUT(
 
     if (repeatFieldsProvided) {
       const existingFutureTasks = tasksFromCurrent.filter((batchTask) => batchTask.id !== taskId);
+      // Anchor generation at the batch's original start date, not the edited
+      // instance: biweekly week phase and monthly week-of-month derive from
+      // the anchor, so re-anchoring mid-batch silently rescheduled sibling
+      // weekdays (e.g. extending a Mon+Thu series from a Thursday flipped
+      // every future Monday). Only dates after the edited instance are
+      // managed either way.
+      const batchAnchorDate = allBatchTasks.reduce<string | null>((earliest, batchTask) => {
+        if (!batchTask.due_date) return earliest;
+        return !earliest || batchTask.due_date < earliest ? batchTask.due_date : earliest;
+      }, null) || task.due_date;
       const desiredFutureDates = shouldKeepRecurringSchedule && task.due_date
         ? generateTaskDates({
             selectedDays: normalizedRepeatDays,
             repeatInterval: repeatInterval as RepeatInterval,
-            startDate: task.due_date,
+            startDate: batchAnchorDate,
             endDate: repeatEndDate as string,
           }).filter((date) => date > task.due_date)
         : [];
@@ -151,7 +159,11 @@ export async function PUT(
       );
       const keepDates = new Set(keepTasks.map((batchTask) => batchTask.due_date));
       const createDates = desiredFutureDates.filter((date) => !keepDates.has(date));
-      const deleteTasks = existingFutureTasks.filter((batchTask) => !keepTasks.some((keepTask) => keepTask.id === batchTask.id));
+      // Never delete completed occurrences - they are history, not schedule
+      const deleteTasks = existingFutureTasks.filter((batchTask) =>
+        batchTask.status !== 'completed' &&
+        !keepTasks.some((keepTask) => keepTask.id === batchTask.id)
+      );
 
       keptTaskIds = [taskId, ...keepTasks.map((batchTask) => batchTask.id)];
       deletedTaskIds = deleteTasks.map((batchTask) => batchTask.id);
@@ -242,12 +254,6 @@ export async function PUT(
       }
 
       if (deletedTaskIds.length > 0) {
-        for (const deletedTaskId of deletedTaskIds) {
-          after(syncEventToConnectedUsers('task', deletedTaskId, 'delete').catch(err =>
-            console.error('Calendar sync delete failed:', err)
-          ));
-        }
-
         const { error: deleteError } = await supabaseAdmin
           .from('tasks')
           .delete()
@@ -259,6 +265,13 @@ export async function PUT(
             { error: 'Failed to delete outdated recurring tasks' },
             { status: 500 }
           );
+        }
+
+        // Only remove Google events once the DB delete is confirmed
+        for (const deletedTaskId of deletedTaskIds) {
+          after(syncEventToConnectedUsers('task', deletedTaskId, 'delete').catch(err =>
+            console.error('Calendar sync delete failed:', err)
+          ));
         }
       }
     } else if (Object.keys(updateData).length > 0) {

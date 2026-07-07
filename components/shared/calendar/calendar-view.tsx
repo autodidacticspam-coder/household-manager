@@ -28,7 +28,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useCalendarEvents } from '@/hooks/use-calendar';
-import { useCompleteTask, useCreateTask, useDeleteTask, useDeleteFutureTasks, useEmployeeGroups, useTaskBatchInfo, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
+import { useCompleteTask, useCompleteTaskInstance, useCreateTask, useDeleteTask, useDeleteFutureTasks, useEmployeeGroups, useOverrideTaskInstanceTime, useTaskBatchInfo, useUpdateTaskDateTime, useUpdateTaskStatus } from '@/hooks/use-tasks';
+import { toast } from 'sonner';
 import { useUpsertScheduleOverride, useDeleteScheduleOverride, useCreateOneOffSchedule, useUpdateOneOffSchedule, useDeleteOneOffSchedule } from '@/hooks/use-schedules';
 import { useEmployeesList } from '@/hooks/use-employees';
 import { useDeleteChildLog } from '@/hooks/use-child-logs';
@@ -231,6 +232,8 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const deleteChildLog = useDeleteChildLog();
   const cancelLeaveRequest = useCancelLeaveRequest();
   const createTask = useCreateTask();
+  const completeTaskInstance = useCompleteTaskInstance();
+  const overrideTaskInstanceTime = useOverrideTaskInstanceTime();
   const { data: employees } = useEmployeesList();
   const { data: employeeGroups } = useEmployeeGroups();
 
@@ -422,6 +425,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     // Validate time format
     if (!startTime24 || !endTime24) return;
 
+    // Activities render start-to-end within one day; end must be after start
+    // (an AM/PM slip here would otherwise store a broken time pair)
+    if (endTime24 <= startTime24) {
+      toast.error(t('calendar.activityEndAfterStart'));
+      return;
+    }
+
     const viewers: { targetType: 'user' | 'group' | 'all'; targetUserId?: string; targetGroupId?: string }[] = [];
     if (activityAllEmployees) {
       viewers.push({ targetType: 'all' });
@@ -489,7 +499,14 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     // UUID is 36 characters (including dashes)
     const actualTaskId = withoutPrefix.slice(0, 36);
 
-    await completeTask.mutateAsync(actualTaskId);
+    // Recurring-rule occurrences track completion per date; completing the
+    // base row would leave every occurrence forever pending on the calendar.
+    const instanceDate = selectedEvent?.extendedProps.instanceDate as string | undefined;
+    if (selectedEvent?.extendedProps.isRecurring && instanceDate) {
+      await completeTaskInstance.mutateAsync({ taskId: actualTaskId, completionDate: instanceDate, completed: true });
+    } else {
+      await completeTask.mutateAsync(actualTaskId);
+    }
     setSelectedEvent(null);
     refetch();
   };
@@ -499,8 +516,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     const withoutPrefix = eventId.replace('task-', '');
     const actualTaskId = withoutPrefix.slice(0, 36);
 
-    // Set status back to pending
-    await updateTaskStatus.mutateAsync({ id: actualTaskId, status: 'pending' });
+    const instanceDate = selectedEvent?.extendedProps.instanceDate as string | undefined;
+    if (selectedEvent?.extendedProps.isRecurring && instanceDate) {
+      await completeTaskInstance.mutateAsync({ taskId: actualTaskId, completionDate: instanceDate, completed: false });
+    } else {
+      // Set status back to pending
+      await updateTaskStatus.mutateAsync({ id: actualTaskId, status: 'pending' });
+    }
     setSelectedEvent(null);
     refetch();
   };
@@ -618,7 +640,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       id: string;
       start: Date | null;
       end: Date | null;
+      allDay: boolean;
       extendedProps: Record<string, unknown>;
+    };
+    oldEvent: {
+      allDay: boolean;
     };
     revert: () => void;
   }) => {
@@ -627,6 +653,14 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     const newEnd = info.event.end;
 
     if (!newStart) {
+      info.revert();
+      return;
+    }
+
+    // Dropping a timed event onto the all-day row would zero its times to
+    // midnight (a shift would become a 24-hour block); there is no
+    // meaningful all-day form for these events, so snap it back.
+    if (info.event.allDay && !info.oldEvent.allDay) {
       info.revert();
       return;
     }
@@ -656,16 +690,35 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     if (eventId.startsWith('schedule-')) {
       const scheduleId = info.event.extendedProps.scheduleId as string;
       const scheduleDate = info.event.extendedProps.scheduleDate as string;
+      const scheduleUserId = info.event.extendedProps.userId as string;
+      const newDate = format(newStart, 'yyyy-MM-dd');
       const newStartTime = format(newStart, 'HH:mm:ss');
       const newEndTime = newEnd ? format(newEnd, 'HH:mm:ss') : format(newStart, 'HH:mm:ss');
 
       try {
-        await upsertOverride.mutateAsync({
-          scheduleId,
-          overrideDate: scheduleDate,
-          startTime: newStartTime,
-          endTime: newEndTime,
-        });
+        if (newDate !== scheduleDate) {
+          // Dragged to a different day: an override can only change times on
+          // the original date, so cancel that occurrence and create a
+          // one-off shift on the target date instead.
+          await upsertOverride.mutateAsync({
+            scheduleId,
+            overrideDate: scheduleDate,
+            isCancelled: true,
+          });
+          await createOneOffSchedule.mutateAsync({
+            userId: scheduleUserId,
+            scheduleDate: newDate,
+            startTime: newStartTime,
+            endTime: newEndTime,
+          });
+        } else {
+          await upsertOverride.mutateAsync({
+            scheduleId,
+            overrideDate: scheduleDate,
+            startTime: newStartTime,
+            endTime: newEndTime,
+          });
+        }
         refetch();
       } catch {
         info.revert();
@@ -683,10 +736,40 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     const newDate = format(newStart, 'yyyy-MM-dd');
     const newTime = format(newStart, 'HH:mm:ss');
     const isActivity = !!info.event.extendedProps.isActivity;
+    const isRecurring = !!info.event.extendedProps.isRecurring;
+    const instanceDate = info.event.extendedProps.instanceDate as string | undefined;
+
+    // Activities render start-to-end on one day; a drop whose end crosses
+    // midnight can't be stored, so snap it back.
+    if (isActivity && newEnd && format(newEnd, 'yyyy-MM-dd') !== newDate && format(newEnd, 'HH:mm:ss') !== '00:00:00') {
+      info.revert();
+      return;
+    }
 
     try {
-      // Update the due date/time directly
-      if (isActivity && newEnd) {
+      if (isRecurring && instanceDate) {
+        // Recurring-rule occurrence: only its time can be overridden - moving
+        // it to another day would silently re-anchor the whole series.
+        if (newDate !== instanceDate) {
+          info.revert();
+          return;
+        }
+        if (isActivity && newEnd) {
+          await overrideTaskInstanceTime.mutateAsync({
+            taskId,
+            instanceDate,
+            overrideStartTime: newTime,
+            overrideEndTime: format(newEnd, 'HH:mm:ss'),
+          });
+        } else {
+          await overrideTaskInstanceTime.mutateAsync({
+            taskId,
+            instanceDate,
+            overrideTime: newTime,
+          });
+        }
+      } else if (isActivity && newEnd) {
+        // Update the due date/time directly
         const newEndTime = format(newEnd, 'HH:mm:ss');
         await updateTaskDateTime.mutateAsync({
           taskId,
@@ -786,6 +869,30 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     const startTime = format(start, 'HH:mm:ss');
     const newEndTime = format(newEnd, 'HH:mm:ss');
 
+    // Activities render start-to-end on one day; resizing past midnight
+    // can't be stored, so snap it back.
+    if (format(newEnd, 'yyyy-MM-dd') !== dueDate && newEndTime !== '00:00:00') {
+      info.revert();
+      return;
+    }
+
+    const isRecurring = !!info.event.extendedProps.isRecurring;
+    const instanceDate = info.event.extendedProps.instanceDate as string | undefined;
+    if (isRecurring && instanceDate) {
+      try {
+        await overrideTaskInstanceTime.mutateAsync({
+          taskId,
+          instanceDate,
+          overrideStartTime: startTime,
+          overrideEndTime: newEndTime,
+        });
+        refetch();
+      } catch {
+        info.revert();
+      }
+      return;
+    }
+
     try {
       await updateTaskDateTime.mutateAsync({
         taskId,
@@ -868,12 +975,17 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     } else if (info.event.id.startsWith('schedule-') || info.event.id.startsWith('one-off-schedule-')) {
       eventType = 'schedule';
     }
+    // Leave any in-progress inline edit behind; otherwise the next schedule
+    // popover opens pre-filled with the previous shift's times.
+    setEditingSchedule(false);
     setSelectedEvent({
       id: info.event.id,
       title: info.event.title,
       type: eventType,
       start: info.event.start || new Date(),
-      end: info.event.end || new Date(),
+      // FullCalendar drops an end that isn't after start (zero-duration
+      // tasks/logs); falling back to "now" showed a bogus multi-day range.
+      end: info.event.end || info.event.start || new Date(),
       extendedProps: info.event.extendedProps,
     });
   };
@@ -1160,7 +1272,10 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setSelectedEvent(null)}
+                onClick={() => {
+                  setSelectedEvent(null);
+                  setEditingSchedule(false);
+                }}
               >
                 ×
               </Button>

@@ -1025,3 +1025,77 @@ export function useUpdateTaskDateTime() {
   });
 }
 
+// Complete or un-complete a single occurrence of a legacy recurring-rule task.
+// These tasks track per-date completion in task_completions, so completing the
+// base row would leave every occurrence forever pending on the calendar.
+export function useCompleteTaskInstance() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({ taskId, completionDate, completed }: { taskId: string; completionDate: string; completed: boolean }) => {
+      const response = await fetch(`/api/tasks/${taskId}/complete-instance`, {
+        method: completed ? 'POST' : 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completionDate }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to update task instance');
+      }
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.refetchQueries({ queryKey: ['tasks'] });
+      queryClient.refetchQueries({ queryKey: ['my-tasks'] });
+      queryClient.refetchQueries({ queryKey: ['calendar-events'] });
+      toast.success(variables.completed ? t('tasks.taskCompleted') : t('tasks.taskUncompleted'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+// Override the time of a single occurrence of a legacy recurring-rule task
+// (used by calendar drag and drop; the series itself keeps its original time)
+export function useOverrideTaskInstanceTime() {
+  const queryClient = useQueryClient();
+  const t = useTranslations();
+
+  return useMutation({
+    mutationFn: async ({
+      taskId,
+      instanceDate,
+      overrideTime,
+      overrideStartTime,
+      overrideEndTime,
+    }: {
+      taskId: string;
+      instanceDate: string;
+      overrideTime?: string | null;
+      overrideStartTime?: string | null;
+      overrideEndTime?: string | null;
+    }) => {
+      const response = await fetch(`/api/tasks/${taskId}/override-time`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instanceDate, overrideTime, overrideStartTime, overrideEndTime }),
+      });
+      const result = await response.json();
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to override task instance time');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+      toast.success(t('tasks.taskMoved'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
