@@ -631,6 +631,27 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       return;
     }
 
+    // Handle one-off schedule events - moving updates the row's own date and times
+    if (eventId.startsWith('one-off-schedule-')) {
+      const oneOffScheduleId = info.event.extendedProps.oneOffScheduleId as string;
+      const newDate = format(newStart, 'yyyy-MM-dd');
+      const newStartTime = format(newStart, 'HH:mm:ss');
+      const newEndTime = newEnd ? format(newEnd, 'HH:mm:ss') : format(newStart, 'HH:mm:ss');
+
+      try {
+        await updateOneOff.mutateAsync({
+          id: oneOffScheduleId,
+          scheduleDate: newDate,
+          startTime: newStartTime,
+          endTime: newEndTime,
+        });
+        refetch();
+      } catch {
+        info.revert();
+      }
+      return;
+    }
+
     // Handle schedule events
     if (eventId.startsWith('schedule-')) {
       const scheduleId = info.event.extendedProps.scheduleId as string;
@@ -703,6 +724,25 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
     if (!start || !newEnd) {
       info.revert();
+      return;
+    }
+
+    // Handle one-off schedule events - resize updates the row's own end time
+    if (eventId.startsWith('one-off-schedule-')) {
+      const oneOffScheduleId = info.event.extendedProps.oneOffScheduleId as string;
+      const startTime = format(start, 'HH:mm:ss');
+      const newEndTime = format(newEnd, 'HH:mm:ss');
+
+      try {
+        await updateOneOff.mutateAsync({
+          id: oneOffScheduleId,
+          startTime: startTime,
+          endTime: newEndTime,
+        });
+        refetch();
+      } catch {
+        info.revert();
+      }
       return;
     }
 
@@ -825,7 +865,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       eventType = 'log';
     } else if (info.event.id.startsWith('important-')) {
       eventType = 'important_date';
-    } else if (info.event.id.startsWith('schedule-')) {
+    } else if (info.event.id.startsWith('schedule-') || info.event.id.startsWith('one-off-schedule-')) {
       eventType = 'schedule';
     }
     setSelectedEvent({
