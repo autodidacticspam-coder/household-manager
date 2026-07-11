@@ -29,6 +29,14 @@ export async function POST(request: Request) {
 
     if (error) {
       console.error('Error creating one-off schedule:', error);
+      // Unique violation only occurs while migration 036 (which removes the
+      // one-shift-per-day constraint) hasn't been applied yet
+      if (error.code === '23505') {
+        return NextResponse.json(
+          { error: 'This person already has a shift that day. Apply migration 036 to allow split shifts.' },
+          { status: 409 }
+        );
+      }
       return NextResponse.json({ error: 'Failed to create schedule' }, { status: 500 });
     }
 
