@@ -3,7 +3,8 @@ import { updateTaskSchema, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 import { generateTaskDates, type RepeatInterval } from '@/lib/task-generator';
-import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
+import { syncEventToConnectedUsers, filterSyncedSourceIds } from '@/lib/google-calendar/sync-service';
+import { fetchAllRows, chunkForInFilter } from '@/lib/supabase/pagination';
 
 // PUT handler for updating a task and all future instances in the same batch
 export async function PUT(
@@ -48,22 +49,30 @@ export async function PUT(
     // Batch rows share one exact created_at timestamp by construction;
     // matching only the date merged distinct same-titled batches created
     // on the same day and rewrote the other batch's tasks.
-    const { data: batchTasks, error: batchError } = await supabaseAdmin
-      .from('tasks')
-      .select('id, due_date, status, created_at')
-      .eq('title', task.title)
-      .eq('created_by', task.created_by)
-      .eq('created_at', task.created_at);
-
-    if (batchError) {
+    // Paged: a long-running daily batch exceeds PostgREST's 1000-row cap,
+    // and a truncated fetch would silently skip part of the batch.
+    let allBatchTasks: { id: string; due_date: string | null; status: string }[];
+    try {
+      allBatchTasks = await fetchAllRows<{ id: string; due_date: string | null; status: string }>((from, to) => {
+        let batchQuery = supabaseAdmin
+          .from('tasks')
+          .select('id, due_date, status')
+          .eq('title', task.title)
+          .eq('created_at', task.created_at);
+        // created_by is NULL when the creator's account was deleted, and
+        // eq.null never matches a NULL column - it errors on uuid columns
+        batchQuery = task.created_by
+          ? batchQuery.eq('created_by', task.created_by)
+          : batchQuery.is('created_by', null);
+        return batchQuery.order('id').range(from, to);
+      });
+    } catch (batchError) {
       console.error('Error fetching batch tasks:', batchError);
       return NextResponse.json(
         { error: 'Failed to fetch related tasks' },
         { status: 500 }
       );
     }
-
-    const allBatchTasks = batchTasks || [];
 
     const tasksFromCurrent = allBatchTasks.filter((batchTask) => {
       if (!task.due_date) {
@@ -169,17 +178,21 @@ export async function PUT(
       deletedTaskIds = deleteTasks.map((batchTask) => batchTask.id);
 
       if (Object.keys(updateData).length > 0 && keptTaskIds.length > 0) {
-        const { error: updateError } = await supabaseAdmin
-          .from('tasks')
-          .update(updateData)
-          .in('id', keptTaskIds);
+        // Chunked: putting the full id list in one .in() filter overflows
+        // the request URL on large batches
+        for (const idChunk of chunkForInFilter(keptTaskIds)) {
+          const { error: updateError } = await supabaseAdmin
+            .from('tasks')
+            .update(updateData)
+            .in('id', idChunk);
 
-        if (updateError) {
-          console.error('Batch task update error:', updateError);
-          return NextResponse.json(
-            { error: 'Failed to update tasks' },
-            { status: 500 }
-          );
+          if (updateError) {
+            console.error('Batch task update error:', updateError);
+            return NextResponse.json(
+              { error: 'Failed to update tasks' },
+              { status: 500 }
+            );
+          }
         }
       }
 
@@ -254,38 +267,55 @@ export async function PUT(
       }
 
       if (deletedTaskIds.length > 0) {
-        const { error: deleteError } = await supabaseAdmin
-          .from('tasks')
-          .delete()
-          .in('id', deletedTaskIds);
+        // Chunked: putting the full id list in one .in() filter overflows
+        // the request URL on large batches
+        for (const idChunk of chunkForInFilter(deletedTaskIds)) {
+          const { error: deleteError } = await supabaseAdmin
+            .from('tasks')
+            .delete()
+            .in('id', idChunk);
 
-        if (deleteError) {
-          console.error('Batch task deletion error:', deleteError);
+          if (deleteError) {
+            console.error('Batch task deletion error:', deleteError);
+            return NextResponse.json(
+              { error: 'Failed to delete outdated recurring tasks' },
+              { status: 500 }
+            );
+          }
+        }
+
+        // Only remove Google events once the DB delete is confirmed;
+        // restricted to tasks that actually have a synced event so a large
+        // batch doesn't dispatch hundreds of no-op syncs
+        after(async () => {
+          try {
+            const syncedIds = await filterSyncedSourceIds('task', deletedTaskIds);
+            for (const syncedId of syncedIds) {
+              await syncEventToConnectedUsers('task', syncedId, 'delete').catch(err =>
+                console.error('Calendar sync delete failed:', err)
+              );
+            }
+          } catch (err) {
+            console.error('Calendar sync delete failed:', err);
+          }
+        });
+      }
+    } else if (Object.keys(updateData).length > 0) {
+      // Chunked: putting the full id list in one .in() filter overflows
+      // the request URL on large batches
+      for (const idChunk of chunkForInFilter(keptTaskIds)) {
+        const { error: updateError } = await supabaseAdmin
+          .from('tasks')
+          .update(updateData)
+          .in('id', idChunk);
+
+        if (updateError) {
+          console.error('Batch task update error:', updateError);
           return NextResponse.json(
-            { error: 'Failed to delete outdated recurring tasks' },
+            { error: 'Failed to update tasks' },
             { status: 500 }
           );
         }
-
-        // Only remove Google events once the DB delete is confirmed
-        for (const deletedTaskId of deletedTaskIds) {
-          after(syncEventToConnectedUsers('task', deletedTaskId, 'delete').catch(err =>
-            console.error('Calendar sync delete failed:', err)
-          ));
-        }
-      }
-    } else if (Object.keys(updateData).length > 0) {
-      const { error: updateError } = await supabaseAdmin
-        .from('tasks')
-        .update(updateData)
-        .in('id', keptTaskIds);
-
-      if (updateError) {
-        console.error('Batch task update error:', updateError);
-        return NextResponse.json(
-          { error: 'Failed to update tasks' },
-          { status: 500 }
-        );
       }
     }
 
@@ -293,10 +323,12 @@ export async function PUT(
 
     // Update assignments for all managed tasks if provided
     if (assignments !== undefined && managedTaskIds.length > 0) {
-      await supabaseAdmin
-        .from('task_assignments')
-        .delete()
-        .in('task_id', managedTaskIds);
+      for (const idChunk of chunkForInFilter(managedTaskIds)) {
+        await supabaseAdmin
+          .from('task_assignments')
+          .delete()
+          .in('task_id', idChunk);
+      }
 
       if (assignments.length > 0) {
         const allAssignments = managedTaskIds.flatMap((managedTaskId) =>
@@ -320,10 +352,12 @@ export async function PUT(
 
     // Update viewers for all managed tasks if provided
     if (viewers !== undefined && managedTaskIds.length > 0) {
-      await supabaseAdmin
-        .from('task_viewers')
-        .delete()
-        .in('task_id', managedTaskIds);
+      for (const idChunk of chunkForInFilter(managedTaskIds)) {
+        await supabaseAdmin
+          .from('task_viewers')
+          .delete()
+          .in('task_id', idChunk);
+      }
 
       if (viewers.length > 0) {
         const allViewers = managedTaskIds.flatMap((managedTaskId) =>
@@ -347,10 +381,12 @@ export async function PUT(
 
     // Update videos for all managed tasks if provided
     if (videos !== undefined && managedTaskIds.length > 0) {
-      await supabaseAdmin
-        .from('task_videos')
-        .delete()
-        .in('task_id', managedTaskIds);
+      for (const idChunk of chunkForInFilter(managedTaskIds)) {
+        await supabaseAdmin
+          .from('task_videos')
+          .delete()
+          .in('task_id', idChunk);
+      }
 
       if (videos.length > 0) {
         const allVideos = managedTaskIds.flatMap((managedTaskId) =>
@@ -377,10 +413,18 @@ export async function PUT(
     }
 
     if (managedTaskIds.length > 0) {
-      const { data: managedTasks } = await supabaseAdmin
-        .from('tasks')
-        .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
-        .in('id', managedTaskIds);
+      const managedTasks: {
+        id: string; title: string; description: string | null; due_date: string | null;
+        due_time: string | null; is_all_day: boolean; is_activity: boolean;
+        start_time: string | null; end_time: string | null; status: string; priority: string;
+      }[] = [];
+      for (const idChunk of chunkForInFilter(managedTaskIds)) {
+        const { data } = await supabaseAdmin
+          .from('tasks')
+          .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority')
+          .in('id', idChunk);
+        managedTasks.push(...(data || []));
+      }
       const createdTaskIdSet = new Set(createdTaskIds);
 
       for (const managedTask of managedTasks || []) {

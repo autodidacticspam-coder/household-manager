@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { chunkForInFilter } from '@/lib/supabase/pagination';
 import {
   getValidAccessToken,
   getUserCalendarId,
@@ -697,6 +698,41 @@ async function deleteEventForUser(
       .eq('event_type', eventType)
       .eq('source_id', sourceId);
   }
+}
+
+/**
+ * Of the given source ids, return only those with at least one synced Google
+ * event. Bulk delete paths use this to skip dispatching per-row syncs that
+ * would be no-ops: dispatching one sync per deleted row (each of which
+ * re-reads tokens and mappings) stalls the post-response hook for minutes
+ * when a batch has hundreds of rows.
+ */
+export async function filterSyncedSourceIds(
+  eventType: 'task' | 'leave' | 'schedule' | 'important_date' | 'child_log',
+  sourceIds: string[]
+): Promise<string[]> {
+  const supabase = getApiAdminClient();
+  const synced = new Set<string>();
+
+  // Chunk of 100: each source id can have one mapping row per connected
+  // user, and the response must stay under PostgREST's 1000-row cap.
+  for (const part of chunkForInFilter(sourceIds, 100)) {
+    const { data, error } = await supabase
+      .from('google_calendar_synced_events')
+      .select('source_id')
+      .eq('event_type', eventType)
+      .in('source_id', part);
+
+    if (error) {
+      console.error('Synced-event lookup failed:', error);
+      // Fail open: sync every id in this chunk rather than stranding events
+      for (const id of part) synced.add(id);
+      continue;
+    }
+    for (const row of data || []) synced.add(row.source_id);
+  }
+
+  return sourceIds.filter((id) => synced.has(id));
 }
 
 /**

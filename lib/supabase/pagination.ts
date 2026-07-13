@@ -9,6 +9,22 @@
  */
 const PAGE_SIZE = 1000;
 
+/**
+ * PostgREST serializes `.in()` filters into the request URL, so a filter over
+ * hundreds of ids overflows the gateway's URL limit and the whole request is
+ * rejected with 400 Bad Request (a ~1000-uuid list produces a ~38KB URL).
+ * Any id list that grows with the data must be applied in chunks.
+ */
+export const IN_FILTER_CHUNK_SIZE = 200;
+
+export function chunkForInFilter<T>(values: T[], size: number = IN_FILTER_CHUNK_SIZE): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < values.length; i += size) {
+    chunks.push(values.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export async function fetchAllRows<T>(
   buildRangeQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
 ): Promise<T[]> {

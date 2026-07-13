@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
-import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
+import { syncEventToConnectedUsers, filterSyncedSourceIds } from '@/lib/google-calendar/sync-service';
+import { fetchAllRows } from '@/lib/supabase/pagination';
 
 // DELETE handler for deleting a task and all future instances in the same batch
 export async function DELETE(
@@ -33,18 +34,26 @@ export async function DELETE(
     // batches created on the same day and deleted the other batch's tasks.
     // A NULL-due_date task has no "future" siblings and NULL fails the gte
     // filter, so restrict to just this task in that case.
-    let batchQuery = supabaseAdmin
-      .from('tasks')
-      .select('id, due_date, created_at, created_by')
-      .eq('title', task.title)
-      .eq('created_by', task.created_by)
-      .eq('created_at', task.created_at);
-    batchQuery = task.due_date
-      ? batchQuery.gte('due_date', task.due_date)
-      : batchQuery.eq('id', taskId);
-    const { data: batchTasks, error: batchError } = await batchQuery;
-
-    if (batchError) {
+    // Paged: a long-running daily batch exceeds PostgREST's 1000-row cap.
+    let batchTasks: { id: string }[];
+    try {
+      batchTasks = await fetchAllRows<{ id: string }>((from, to) => {
+        let batchQuery = supabaseAdmin
+          .from('tasks')
+          .select('id')
+          .eq('title', task.title)
+          .eq('created_at', task.created_at);
+        // created_by is NULL when the creator's account was deleted, and
+        // eq.null never matches a NULL column - it errors on uuid columns
+        batchQuery = task.created_by
+          ? batchQuery.eq('created_by', task.created_by)
+          : batchQuery.is('created_by', null);
+        batchQuery = task.due_date
+          ? batchQuery.gte('due_date', task.due_date)
+          : batchQuery.eq('id', taskId);
+        return batchQuery.order('id').range(from, to);
+      });
+    } catch (batchError) {
       console.error('Error fetching batch tasks:', batchError);
       return NextResponse.json(
         { error: 'Failed to fetch related tasks' },
@@ -52,22 +61,32 @@ export async function DELETE(
       );
     }
 
-    const tasksToDelete = batchTasks || [];
-
-    if (tasksToDelete.length === 0) {
+    if (batchTasks.length === 0) {
       return NextResponse.json(
         { error: 'No tasks found to delete' },
         { status: 404 }
       );
     }
 
-    const taskIdsToDelete = tasksToDelete.map(t => t.id);
+    const taskIdsToDelete = batchTasks.map(t => t.id);
 
-    // Delete all the tasks
-    const { error: deleteError } = await supabaseAdmin
+    // Delete with the same batch filter in a single statement. Enumerating
+    // the ids in an .in() filter put them all in the request URL, which
+    // overflowed the gateway's URL limit (400 Bad Request) once a batch grew
+    // past a few hundred rows - that made "delete all future" always fail on
+    // large batches while single deletes kept working.
+    let deleteQuery = supabaseAdmin
       .from('tasks')
       .delete()
-      .in('id', taskIdsToDelete);
+      .eq('title', task.title)
+      .eq('created_at', task.created_at);
+    deleteQuery = task.created_by
+      ? deleteQuery.eq('created_by', task.created_by)
+      : deleteQuery.is('created_by', null);
+    deleteQuery = task.due_date
+      ? deleteQuery.gte('due_date', task.due_date)
+      : deleteQuery.eq('id', taskId);
+    const { error: deleteError } = await deleteQuery;
 
     if (deleteError) {
       console.error('Task batch deletion error:', deleteError);
@@ -79,12 +98,21 @@ export async function DELETE(
 
     // Only remove the Google events once the DB delete is confirmed -
     // dispatching earlier destroyed calendar events for tasks that still
-    // existed whenever the delete failed.
-    for (const deletingTaskId of taskIdsToDelete) {
-      after(syncEventToConnectedUsers('task', deletingTaskId, 'delete').catch(err =>
-        console.error('Calendar sync delete failed:', err)
-      ));
-    }
+    // existed whenever the delete failed. Restricted to tasks that actually
+    // have a synced event so a large batch doesn't dispatch hundreds of
+    // no-op syncs.
+    after(async () => {
+      try {
+        const syncedIds = await filterSyncedSourceIds('task', taskIdsToDelete);
+        for (const syncedId of syncedIds) {
+          await syncEventToConnectedUsers('task', syncedId, 'delete').catch(err =>
+            console.error('Calendar sync delete failed:', err)
+          );
+        }
+      } catch (err) {
+        console.error('Calendar sync delete failed:', err);
+      }
+    });
 
     return NextResponse.json({
       success: true,

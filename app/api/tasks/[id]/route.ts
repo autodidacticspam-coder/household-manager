@@ -4,6 +4,7 @@ import { translateTaskContent, type SupportedLocale } from '@/lib/translation/ge
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
 import { generateTaskDates, type RepeatInterval } from '@/lib/task-generator';
+import { fetchAllRows } from '@/lib/supabase/pagination';
 
 // DELETE handler for deleting a task
 export async function DELETE(
@@ -302,12 +303,21 @@ export async function PUT(
         // Skip dates that already exist in this batch: without this, a
         // double-submit (or a batch member edited while batch-info errored)
         // inserted a full duplicate set of future tasks.
-        const { data: existingSiblings } = await supabaseAdmin
-          .from('tasks')
-          .select('due_date')
-          .eq('title', updatedTask.title)
-          .eq('created_by', updatedTask.created_by)
-          .eq('created_at', updatedTask.created_at);
+        // Paged: a long-running daily batch exceeds PostgREST's 1000-row
+        // cap, and a truncated fetch would let duplicates back in.
+        const existingSiblings = await fetchAllRows<{ due_date: string | null }>((from, to) => {
+          let siblingQuery = supabaseAdmin
+            .from('tasks')
+            .select('due_date')
+            .eq('title', updatedTask.title)
+            .eq('created_at', updatedTask.created_at);
+          // created_by is NULL when the creator's account was deleted, and
+          // eq.null never matches a NULL column - it errors on uuid columns
+          siblingQuery = updatedTask.created_by
+            ? siblingQuery.eq('created_by', updatedTask.created_by)
+            : siblingQuery.is('created_by', null);
+          return siblingQuery.order('id').range(from, to);
+        });
         const existingDates = new Set((existingSiblings || []).map((s) => s.due_date));
 
         const futureDates = generateTaskDates({

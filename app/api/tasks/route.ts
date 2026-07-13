@@ -5,6 +5,7 @@ import { sendTaskAssignedPush } from '@/lib/notifications/push-service';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 import { generateTaskDates, type RepeatInterval } from '@/lib/task-generator';
 import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
+import { chunkForInFilter } from '@/lib/supabase/pagination';
 
 export async function POST(request: NextRequest) {
   try {
@@ -159,7 +160,10 @@ export async function POST(request: NextRequest) {
 
       if (assignmentError) {
         console.error('Assignment creation error:', assignmentError);
-        await supabaseAdmin.from('tasks').delete().in('id', taskIds);
+        // Chunked: a big repeating batch overflows the URL in one .in()
+        for (const idChunk of chunkForInFilter(taskIds)) {
+          await supabaseAdmin.from('tasks').delete().in('id', idChunk);
+        }
         return NextResponse.json(
           { error: 'Failed to create task assignments' },
           { status: 500 }
