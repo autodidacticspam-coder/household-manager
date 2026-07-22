@@ -799,6 +799,11 @@
     "usualBadge": "常规",
     "noRequests": "还没有请求",
     "accessRestrictedTitle": "访问受限",
-    "accessRestricted": "此页面仅供管理员和临时保姆使用。"
+    "accessRestricted": "此页面仅供管理员和临时保姆使用。",
+    "viewGrid": "表格",
+    "viewCalendar": "日历",
+    "calendarHint": "灰色块是实际工作班次（所有员工）。彩色块是保姆的空闲时间——虚线表示是常规时间、本周尚未确认。黄色虚线块是等待回复的预约请求。点击姓名可显示或隐藏某人；点击空闲时间块可将其载入上方搜索。",
+    "togglePersonHint": "点击显示或隐藏",
+    "proposed": "待回复"
   }
 }

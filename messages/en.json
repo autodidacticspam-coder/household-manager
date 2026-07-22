@@ -799,6 +799,11 @@
     "usualBadge": "Usual",
     "noRequests": "No requests yet",
     "accessRestrictedTitle": "Access Restricted",
-    "accessRestricted": "This page is only for administrators and babysitters."
+    "accessRestricted": "This page is only for administrators and babysitters.",
+    "viewGrid": "Grid",
+    "viewCalendar": "Calendar",
+    "calendarHint": "Gray blocks are actual work shifts (all employees). Colored blocks are babysitter availability - dashed means their usual pattern, not yet confirmed for this week. Dashed yellow blocks are proposed requests awaiting a reply. Click a name to show or hide someone; click an availability block to load it into the search above.",
+    "togglePersonHint": "Click to show or hide",
+    "proposed": "Proposed"
   }
 }

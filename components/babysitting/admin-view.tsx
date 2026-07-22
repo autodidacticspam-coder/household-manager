@@ -32,7 +32,10 @@ import {
   CircleDot,
   CalendarClock,
   XCircle,
+  LayoutGrid,
+  CalendarDays,
 } from 'lucide-react';
+import { AdminWeekCalendar, SITTER_COLORS } from './admin-week-calendar';
 import { DAYS_OF_WEEK_SHORT } from '@/types';
 import type { AvailabilityRange, BabysitterUser, BookingRequest } from '@/types';
 import {
@@ -108,6 +111,7 @@ export function AdminBabysittingView() {
 
   // Availability grid week
   const [gridWeekStart, setGridWeekStart] = useState(() => getWeekStart(new Date()));
+  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
 
   // Finder state
   const [finderDate, setFinderDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -169,6 +173,24 @@ export function AdminBabysittingView() {
     const order = { available: 0, partial: 1, unavailable: 2 };
     return results.sort((a, b) => order[a.status] - order[b.status] || a.user.fullName.localeCompare(b.user.fullName));
   }, [queryValid, queryStart, queryEnd, finderAvailability, finderShifts, finderDate, requests]);
+
+  // Load a clicked availability block into the finder
+  const prefillFinder = (date: string, start24: string, end24: string) => {
+    const to12 = (time: string): { value: string; amPm: 'AM' | 'PM' } => {
+      const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
+      return {
+        value: `${hours % 12 || 12}:${minutes.toString().padStart(2, '0')}`,
+        amPm: hours >= 12 ? 'PM' : 'AM',
+      };
+    };
+    setFinderDate(date);
+    const s = to12(start24);
+    setStartTime(s.value);
+    setStartAmPm(s.amPm);
+    const e = to12(end24);
+    setEndTime(e.value);
+    setEndAmPm(e.amPm);
+  };
 
   const handleSendRequest = () => {
     if (!requestDialog || !queryStart || !queryEnd) return;
@@ -360,7 +382,29 @@ export function AdminBabysittingView() {
                   </CardTitle>
                   <CardDescription className="mt-1">{t('babysitting.weekOverviewHint')}</CardDescription>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <div className="flex rounded-lg border overflow-hidden mr-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('grid')}
+                      className={`px-2.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1 ${
+                        viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      {t('babysitting.viewGrid')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('calendar')}
+                      className={`px-2.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1 ${
+                        viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      }`}
+                    >
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {t('babysitting.viewCalendar')}
+                    </button>
+                  </div>
                   <Button
                     variant="outline"
                     size="icon-sm"
@@ -382,7 +426,14 @@ export function AdminBabysittingView() {
               </div>
             </CardHeader>
             <CardContent>
-              {gridLoading ? (
+              {viewMode === 'calendar' ? (
+                <AdminWeekCalendar
+                  weekStart={gridWeekStart}
+                  availability={gridAvailability || []}
+                  requests={requests || []}
+                  onPickSlot={prefillFinder}
+                />
+              ) : gridLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
@@ -410,7 +461,7 @@ export function AdminBabysittingView() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(gridAvailability || []).map((sitterAvailability) => (
+                      {(gridAvailability || []).map((sitterAvailability, sitterIndex) => (
                         <tr key={sitterAvailability.user.id} className="border-t">
                           <td className="p-2 align-top">
                             <div className="flex items-center gap-2">
@@ -419,7 +470,13 @@ export function AdminBabysittingView() {
                                 <AvatarFallback>{initials(sitterAvailability.user.fullName)}</AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
-                                <div className="font-medium truncate">{sitterAvailability.user.fullName}</div>
+                                <div className="font-medium truncate flex items-center gap-1.5">
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: SITTER_COLORS[sitterIndex % SITTER_COLORS.length] }}
+                                  />
+                                  {sitterAvailability.user.fullName}
+                                </div>
                                 <Badge
                                   variant="secondary"
                                   className={`text-[10px] px-1.5 py-0 ${

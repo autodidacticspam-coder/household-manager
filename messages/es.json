@@ -799,6 +799,11 @@
     "usualBadge": "Habitual",
     "noRequests": "Aún no hay solicitudes",
     "accessRestrictedTitle": "Acceso restringido",
-    "accessRestricted": "Esta página es solo para administradores y niñeras."
+    "accessRestricted": "Esta página es solo para administradores y niñeras.",
+    "viewGrid": "Tabla",
+    "viewCalendar": "Calendario",
+    "calendarHint": "Los bloques grises son turnos de trabajo reales (todos los empleados). Los bloques de color son la disponibilidad de las niñeras: con línea discontinua es su patrón habitual, aún sin confirmar esta semana. Los bloques amarillos discontinuos son solicitudes propuestas en espera de respuesta. Haz clic en un nombre para mostrar u ocultar a alguien; haz clic en un bloque de disponibilidad para cargarlo en la búsqueda.",
+    "togglePersonHint": "Haz clic para mostrar u ocultar",
+    "proposed": "Propuesta"
   }
 }
