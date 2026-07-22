@@ -1,8 +1,9 @@
 import { NextResponse, after } from 'next/server';
 import { getApiAuthUser, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncOneOffScheduleChange } from '@/lib/google-calendar/sync-service';
-import { sendBookingResponsePush } from '@/lib/notifications/push-service';
+import { sendBookingCancellationPush, sendBookingResponsePush } from '@/lib/notifications/push-service';
 import { formatTime12h } from '@/lib/format-time';
+import { getZonedDateString } from '@/lib/timezone';
 
 function formatRequestDateLabel(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number);
@@ -42,10 +43,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Request not found' }, { status: 404 });
     }
 
-    if (bookingRequest.status !== 'pending') {
-      return NextResponse.json({ error: 'This request has already been handled' }, { status: 409 });
-    }
-
     const { data: userData } = await supabase
       .from('users')
       .select('role, full_name')
@@ -53,14 +50,34 @@ export async function PATCH(
       .single();
 
     if (action === 'cancel') {
-      // Only admins can cancel a pending request
+      // Cancelling is an admin action. Pending requests are simply withdrawn;
+      // accepted requests also remove the one-off shift created on acceptance.
       if (userData?.role !== 'admin') {
         return NextResponse.json({ error: 'Only admins can cancel requests' }, { status: 403 });
       }
 
+      if (!['pending', 'accepted'].includes(bookingRequest.status)) {
+        return NextResponse.json({ error: 'This request cannot be cancelled' }, { status: 409 });
+      }
+
+      if (
+        bookingRequest.status === 'accepted' &&
+        bookingRequest.request_date < getZonedDateString(new Date())
+      ) {
+        return NextResponse.json({ error: 'Past shifts cannot be cancelled' }, { status: 409 });
+      }
+
+      const previousStatus = bookingRequest.status;
+      const previousRespondedAt = bookingRequest.responded_at;
+      const oneOffId = bookingRequest.one_off_id as string | null;
+
       const { data: updated, error } = await supabase
         .from('babysitter_booking_requests')
-        .update({ status: 'cancelled', responded_at: new Date().toISOString() })
+        .update({
+          status: 'cancelled',
+          responded_at: new Date().toISOString(),
+          ...(previousStatus === 'accepted' ? { one_off_id: null } : {}),
+        })
         .eq('id', id)
         .select()
         .single();
@@ -69,7 +86,49 @@ export async function PATCH(
         console.error('Error cancelling booking request:', error);
         return NextResponse.json({ error: 'Failed to cancel request' }, { status: 500 });
       }
+
+      if (previousStatus === 'accepted' && oneOffId) {
+        const { error: deleteError } = await supabase
+          .from('schedule_one_offs')
+          .delete()
+          .eq('id', oneOffId);
+
+        if (deleteError) {
+          // Restore the request if its linked schedule could not be removed.
+          const { error: rollbackError } = await supabase
+            .from('babysitter_booking_requests')
+            .update({
+              status: previousStatus,
+              responded_at: previousRespondedAt,
+              one_off_id: oneOffId,
+            })
+            .eq('id', id);
+          if (rollbackError) {
+            console.error('Error restoring booking request after cancellation failure:', rollbackError);
+          }
+          console.error('Error deleting accepted babysitting shift:', deleteError);
+          return NextResponse.json({ error: 'Failed to cancel the shift' }, { status: 500 });
+        }
+
+        after(syncOneOffScheduleChange(oneOffId, 'delete').catch((err) =>
+          console.error('Error syncing cancelled babysitting shift to Google Calendar:', err)
+        ));
+      }
+
+      const dateLabel = formatRequestDateLabel(bookingRequest.request_date);
+      const timeLabel = `${formatTime12h(bookingRequest.start_time)} - ${formatTime12h(bookingRequest.end_time)}`;
+      after(sendBookingCancellationPush(
+        [bookingRequest.babysitter_id],
+        dateLabel,
+        timeLabel,
+        previousStatus === 'accepted'
+      ).catch((err) => console.error('Error sending booking cancellation push:', err)));
+
       return NextResponse.json(updated);
+    }
+
+    if (bookingRequest.status !== 'pending') {
+      return NextResponse.json({ error: 'This request has already been handled' }, { status: 409 });
     }
 
     // accept / decline: only the babysitter the request was sent to

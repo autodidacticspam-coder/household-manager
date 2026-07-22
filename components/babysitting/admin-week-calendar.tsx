@@ -10,7 +10,7 @@ import { parseLocalDate } from '@/lib/date-utils';
 import { cn } from '@/lib/utils';
 import { useCalendarEvents } from '@/hooks/use-calendar';
 import { getWeekDates } from '@/hooks/use-babysitting';
-import type { BabysitterWeekAvailability, BookingRequest } from '@/types';
+import type { BabysitterUser, BabysitterWeekAvailability, BookingRequest } from '@/types';
 
 // Stable per-sitter colors (assigned by sorted order, same as the grid)
 export const SITTER_COLORS = ['#ec4899', '#8b5cf6', '#10b981', '#f59e0b', '#06b6d4', '#f43f5e', '#84cc16', '#6366f1'];
@@ -21,7 +21,7 @@ type AdminWeekCalendarProps = {
   weekStart: string;
   availability: BabysitterWeekAvailability[];
   requests: BookingRequest[];
-  onPickSlot: (date: string, startTime: string, endTime: string) => void;
+  onPickSlot: (user: BabysitterUser, date: string, startTime: string, endTime: string) => void;
 };
 
 export function AdminWeekCalendar({ weekStart, availability, requests, onPickSlot }: AdminWeekCalendarProps) {
@@ -120,6 +120,7 @@ export function AdminWeekCalendar({ weekStart, availability, requests, onPickSlo
             classNames: ['bs-cal-avail', a.confirmed ? '' : 'bs-cal-usual'].filter(Boolean),
             extendedProps: {
               kind: 'availability',
+              babysitterId: a.user.id,
               date: weekDates[dow],
               startTime: range.startTime,
               endTime: range.endTime,
@@ -192,9 +193,21 @@ export function AdminWeekCalendar({ weekStart, availability, requests, onPickSlo
           eventDisplay="block"
           events={fcEvents}
           eventClick={(info) => {
-            const props = info.event.extendedProps as { kind?: string; date?: string; startTime?: string; endTime?: string };
-            if (props.kind === 'availability' && props.date && props.startTime && props.endTime) {
-              onPickSlot(props.date, props.startTime, props.endTime);
+            const props = info.event.extendedProps as {
+              kind?: string;
+              babysitterId?: string;
+              date?: string;
+              startTime?: string;
+              endTime?: string;
+            };
+            const sitter = availability.find((entry) => entry.user.id === props.babysitterId)?.user;
+            if (props.kind === 'availability' && sitter && props.date && props.startTime && props.endTime) {
+              // Let FullCalendar finish its click before mounting the Radix dialog.
+              // Otherwise the originating click can be treated as an outside click
+              // and dismiss the request dialog immediately.
+              window.setTimeout(() => {
+                onPickSlot(sitter, props.date!, props.startTime!, props.endTime!);
+              }, 0);
             }
           }}
           eventTimeFormat={{

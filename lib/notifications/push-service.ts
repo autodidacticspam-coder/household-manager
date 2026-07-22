@@ -370,6 +370,24 @@ export async function sendBookingResponsePush(
   });
 }
 
+// Send booking cancellation notification (to the babysitter)
+export async function sendBookingCancellationPush(
+  userIds: string[],
+  dateLabel: string,
+  timeLabel: string,
+  removedAcceptedShift: boolean
+): Promise<{ sent: number; failed: number; errors: string[] }> {
+  return sendPushToUsers(userIds, {
+    title: removedAcceptedShift ? '❌ Babysitting Shift Cancelled' : '❌ Babysitting Request Cancelled',
+    body: removedAcceptedShift
+      ? `${dateLabel}, ${timeLabel} was cancelled by the family and removed from your schedule.`
+      : `The family withdrew its request for ${dateLabel}, ${timeLabel}.`,
+    data: {
+      type: 'booking_cancelled',
+    },
+  });
+}
+
 // Send task expiration warning notification (to task creator)
 export async function sendTaskExpirationPush(
   userIds: string[],

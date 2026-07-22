@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, addWeeks, getDay } from 'date-fns';
+import { toast } from 'sonner';
 import { parseLocalDate } from '@/lib/date-utils';
 import { formatTime24h, formatTimeInput, formatTime12h } from '@/lib/format-time';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -123,11 +124,13 @@ export function AdminBabysittingView() {
   // Request dialog
   const [requestDialog, setRequestDialog] = useState<{ user: BabysitterUser } | null>(null);
   const [requestNote, setRequestNote] = useState('');
+  const [cancelDialog, setCancelDialog] = useState<BookingRequest | null>(null);
 
   const { data: sitters, isLoading: sittersLoading } = useBabysitters();
   const sitterIds = useMemo(() => (sitters || []).map((s) => s.id), [sitters]);
 
   const { data: gridAvailability, isLoading: gridLoading } = useAdminBabysitterAvailability(gridWeekStart);
+  const { data: gridShifts, isLoading: gridShiftsLoading } = useBabysitterShifts(gridWeekStart, sitterIds);
   const gridDates = getWeekDates(gridWeekStart);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -192,6 +195,45 @@ export function AdminBabysittingView() {
     setEndAmPm(e.amPm);
   };
 
+  const openRequestForSlot = (
+    user: BabysitterUser,
+    date: string,
+    start24: string,
+    end24: string
+  ) => {
+    if (gridShiftsLoading) {
+      toast.info(t('common.loading'));
+      return;
+    }
+
+    const existingRequest = (requests || []).find(
+      (request) =>
+        request.babysitterId === user.id &&
+        request.requestDate === date &&
+        ['pending', 'accepted'].includes(request.status) &&
+        rangesOverlap({ startTime: request.startTime, endTime: request.endTime }, start24, end24)
+    );
+    if (existingRequest) {
+      toast.error(t('babysitting.requestAlreadyExists', {
+        name: user.fullName,
+        status: t(`babysitting.status_${existingRequest.status}`).toLowerCase(),
+      }));
+      return;
+    }
+
+    const conflicts = (gridShifts?.[`${user.id}|${date}`] || [])
+      .filter((shift) => rangesOverlap(shift, start24, end24));
+    if (conflicts.length > 0) {
+      toast.error(t('babysitting.alreadyScheduled', {
+        time: conflicts.map((shift) => `${compactTime(shift.startTime)} - ${compactTime(shift.endTime)}`).join(', '),
+      }));
+      return;
+    }
+
+    prefillFinder(date, start24, end24);
+    setRequestDialog({ user });
+  };
+
   const handleSendRequest = () => {
     if (!requestDialog || !queryStart || !queryEnd) return;
     createRequest.mutate(
@@ -211,8 +253,23 @@ export function AdminBabysittingView() {
     );
   };
 
+  const handleCancelShift = () => {
+    if (!cancelDialog) return;
+    respond.mutate(
+      { id: cancelDialog.id, action: 'cancel' },
+      { onSuccess: () => setCancelDialog(null) }
+    );
+  };
+
   const pendingRequests = (requests || []).filter((r) => r.status === 'pending');
-  const pastRequests = (requests || []).filter((r) => r.status !== 'pending').slice(0, 10);
+  const upcomingAcceptedRequests = (requests || [])
+    .filter((r) => r.status === 'accepted' && r.requestDate >= todayStr)
+    .sort((a, b) => a.requestDate.localeCompare(b.requestDate) || a.startTime.localeCompare(b.startTime));
+  const upcomingAcceptedIds = new Set(upcomingAcceptedRequests.map((r) => r.id));
+  const pastRequests = (requests || [])
+    .filter((r) => r.status !== 'pending' && !upcomingAcceptedIds.has(r.id))
+    .slice(0, 10);
+  const displayedRequests = [...pendingRequests, ...upcomingAcceptedRequests, ...pastRequests];
 
   if (sittersLoading) {
     return (
@@ -431,7 +488,7 @@ export function AdminBabysittingView() {
                   weekStart={gridWeekStart}
                   availability={gridAvailability || []}
                   requests={requests || []}
-                  onPickSlot={prefillFinder}
+                  onPickSlot={openRequestForSlot}
                 />
               ) : gridLoading ? (
                 <div className="flex items-center justify-center py-8">
@@ -507,16 +564,28 @@ export function AdminBabysittingView() {
                                 ) : (
                                   <div className="space-y-1">
                                     {ranges.map((range, i) => (
-                                      <div
+                                      <button
                                         key={i}
-                                        className={`text-xs rounded-md px-1.5 py-1 whitespace-nowrap ${
+                                        type="button"
+                                        disabled={gridShiftsLoading}
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openRequestForSlot(
+                                            sitterAvailability.user,
+                                            date,
+                                            range.startTime,
+                                            range.endTime
+                                          );
+                                        }}
+                                        title={t('babysitting.clickToRequest', { name: sitterAvailability.user.fullName })}
+                                        className={`w-full text-xs rounded-md px-1.5 py-1 whitespace-nowrap transition-colors disabled:cursor-wait ${
                                           sitterAvailability.confirmed
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-gray-100 text-gray-600'
+                                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                         }`}
                                       >
                                         {compactTime(range.startTime)} - {compactTime(range.endTime)}
-                                      </div>
+                                      </button>
                                     ))}
                                   </div>
                                 )}
@@ -545,11 +614,11 @@ export function AdminBabysittingView() {
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : pendingRequests.length === 0 && pastRequests.length === 0 ? (
+              ) : displayedRequests.length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t('babysitting.noRequests')}</p>
               ) : (
                 <>
-                  {[...pendingRequests, ...pastRequests].map((request) => (
+                  {displayedRequests.map((request) => (
                     <div
                       key={request.id}
                       className="flex flex-wrap items-center justify-between gap-3 bg-accent/50 rounded-lg px-4 py-2.5"
@@ -586,6 +655,18 @@ export function AdminBabysittingView() {
                           >
                             <XCircle className="h-3.5 w-3.5 mr-1" />
                             {t('common.cancel')}
+                          </Button>
+                        )}
+                        {request.status === 'accepted' && request.requestDate >= todayStr && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            disabled={respond.isPending}
+                            onClick={() => setCancelDialog(request)}
+                          >
+                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                            {t('babysitting.cancelShift')}
                           </Button>
                         )}
                       </div>
@@ -644,6 +725,35 @@ export function AdminBabysittingView() {
               {createRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Send className="h-3.5 w-3.5 mr-1" />
               {t('babysitting.sendRequest')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancel an accepted booking and its linked schedule shift */}
+      <Dialog open={!!cancelDialog} onOpenChange={(open) => !open && setCancelDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('babysitting.cancelShiftTitle')}</DialogTitle>
+            <DialogDescription>
+              {cancelDialog && t('babysitting.cancelShiftDescription', {
+                name: cancelDialog.babysitter?.fullName || '',
+                date: format(parseLocalDate(cancelDialog.requestDate), 'EEEE, MMM d'),
+                time: `${formatTime12h(cancelDialog.startTime)} - ${formatTime12h(cancelDialog.endTime)}`,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialog(null)}>
+              {t('common.back')}
+            </Button>
+            <Button
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleCancelShift}
+              disabled={respond.isPending}
+            >
+              {respond.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t('babysitting.cancelShift')}
             </Button>
           </DialogFooter>
         </DialogContent>
