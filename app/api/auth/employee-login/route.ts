@@ -29,12 +29,26 @@ export async function POST(request: Request) {
       }, { status: 403 });
     }
 
+    // Babysitters land on their availability page; other employees on my-tasks
+    const { data: memberships } = await adminClient
+      .from('employee_group_memberships')
+      .select('group:employee_groups!inner(name)')
+      .eq('user_id', userData.id);
+
+    const isBabysitter = (memberships || []).some((m) => {
+      const group = m.group as { name: string } | { name: string }[] | null;
+      const name = Array.isArray(group) ? group[0]?.name : group?.name;
+      return name && ['babysitter', 'babysitters'].includes(name.toLowerCase());
+    });
+
+    const landingPath = isBabysitter ? '/babysitting' : '/my-tasks';
+
     // Generate a magic link for the employee (without sending email)
     const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
       type: 'magiclink',
       email: userData.email,
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/my-tasks`,
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}${landingPath}`,
       },
     });
 
@@ -56,7 +70,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       actionLink,
-      redirectTo: '/my-tasks'
+      redirectTo: landingPath
     });
 
   } catch (err) {

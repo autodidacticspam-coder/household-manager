@@ -118,8 +118,8 @@ function LoginContent() {
             return;
           }
 
-          // Redirect to employee dashboard
-          router.push(redirectTo || '/my-tasks');
+          // Redirect to employee dashboard (babysitters land on /babysitting)
+          router.push(redirectTo || data.redirectTo || '/my-tasks');
           router.refresh();
         } else {
           setError(t('errors.general'));

@@ -328,6 +328,48 @@ export async function sendTaskCompletedPush(
   });
 }
 
+// Send babysitting booking request notification (to the babysitter)
+export async function sendBookingRequestPush(
+  userIds: string[],
+  dateLabel: string,
+  timeLabel: string,
+  note?: string | null
+): Promise<{ sent: number; failed: number; errors: string[] }> {
+  let body = `Can you work ${dateLabel}, ${timeLabel}?`;
+  if (note) {
+    const truncatedNote = note.length > 100 ? note.slice(0, 100) + '...' : note;
+    body += `\n${truncatedNote}`;
+  }
+  body += '\nOpen the app to accept or decline.';
+
+  return sendPushToUsers(userIds, {
+    title: '📅 New Babysitting Request',
+    body,
+    data: {
+      type: 'booking_request',
+    },
+  });
+}
+
+// Send booking response notification (to admins)
+export async function sendBookingResponsePush(
+  adminUserIds: string[],
+  sitterName: string,
+  accepted: boolean,
+  dateLabel: string,
+  timeLabel: string
+): Promise<void> {
+  await sendPushToUsers(adminUserIds, {
+    title: accepted ? '✅ Babysitting Request Accepted' : '❌ Babysitting Request Declined',
+    body: accepted
+      ? `${sitterName} accepted ${dateLabel}, ${timeLabel}. The shift is on the calendar.`
+      : `${sitterName} can't make it ${dateLabel}, ${timeLabel}.`,
+    data: {
+      type: 'booking_response',
+    },
+  });
+}
+
 // Send task expiration warning notification (to task creator)
 export async function sendTaskExpirationPush(
   userIds: string[],

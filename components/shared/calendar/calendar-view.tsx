@@ -357,9 +357,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setNewScheduleEndTime(defaultEndTime);
     setNewScheduleEndAmPm(defaultEndAmPm);
 
-    // Reset activity tab state - default visibility is Nanny + Teacher groups (admins always see everything)
+    // Reset activity tab state - default visibility is Nanny + Teacher + Babysitter groups (admins always see everything)
     const defaultViewerGroupIds = (employeeGroups || [])
-      .filter((g) => ['nanny', 'nannies', 'teacher', 'teachers'].includes(String(g.name).toLowerCase()))
+      .filter((g) => ['nanny', 'nannies', 'teacher', 'teachers', 'babysitter', 'babysitters'].includes(String(g.name).toLowerCase()))
       .map((g) => g.id);
     setAddDialogTab('schedule');
     setNewActivityTitle('');

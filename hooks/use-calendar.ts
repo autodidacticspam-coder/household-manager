@@ -148,6 +148,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
       let userGroupIds: string[] = [];
       let isUserAdmin = false;
       let nannyTeacherUserIds: string[] = []; // Users in Nanny or Teacher groups (for schedule visibility)
+      let isUserBabysitter = false; // Babysitters only see child events during their own shifts
 
       if (filters.userId) {
         const { data: userData } = await supabase
@@ -172,6 +173,14 @@ export function useCalendarEvents(filters: CalendarFilters) {
           if (!group) return false;
           const groupName = Array.isArray(group) ? group[0]?.name : group.name;
           return groupName && allowedGroups.includes(groupName.toLowerCase());
+        });
+
+        const babysitterGroups = ['babysitter', 'babysitters'];
+        isUserBabysitter = (userGroupsWithNames || []).some(g => {
+          const group = g.group as { id: string; name: string } | { id: string; name: string }[] | null;
+          if (!group) return false;
+          const groupName = Array.isArray(group) ? group[0]?.name : group.name;
+          return groupName && babysitterGroups.includes(groupName.toLowerCase());
         });
 
         // If user is a nanny or teacher, get all users in both Nanny and Teacher groups
@@ -787,6 +796,29 @@ export function useCalendarEvents(filters: CalendarFilters) {
             });
           }
         }
+      }
+
+      // Babysitters only see child-related events (activities, tasks, logs)
+      // that overlap one of their own shifts
+      if (isUserBabysitter) {
+        const shifts = events.filter(e => e.type === 'schedule');
+        const asDateStr = (v: string | Date): string =>
+          typeof v === 'string' ? v.slice(0, 10) : format(v, 'yyyy-MM-dd');
+        const asTime = (v: string | Date): number => new Date(v).getTime();
+        const overlapsShift = (event: CalendarEvent): boolean => {
+          if (event.allDay) {
+            const eventDate = asDateStr(event.start);
+            return shifts.some(s => asDateStr(s.start) === eventDate);
+          }
+          const eventStart = asTime(event.start);
+          const eventEnd = Math.max(asTime(event.end || event.start), eventStart);
+          return shifts.some(s => {
+            const shiftStart = asTime(s.start);
+            const shiftEnd = asTime(s.end || s.start);
+            return shiftStart <= eventEnd && shiftEnd >= eventStart;
+          });
+        };
+        return events.filter(e => e.type === 'schedule' || e.type === 'leave' || overlapsShift(e));
       }
 
       return events;

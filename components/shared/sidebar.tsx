@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
 import { useCanAccessChildLogs } from '@/hooks/use-child-logs';
+import { useIsBabysitter } from '@/hooks/use-babysitting';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -21,6 +22,8 @@ import {
   ClipboardList,
   UtensilsCrossed,
   Star,
+  Baby,
+  CalendarHeart,
 } from 'lucide-react';
 
 type NavItem = {
@@ -34,6 +37,7 @@ const adminNavItems: NavItem[] = [
   { href: '/tasks', labelKey: 'nav.tasks', icon: <CheckSquare className="h-5 w-5" /> },
   { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-5 w-5" /> },
   { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-5 w-5" /> },
+  { href: '/babysitting', labelKey: 'nav.babysitters', icon: <Baby className="h-5 w-5" /> },
   { href: '/employees', labelKey: 'nav.employees', icon: <Users className="h-5 w-5" /> },
   { href: '/leave-requests', labelKey: 'nav.leaveRequests', icon: <FileText className="h-5 w-5" /> },
   { href: '/supply-requests', labelKey: 'nav.supplyRequests', icon: <Package className="h-5 w-5" /> },
@@ -53,6 +57,7 @@ const employeeNavItems: NavItem[] = [
 
 const logsNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-5 w-5" /> };
 const foodNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.food', icon: <Star className="h-5 w-5" /> };
+const availabilityNavItem: NavItem = { href: '/babysitting', labelKey: 'nav.availability', icon: <CalendarHeart className="h-5 w-5" /> };
 
 export function Sidebar() {
   const t = useTranslations();
@@ -60,6 +65,7 @@ export function Sidebar() {
   const { isAdmin, isLoading } = useAuth();
   const { data: canAccessFoodRatings } = useCanAccessFoodRatings();
   const { data: canAccessLogs } = useCanAccessChildLogs();
+  const { data: isBabysitter } = useIsBabysitter();
 
   // Build nav items, conditionally including logs, food, and recipes
   const buildNavItems = () => {
@@ -76,6 +82,13 @@ export function Sidebar() {
         items.push(foodNavItem);
       }
       items.push(...adminNavItems.slice(4)); // employees, vacations, leave-requests, etc.
+    } else if (isBabysitter) {
+      // Babysitter nav: availability, my-calendar, menu, profile, settings
+      items.push(availabilityNavItem);
+      items.push(employeeNavItems[1]); // my-calendar
+      items.push(employeeNavItems[2]); // menu
+      items.push(employeeNavItems[5]); // profile
+      items.push(employeeNavItems[6]); // settings
     } else {
       // Employee nav: my-tasks, [logs], my-calendar, menu, [food], time-off...
       items.push(employeeNavItems[0]); // my-tasks

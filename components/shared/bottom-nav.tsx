@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { useCanAccessChildLogs } from '@/hooks/use-child-logs';
 import { useCanAccessFoodRatings } from '@/hooks/use-menu-ratings';
+import { useIsBabysitter } from '@/hooks/use-babysitting';
 import {
   LayoutDashboard,
   CheckSquare,
@@ -16,6 +17,8 @@ import {
   ClipboardList,
   Star,
   Package,
+  Baby,
+  CalendarHeart,
 } from 'lucide-react';
 
 type NavItem = {
@@ -29,6 +32,15 @@ const adminNavItems: NavItem[] = [
   { href: '/tasks', labelKey: 'nav.tasks', icon: <CheckSquare className="h-4 w-4" /> },
   { href: '/calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-4 w-4" /> },
   { href: '/logs', labelKey: 'nav.log', icon: <ClipboardList className="h-4 w-4" /> },
+  { href: '/babysitting', labelKey: 'nav.sitters', icon: <Baby className="h-4 w-4" /> },
+];
+
+// Babysitter-specific nav: Availability, Calendar, Menu, Profile
+const babysitterNavItems: NavItem[] = [
+  { href: '/babysitting', labelKey: 'nav.availability', icon: <CalendarHeart className="h-4 w-4" /> },
+  { href: '/my-calendar', labelKey: 'nav.calendar', icon: <Calendar className="h-4 w-4" /> },
+  { href: '/menu', labelKey: 'nav.menu', icon: <UtensilsCrossed className="h-4 w-4" /> },
+  { href: '/profile', labelKey: 'nav.profile', icon: <User className="h-4 w-4" /> },
 ];
 
 const employeeBaseNavItems: NavItem[] = [
@@ -54,6 +66,7 @@ export function BottomNav() {
   const { isAdmin, isLoading } = useAuth();
   const { data: canAccessLogs } = useCanAccessChildLogs();
   const { data: isChef } = useCanAccessFoodRatings();
+  const { data: isBabysitter } = useIsBabysitter();
 
   if (isLoading) {
     return (
@@ -78,8 +91,14 @@ export function BottomNav() {
     canAccessLogs ? logNavItem : profileNavItem,
   ];
 
-  // Use chef-specific nav for chef users (non-admin)
-  const navItems = isAdmin ? adminNavItems : (isChef && !isAdmin) ? chefNavItems : employeeNavItems;
+  // Use chef- or babysitter-specific nav for those users (non-admin)
+  const navItems = isAdmin
+    ? adminNavItems
+    : isChef
+      ? chefNavItems
+      : isBabysitter
+        ? babysitterNavItems
+        : employeeNavItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg shadow-black/5 lg:hidden">
