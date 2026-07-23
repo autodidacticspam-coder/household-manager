@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import { parseLocalDate } from '@/lib/date-utils';
 import { formatTime12h } from '@/lib/format-time';
+import { getZonedParts } from '@/lib/timezone';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, CalendarHeart, Clock, Check, X, Pencil, RotateCcw, Inbox } from 'lucide-react';
+import { Loader2, CalendarHeart, CalendarClock, Clock, Check, X, Pencil, RotateCcw, Inbox } from 'lucide-react';
 import { DAYS_OF_WEEK } from '@/types';
 import type { BookingRequest } from '@/types';
 import {
@@ -145,7 +146,21 @@ export function BabysitterView() {
   const [weekDialog, setWeekDialog] = useState<{ weekStart: string; edit: EditableWeek } | null>(null);
 
   const pendingRequests = (requests || []).filter((r) => r.status === 'pending');
-  const respondedRequests = (requests || []).filter((r) => r.status !== 'pending').slice(0, 5);
+  const now = getZonedParts(new Date());
+  const currentTime = now.time.slice(0, 5);
+  const upcomingSchedule = (requests || [])
+    .filter((request) =>
+      request.status === 'accepted' &&
+      (request.requestDate > now.date ||
+        (request.requestDate === now.date && request.endTime > currentTime))
+    )
+    .sort((a, b) =>
+      a.requestDate.localeCompare(b.requestDate) || a.startTime.localeCompare(b.startTime)
+    );
+  const upcomingScheduleIds = new Set(upcomingSchedule.map((request) => request.id));
+  const respondedRequests = (requests || [])
+    .filter((request) => request.status !== 'pending' && !upcomingScheduleIds.has(request.id))
+    .slice(0, 5);
 
   const handleSaveTemplate = () => {
     if (!userId || !templateEdit) return;
@@ -251,6 +266,54 @@ export function BabysitterView() {
                 </div>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Accepted babysitting shifts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5" />
+            {t('babysitting.upcomingSchedule')}
+            {upcomingSchedule.length > 0 && (
+              <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                {upcomingSchedule.length}
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>{t('babysitting.upcomingScheduleHint')}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {upcomingSchedule.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('babysitting.noUpcomingShifts')}</p>
+          ) : (
+            upcomingSchedule.map((request) => (
+              <div
+                key={request.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50/60 px-4 py-3"
+              >
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 font-medium text-sm">
+                    <span>{formatDateLabel(request.requestDate)}</span>
+                    {request.requestDate === now.date && (
+                      <Badge variant="secondary">{t('common.today')}</Badge>
+                    )}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
+                  </div>
+                  {request.note && (
+                    <div className="text-sm text-muted-foreground mt-1 italic">
+                      &ldquo;{request.note}&rdquo;
+                    </div>
+                  )}
+                </div>
+                <Badge variant="secondary" className={STATUS_BADGES.accepted}>
+                  {t('babysitting.status_accepted')}
+                </Badge>
+              </div>
+            ))
           )}
         </CardContent>
       </Card>
