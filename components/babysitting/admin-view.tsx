@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { format, addWeeks, getDay } from 'date-fns';
 import { toast } from 'sonner';
 import { parseLocalDate } from '@/lib/date-utils';
-import { formatTime24h, formatTimeInput, formatTime12h } from '@/lib/format-time';
+import { formatTime12h, formatTimeCompact } from '@/lib/format-time';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,12 +32,15 @@ import {
   CircleSlash,
   CircleDot,
   CalendarClock,
+  CalendarCheck,
   XCircle,
-  LayoutGrid,
+  LayoutList,
   CalendarDays,
+  Hourglass,
+  History,
 } from 'lucide-react';
-import { AdminWeekCalendar, SITTER_COLORS } from './admin-week-calendar';
-import { DAYS_OF_WEEK_SHORT } from '@/types';
+import { AdminWeekCalendar } from './admin-week-calendar';
+import { AdminWeekOverview } from './admin-week-overview';
 import type { AvailabilityRange, BabysitterUser, BookingRequest } from '@/types';
 import {
   useBabysitters,
@@ -47,16 +50,7 @@ import {
   useCreateBookingRequest,
   useRespondBookingRequest,
   getWeekStart,
-  getWeekDates,
 } from '@/hooks/use-babysitting';
-
-// "9 AM" / "9:30 AM" — compact for grid chips
-function compactTime(time: string): string {
-  const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const h12 = hours % 12 || 12;
-  return minutes === 0 ? `${h12} ${period}` : `${h12}:${minutes.toString().padStart(2, '0')} ${period}`;
-}
 
 function rangesOverlap(a: AvailabilityRange, start: string, end: string): boolean {
   return a.startTime < end && a.endTime > start;
@@ -75,27 +69,6 @@ type FinderResult = {
   confirmed: boolean;
 };
 
-function AmPmToggle({ value, onChange }: { value: 'AM' | 'PM'; onChange: (v: 'AM' | 'PM') => void }) {
-  return (
-    <div className="flex rounded-lg border overflow-hidden shrink-0">
-      {(['AM', 'PM'] as const).map((period) => (
-        <button
-          key={period}
-          type="button"
-          onClick={() => onChange(period)}
-          className={`px-2 py-1 text-xs font-semibold transition-colors ${
-            value === period
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-background hover:bg-muted'
-          }`}
-        >
-          {period}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function initials(name: string): string {
   return name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
 }
@@ -107,31 +80,52 @@ const STATUS_BADGES: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-700',
 };
 
+const TIME_RE = /^\d{2}:\d{2}$/;
+
+function RequestSummary({ request }: { request: BookingRequest }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <Avatar className="h-8 w-8 shrink-0">
+        <AvatarImage src={request.babysitter?.avatarUrl || undefined} />
+        <AvatarFallback>{initials(request.babysitter?.fullName || '?')}</AvatarFallback>
+      </Avatar>
+      <div className="min-w-0">
+        <div className="text-sm font-medium">
+          {request.babysitter?.fullName}
+          <span className="font-normal text-muted-foreground">
+            {' '}&middot; {format(parseLocalDate(request.requestDate), 'EEE, MMM d')}{' '}
+            &middot; {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
+          </span>
+        </div>
+        {request.note && (
+          <div className="truncate text-xs italic text-muted-foreground">&ldquo;{request.note}&rdquo;</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function AdminBabysittingView() {
   const t = useTranslations();
 
-  // Availability grid week
-  const [gridWeekStart, setGridWeekStart] = useState(() => getWeekStart(new Date()));
-  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
+  const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
-  // Finder state
+  // Finder state (times are 24h "HH:mm", straight from native time inputs)
   const [finderDate, setFinderDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [startTime, setStartTime] = useState('5:00');
-  const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('PM');
-  const [endTime, setEndTime] = useState('9:00');
-  const [endAmPm, setEndAmPm] = useState<'AM' | 'PM'>('PM');
+  const [finderStart, setFinderStart] = useState('17:00');
+  const [finderEnd, setFinderEnd] = useState('21:00');
 
-  // Request dialog
   const [requestDialog, setRequestDialog] = useState<{ user: BabysitterUser } | null>(null);
   const [requestNote, setRequestNote] = useState('');
   const [cancelDialog, setCancelDialog] = useState<BookingRequest | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { data: sitters, isLoading: sittersLoading } = useBabysitters();
   const sitterIds = useMemo(() => (sitters || []).map((s) => s.id), [sitters]);
 
-  const { data: gridAvailability, isLoading: gridLoading } = useAdminBabysitterAvailability(gridWeekStart);
-  const { data: gridShifts, isLoading: gridShiftsLoading } = useBabysitterShifts(gridWeekStart, sitterIds);
-  const gridDates = getWeekDates(gridWeekStart);
+  const { data: weekAvailability, isLoading: weekLoading } = useAdminBabysitterAvailability(weekStart);
+  const { data: weekShifts, isLoading: weekShiftsLoading } = useBabysitterShifts(weekStart, sitterIds);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const finderWeekStart = useMemo(() => getWeekStart(parseLocalDate(finderDate)), [finderDate]);
@@ -142,9 +136,7 @@ export function AdminBabysittingView() {
   const createRequest = useCreateBookingRequest();
   const respond = useRespondBookingRequest();
 
-  const queryStart = formatTime24h(`${startTime} ${startAmPm}`);
-  const queryEnd = formatTime24h(`${endTime} ${endAmPm}`);
-  const queryValid = !!queryStart && !!queryEnd && queryEnd > queryStart;
+  const queryValid = TIME_RE.test(finderStart) && TIME_RE.test(finderEnd) && finderEnd > finderStart;
 
   const finderResults: FinderResult[] = useMemo(() => {
     if (!queryValid || !finderAvailability) return [];
@@ -152,16 +144,16 @@ export function AdminBabysittingView() {
 
     const results: FinderResult[] = finderAvailability.map((sitterAvailability) => {
       const ranges = sitterAvailability.days[dow] || [];
-      const covered = ranges.some((r) => rangeCovers(r, queryStart!, queryEnd!));
-      const overlapping = ranges.filter((r) => rangesOverlap(r, queryStart!, queryEnd!));
+      const covered = ranges.some((r) => rangeCovers(r, finderStart, finderEnd));
+      const overlapping = ranges.filter((r) => rangesOverlap(r, finderStart, finderEnd));
       const conflicts = (finderShifts?.[`${sitterAvailability.user.id}|${finderDate}`] || [])
-        .filter((s) => rangesOverlap(s, queryStart!, queryEnd!));
+        .filter((s) => rangesOverlap(s, finderStart, finderEnd));
       const existingRequest = (requests || []).find(
         (r) =>
           r.babysitterId === sitterAvailability.user.id &&
           r.requestDate === finderDate &&
           ['pending', 'accepted'].includes(r.status) &&
-          rangesOverlap({ startTime: r.startTime, endTime: r.endTime }, queryStart!, queryEnd!)
+          rangesOverlap({ startTime: r.startTime, endTime: r.endTime }, finderStart, finderEnd)
       );
       return {
         user: sitterAvailability.user,
@@ -175,24 +167,12 @@ export function AdminBabysittingView() {
 
     const order = { available: 0, partial: 1, unavailable: 2 };
     return results.sort((a, b) => order[a.status] - order[b.status] || a.user.fullName.localeCompare(b.user.fullName));
-  }, [queryValid, queryStart, queryEnd, finderAvailability, finderShifts, finderDate, requests]);
+  }, [queryValid, finderStart, finderEnd, finderAvailability, finderShifts, finderDate, requests]);
 
-  // Load a clicked availability block into the finder
   const prefillFinder = (date: string, start24: string, end24: string) => {
-    const to12 = (time: string): { value: string; amPm: 'AM' | 'PM' } => {
-      const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
-      return {
-        value: `${hours % 12 || 12}:${minutes.toString().padStart(2, '0')}`,
-        amPm: hours >= 12 ? 'PM' : 'AM',
-      };
-    };
     setFinderDate(date);
-    const s = to12(start24);
-    setStartTime(s.value);
-    setStartAmPm(s.amPm);
-    const e = to12(end24);
-    setEndTime(e.value);
-    setEndAmPm(e.amPm);
+    setFinderStart(start24.slice(0, 5));
+    setFinderEnd(end24.slice(0, 5));
   };
 
   const openRequestForSlot = (
@@ -201,7 +181,7 @@ export function AdminBabysittingView() {
     start24: string,
     end24: string
   ) => {
-    if (gridShiftsLoading) {
+    if (weekShiftsLoading) {
       toast.info(t('common.loading'));
       return;
     }
@@ -221,11 +201,11 @@ export function AdminBabysittingView() {
       return;
     }
 
-    const conflicts = (gridShifts?.[`${user.id}|${date}`] || [])
+    const conflicts = (weekShifts?.[`${user.id}|${date}`] || [])
       .filter((shift) => rangesOverlap(shift, start24, end24));
     if (conflicts.length > 0) {
       toast.error(t('babysitting.alreadyScheduled', {
-        time: conflicts.map((shift) => `${compactTime(shift.startTime)} - ${compactTime(shift.endTime)}`).join(', '),
+        time: conflicts.map((shift) => `${formatTimeCompact(shift.startTime)} - ${formatTimeCompact(shift.endTime)}`).join(', '),
       }));
       return;
     }
@@ -235,13 +215,13 @@ export function AdminBabysittingView() {
   };
 
   const handleSendRequest = () => {
-    if (!requestDialog || !queryStart || !queryEnd) return;
+    if (!requestDialog || !queryValid) return;
     createRequest.mutate(
       {
         babysitterId: requestDialog.user.id,
         requestDate: finderDate,
-        startTime: queryStart,
-        endTime: queryEnd,
+        startTime: finderStart,
+        endTime: finderEnd,
         note: requestNote.trim() || undefined,
       },
       {
@@ -261,15 +241,16 @@ export function AdminBabysittingView() {
     );
   };
 
-  const pendingRequests = (requests || []).filter((r) => r.status === 'pending');
-  const upcomingAcceptedRequests = (requests || [])
+  const pendingRequests = (requests || [])
+    .filter((r) => r.status === 'pending')
+    .sort((a, b) => a.requestDate.localeCompare(b.requestDate) || a.startTime.localeCompare(b.startTime));
+  const upcomingBookings = (requests || [])
     .filter((r) => r.status === 'accepted' && r.requestDate >= todayStr)
     .sort((a, b) => a.requestDate.localeCompare(b.requestDate) || a.startTime.localeCompare(b.startTime));
-  const upcomingAcceptedIds = new Set(upcomingAcceptedRequests.map((r) => r.id));
-  const pastRequests = (requests || [])
-    .filter((r) => r.status !== 'pending' && !upcomingAcceptedIds.has(r.id))
+  const upcomingIds = new Set(upcomingBookings.map((r) => r.id));
+  const historyRequests = (requests || [])
+    .filter((r) => r.status !== 'pending' && !upcomingIds.has(r.id))
     .slice(0, 10);
-  const displayedRequests = [...pendingRequests, ...upcomingAcceptedRequests, ...pastRequests];
 
   if (sittersLoading) {
     return (
@@ -280,7 +261,7 @@ export function AdminBabysittingView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Baby className="h-6 w-6" />
@@ -297,138 +278,42 @@ export function AdminBabysittingView() {
         </Card>
       ) : (
         <>
-          {/* Find a babysitter */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                {t('babysitting.findHelp')}
-              </CardTitle>
-              <CardDescription>{t('babysitting.findHelpHint')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-1">
-                  <Label htmlFor="finder-date">{t('common.date')}</Label>
-                  <Input
-                    id="finder-date"
-                    type="date"
-                    value={finderDate}
-                    onChange={(e) => e.target.value && setFinderDate(e.target.value)}
-                    className="w-40"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>{t('babysitting.from')}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={startTime}
-                      onChange={(e) => setStartTime(formatTimeInput(e.target.value, startTime))}
-                      className="w-16"
-                      placeholder="5:00"
-                    />
-                    <AmPmToggle value={startAmPm} onChange={setStartAmPm} />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>{t('babysitting.to')}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      value={endTime}
-                      onChange={(e) => setEndTime(formatTimeInput(e.target.value, endTime))}
-                      className="w-16"
-                      placeholder="9:00"
-                    />
-                    <AmPmToggle value={endAmPm} onChange={setEndAmPm} />
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground pb-2">
-                  {format(parseLocalDate(finderDate), 'EEEE, MMM d')}
-                </div>
-              </div>
-
-              {!queryValid ? (
-                <p className="text-sm text-muted-foreground">{t('babysitting.enterValidTimes')}</p>
-              ) : (
-                <div className="space-y-2">
-                  {finderResults.map((result) => (
-                    <div
-                      key={result.user.id}
-                      className="flex flex-wrap items-center justify-between gap-3 bg-accent/50 rounded-lg px-4 py-3"
+          {/* Requests waiting on a sitter's reply */}
+          {pendingRequests.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50/40">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Hourglass className="h-4 w-4 text-amber-600" />
+                  {t('babysitting.awaitingReply')}
+                  <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                    {pendingRequests.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {pendingRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-background/80 px-3 py-2"
+                  >
+                    <RequestSummary request={request} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 text-muted-foreground hover:text-destructive"
+                      disabled={respond.isPending}
+                      onClick={() => respond.mutate({ id: request.id, action: 'cancel' })}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={result.user.avatarUrl || undefined} />
-                          <AvatarFallback>{initials(result.user.fullName)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <div className="font-medium text-sm flex items-center gap-2 flex-wrap">
-                            {result.user.fullName}
-                            {result.status === 'available' && (
-                              <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
-                                {t('babysitting.available')}
-                              </Badge>
-                            )}
-                            {result.status === 'partial' && (
-                              <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                                <CircleDot className="h-3 w-3 mr-1" />
-                                {t('babysitting.partiallyAvailable')}
-                              </Badge>
-                            )}
-                            {result.status === 'unavailable' && (
-                              <Badge variant="secondary" className="bg-gray-100 text-gray-600">
-                                <CircleSlash className="h-3 w-3 mr-1" />
-                                {t('babysitting.unavailable')}
-                              </Badge>
-                            )}
-                            {!result.confirmed && result.status !== 'unavailable' && (
-                              <span className="text-xs text-muted-foreground">({t('babysitting.usingUsual')})</span>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {result.ranges.length > 0
-                              ? result.ranges.map((r) => `${compactTime(r.startTime)} - ${compactTime(r.endTime)}`).join(', ')
-                              : t('babysitting.notAvailable')}
-                          </div>
-                          {result.conflicts.length > 0 && (
-                            <div className="text-xs text-red-600 mt-0.5">
-                              <CalendarClock className="h-3 w-3 inline mr-1" />
-                              {t('babysitting.alreadyScheduled', {
-                                time: result.conflicts.map((c) => `${compactTime(c.startTime)} - ${compactTime(c.endTime)}`).join(', '),
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div>
-                        {result.existingRequest ? (
-                          <Badge variant="secondary" className={STATUS_BADGES[result.existingRequest.status]}>
-                            {t(`babysitting.status_${result.existingRequest.status}`)}
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            disabled={result.status === 'unavailable' || result.conflicts.length > 0}
-                            onClick={() => setRequestDialog({ user: result.user })}
-                          >
-                            <Send className="h-3.5 w-3.5 mr-1" />
-                            {t('babysitting.sendRequest')}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      <XCircle className="h-3.5 w-3.5 mr-1" />
+                      {t('common.cancel')}
+                    </Button>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Week availability grid */}
+          {/* Week overview: bookings + remaining free time per day */}
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -439,22 +324,22 @@ export function AdminBabysittingView() {
                   </CardTitle>
                   <CardDescription className="mt-1">{t('babysitting.weekOverviewHint')}</CardDescription>
                 </div>
-                <div className="flex items-center gap-1 flex-wrap">
-                  <div className="flex rounded-lg border overflow-hidden mr-1">
+                <div className="flex flex-wrap items-center gap-1">
+                  <div className="mr-1 flex overflow-hidden rounded-lg border">
                     <button
                       type="button"
-                      onClick={() => setViewMode('grid')}
-                      className={`px-2.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1 ${
-                        viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                      onClick={() => setViewMode('list')}
+                      className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
                       }`}
                     >
-                      <LayoutGrid className="h-3.5 w-3.5" />
+                      <LayoutList className="h-3.5 w-3.5" />
                       {t('babysitting.viewGrid')}
                     </button>
                     <button
                       type="button"
                       onClick={() => setViewMode('calendar')}
-                      className={`px-2.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1 ${
+                      className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                         viewMode === 'calendar' ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
                       }`}
                     >
@@ -465,17 +350,17 @@ export function AdminBabysittingView() {
                   <Button
                     variant="outline"
                     size="icon-sm"
-                    onClick={() => setGridWeekStart(format(addWeeks(parseLocalDate(gridWeekStart), -1), 'yyyy-MM-dd'))}
+                    onClick={() => setWeekStart(format(addWeeks(parseLocalDate(weekStart), -1), 'yyyy-MM-dd'))}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => setGridWeekStart(getWeekStart(new Date()))}>
+                  <Button variant="outline" size="sm" onClick={() => setWeekStart(getWeekStart(new Date()))}>
                     {t('common.today')}
                   </Button>
                   <Button
                     variant="outline"
                     size="icon-sm"
-                    onClick={() => setGridWeekStart(format(addWeeks(parseLocalDate(gridWeekStart), 1), 'yyyy-MM-dd'))}
+                    onClick={() => setWeekStart(format(addWeeks(parseLocalDate(weekStart), 1), 'yyyy-MM-dd'))}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -485,197 +370,232 @@ export function AdminBabysittingView() {
             <CardContent>
               {viewMode === 'calendar' ? (
                 <AdminWeekCalendar
-                  weekStart={gridWeekStart}
-                  availability={gridAvailability || []}
+                  weekStart={weekStart}
+                  availability={weekAvailability || []}
                   requests={requests || []}
                   onPickSlot={openRequestForSlot}
                 />
-              ) : gridLoading ? (
+              ) : weekLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-separate border-spacing-0">
-                    <thead>
-                      <tr>
-                        <th className="text-left font-medium text-muted-foreground p-2 min-w-36" />
-                        {gridDates.map((date, dow) => (
-                          <th
-                            key={date}
-                            className={`text-center font-medium p-2 min-w-24 cursor-pointer hover:bg-accent rounded-t-lg ${
-                              date === todayStr ? 'text-primary' : 'text-muted-foreground'
-                            }`}
-                            onClick={() => setFinderDate(date)}
-                            title={t('babysitting.clickToSearch')}
-                          >
-                            <div>{DAYS_OF_WEEK_SHORT[dow]}</div>
-                            <div className={`text-xs ${date === todayStr ? 'font-bold' : 'font-normal'}`}>
-                              {format(parseLocalDate(date), 'MMM d')}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(gridAvailability || []).map((sitterAvailability, sitterIndex) => (
-                        <tr key={sitterAvailability.user.id} className="border-t">
-                          <td className="p-2 align-top">
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-8 w-8">
-                                <AvatarImage src={sitterAvailability.user.avatarUrl || undefined} />
-                                <AvatarFallback>{initials(sitterAvailability.user.fullName)}</AvatarFallback>
-                              </Avatar>
-                              <div className="min-w-0">
-                                <div className="font-medium truncate flex items-center gap-1.5">
-                                  <span
-                                    className="h-2 w-2 rounded-full shrink-0"
-                                    style={{ backgroundColor: SITTER_COLORS[sitterIndex % SITTER_COLORS.length] }}
-                                  />
-                                  {sitterAvailability.user.fullName}
-                                </div>
-                                <Badge
-                                  variant="secondary"
-                                  className={`text-[10px] px-1.5 py-0 ${
-                                    sitterAvailability.confirmed
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-gray-100 text-gray-600'
-                                  }`}
-                                >
-                                  {sitterAvailability.confirmed
-                                    ? t('babysitting.confirmedBadge')
-                                    : t('babysitting.usualBadge')}
-                                </Badge>
-                              </div>
-                            </div>
-                          </td>
-                          {gridDates.map((date, dow) => {
-                            const ranges = sitterAvailability.days[dow] || [];
-                            return (
-                              <td
-                                key={date}
-                                className={`p-1.5 align-top text-center cursor-pointer hover:bg-accent/50 ${
-                                  date === todayStr ? 'bg-primary/5' : ''
-                                }`}
-                                onClick={() => setFinderDate(date)}
-                              >
-                                {ranges.length === 0 ? (
-                                  <span className="text-muted-foreground/40">&mdash;</span>
-                                ) : (
-                                  <div className="space-y-1">
-                                    {ranges.map((range, i) => (
-                                      <button
-                                        key={i}
-                                        type="button"
-                                        disabled={gridShiftsLoading}
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          openRequestForSlot(
-                                            sitterAvailability.user,
-                                            date,
-                                            range.startTime,
-                                            range.endTime
-                                          );
-                                        }}
-                                        title={t('babysitting.clickToRequest', { name: sitterAvailability.user.fullName })}
-                                        className={`w-full text-xs rounded-md px-1.5 py-1 whitespace-nowrap transition-colors disabled:cursor-wait ${
-                                          sitterAvailability.confirmed
-                                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                      >
-                                        {compactTime(range.startTime)} - {compactTime(range.endTime)}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <AdminWeekOverview
+                  weekStart={weekStart}
+                  availability={weekAvailability || []}
+                  shifts={weekShifts}
+                  shiftsLoading={weekShiftsLoading}
+                  requests={requests || []}
+                  onBookSlot={openRequestForSlot}
+                  onCancelBooking={setCancelDialog}
+                />
               )}
             </CardContent>
           </Card>
 
-          {/* Requests */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Send className="h-5 w-5" />
-                {t('babysitting.requests')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {requestsLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+            {/* Find a babysitter for a specific time */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5" />
+                  {t('babysitting.findHelp')}
+                </CardTitle>
+                <CardDescription>{t('babysitting.findHelpHint')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="finder-date">{t('common.date')}</Label>
+                    <Input
+                      id="finder-date"
+                      type="date"
+                      value={finderDate}
+                      onChange={(e) => e.target.value && setFinderDate(e.target.value)}
+                      className="h-11 w-40 sm:h-10"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="finder-start">{t('babysitting.from')}</Label>
+                    <Input
+                      id="finder-start"
+                      type="time"
+                      value={finderStart}
+                      onChange={(e) => setFinderStart(e.target.value)}
+                      className="h-11 w-28 tabular-nums sm:h-10 [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="finder-end">{t('babysitting.to')}</Label>
+                    <Input
+                      id="finder-end"
+                      type="time"
+                      value={finderEnd}
+                      onChange={(e) => setFinderEnd(e.target.value)}
+                      className="h-11 w-28 tabular-nums sm:h-10 [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                  </div>
+                  <div className="pb-2 text-sm text-muted-foreground">
+                    {format(parseLocalDate(finderDate), 'EEEE, MMM d')}
+                  </div>
                 </div>
-              ) : displayedRequests.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('babysitting.noRequests')}</p>
-              ) : (
-                <>
-                  {displayedRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="flex flex-wrap items-center justify-between gap-3 bg-accent/50 rounded-lg px-4 py-2.5"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={request.babysitter?.avatarUrl || undefined} />
-                          <AvatarFallback>{initials(request.babysitter?.fullName || '?')}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium text-sm">
-                            {request.babysitter?.fullName}
-                            <span className="text-muted-foreground font-normal">
-                              {' '}&middot; {format(parseLocalDate(request.requestDate), 'EEE, MMM d')}{' '}
-                              &middot; {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
-                            </span>
+
+                {!queryValid ? (
+                  <p className="text-sm text-muted-foreground">{t('babysitting.enterValidTimes')}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {finderResults.map((result) => (
+                      <div
+                        key={result.user.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-accent/50 px-3 py-2.5"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={result.user.avatarUrl || undefined} />
+                            <AvatarFallback>{initials(result.user.fullName)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                              {result.user.fullName}
+                              {result.status === 'available' && (
+                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  {t('babysitting.available')}
+                                </Badge>
+                              )}
+                              {result.status === 'partial' && (
+                                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+                                  <CircleDot className="h-3 w-3 mr-1" />
+                                  {t('babysitting.partiallyAvailable')}
+                                </Badge>
+                              )}
+                              {result.status === 'unavailable' && (
+                                <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+                                  <CircleSlash className="h-3 w-3 mr-1" />
+                                  {t('babysitting.unavailable')}
+                                </Badge>
+                              )}
+                              {!result.confirmed && result.status !== 'unavailable' && (
+                                <span className="text-xs text-muted-foreground">({t('babysitting.usingUsual')})</span>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {result.ranges.length > 0
+                                ? result.ranges.map((r) => `${formatTimeCompact(r.startTime)} - ${formatTimeCompact(r.endTime)}`).join(', ')
+                                : t('babysitting.notAvailable')}
+                            </div>
+                            {result.conflicts.length > 0 && (
+                              <div className="mt-0.5 text-xs text-red-600">
+                                <CalendarClock className="mr-1 inline h-3 w-3" />
+                                {t('babysitting.alreadyScheduled', {
+                                  time: result.conflicts.map((c) => `${formatTimeCompact(c.startTime)} - ${formatTimeCompact(c.endTime)}`).join(', '),
+                                })}
+                              </div>
+                            )}
                           </div>
-                          {request.note && (
-                            <div className="text-xs text-muted-foreground italic">&ldquo;{request.note}&rdquo;</div>
+                        </div>
+                        <div>
+                          {result.existingRequest ? (
+                            <Badge variant="secondary" className={STATUS_BADGES[result.existingRequest.status]}>
+                              {t(`babysitting.status_${result.existingRequest.status}`)}
+                            </Badge>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="h-9"
+                              disabled={result.status === 'unavailable' || result.conflicts.length > 0}
+                              onClick={() => setRequestDialog({ user: result.user })}
+                            >
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              {t('babysitting.sendRequest')}
+                            </Button>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className={STATUS_BADGES[request.status]}>
-                          {t(`babysitting.status_${request.status}`)}
-                        </Badge>
-                        {request.status === 'pending' && (
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Confirmed upcoming babysitting + history */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CalendarCheck className="h-5 w-5" />
+                  {t('babysitting.upcomingSchedule')}
+                  {upcomingBookings.length > 0 && (
+                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+                      {upcomingBookings.length}
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>{t('babysitting.upcomingBookingsHint')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {requestsLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <>
+                    {upcomingBookings.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">{t('babysitting.noUpcomingShifts')}</p>
+                    ) : (
+                      upcomingBookings.map((request) => (
+                        <div
+                          key={request.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50/60 px-3 py-2"
+                        >
+                          <RequestSummary request={request} />
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-muted-foreground hover:text-destructive"
-                            disabled={respond.isPending}
-                            onClick={() => respond.mutate({ id: request.id, action: 'cancel' })}
-                          >
-                            <XCircle className="h-3.5 w-3.5 mr-1" />
-                            {t('common.cancel')}
-                          </Button>
-                        )}
-                        {request.status === 'accepted' && request.requestDate >= todayStr && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-destructive"
+                            className="h-9 text-muted-foreground hover:text-destructive"
                             disabled={respond.isPending}
                             onClick={() => setCancelDialog(request)}
                           >
                             <XCircle className="h-3.5 w-3.5 mr-1" />
                             {t('babysitting.cancelShift')}
                           </Button>
+                        </div>
+                      ))
+                    )}
+
+                    {historyRequests.length > 0 && (
+                      <div className="pt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-9 px-2 text-muted-foreground"
+                          onClick={() => setShowHistory((v) => !v)}
+                        >
+                          <History className="h-3.5 w-3.5 mr-1" />
+                          {showHistory ? t('babysitting.hideHistory') : t('babysitting.showHistory')}
+                          {!showHistory && <span className="ml-1">({historyRequests.length})</span>}
+                        </Button>
+                        {showHistory && (
+                          <div className="mt-2 space-y-2">
+                            {historyRequests.map((request) => (
+                              <div
+                                key={request.id}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent/40 px-3 py-2"
+                              >
+                                <RequestSummary request={request} />
+                                <Badge variant="secondary" className={STATUS_BADGES[request.status]}>
+                                  {t(`babysitting.status_${request.status}`)}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
-                </>
-              )}
-            </CardContent>
-          </Card>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
 
@@ -696,8 +616,8 @@ export function AdminBabysittingView() {
             </DialogTitle>
             <DialogDescription>
               {format(parseLocalDate(finderDate), 'EEEE, MMM d')}
-              {queryStart && queryEnd && (
-                <> &middot; {formatTime12h(queryStart)} - {formatTime12h(queryEnd)}</>
+              {queryValid && (
+                <> &middot; {formatTime12h(finderStart)} - {formatTime12h(finderEnd)}</>
               )}
             </DialogDescription>
           </DialogHeader>

@@ -801,7 +801,7 @@
     "noteLabel": "Note (optional)",
     "notePlaceholder": "e.g. Date night - please arrive 15 minutes early",
     "weekOverview": "Week at a Glance",
-    "weekOverviewHint": "Everyone's availability this week. Click an available time to request that babysitter.",
+    "weekOverviewHint": "Each day shows what's booked, what's waiting for a reply, and the time each babysitter still has free. Tap an open time to book it.",
     "clickToSearch": "Click to check this day",
     "clickToRequest": "Request {name} for this time",
     "confirmedBadge": "Confirmed",
@@ -809,10 +809,18 @@
     "noRequests": "No requests yet",
     "accessRestrictedTitle": "Access Restricted",
     "accessRestricted": "This page is only for administrators and babysitters.",
-    "viewGrid": "Grid",
+    "viewGrid": "List",
     "viewCalendar": "Calendar",
     "calendarHint": "Gray blocks are actual work shifts (all employees). Colored blocks are babysitter availability - dashed means their usual pattern, not yet confirmed for this week. Dashed yellow blocks are proposed requests awaiting a reply. Click a name to show or hide someone; click an availability block to send that babysitter a request.",
     "togglePersonHint": "Click to show or hide",
-    "proposed": "Proposed"
+    "proposed": "Proposed",
+    "booked": "Booked",
+    "working": "Working",
+    "tapToBook": "Free - tap to book",
+    "nobodyAvailable": "No one available",
+    "awaitingReply": "Waiting for a reply",
+    "upcomingBookingsHint": "Confirmed babysitting that's on the calendar",
+    "showHistory": "Show history",
+    "hideHistory": "Hide history"
   }
 }

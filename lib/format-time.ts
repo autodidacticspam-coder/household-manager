@@ -11,6 +11,16 @@ export function formatTime12h(time: string | null | undefined): string {
 }
 
 /**
+ * Compact 12-hour label: "9 AM" for on-the-hour times, "9:30 AM" otherwise
+ */
+export function formatTimeCompact(time: string): string {
+  const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const h12 = hours % 12 || 12;
+  return minutes === 0 ? `${h12} ${period}` : `${h12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
+/**
  * Converts 12-hour time (h:mm AM/PM) to 24-hour format (HH:mm)
  * Handles edge cases like missing minutes (e.g., "9 AM" → "09:00")
  * Returns null if input is invalid

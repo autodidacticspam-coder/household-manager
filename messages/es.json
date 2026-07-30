@@ -801,7 +801,7 @@
     "noteLabel": "Nota (opcional)",
     "notePlaceholder": "p. ej. Cena fuera: por favor llega 15 minutos antes",
     "weekOverview": "Resumen semanal",
-    "weekOverviewHint": "La disponibilidad de todas esta semana. Haz clic en un horario disponible para solicitar a esa niñera.",
+    "weekOverviewHint": "Cada día muestra lo que está reservado, lo que espera respuesta y el tiempo libre de cada niñera. Toca un horario libre para reservarlo.",
     "clickToSearch": "Haz clic para consultar este día",
     "clickToRequest": "Solicitar a {name} para este horario",
     "confirmedBadge": "Confirmada",
@@ -809,10 +809,18 @@
     "noRequests": "Aún no hay solicitudes",
     "accessRestrictedTitle": "Acceso restringido",
     "accessRestricted": "Esta página es solo para administradores y niñeras.",
-    "viewGrid": "Tabla",
+    "viewGrid": "Lista",
     "viewCalendar": "Calendario",
     "calendarHint": "Los bloques grises son turnos de trabajo reales (todos los empleados). Los bloques de color son la disponibilidad de las niñeras: con línea discontinua es su patrón habitual, aún sin confirmar esta semana. Los bloques amarillos discontinuos son solicitudes propuestas en espera de respuesta. Haz clic en un nombre para mostrar u ocultar a alguien; haz clic en un bloque de disponibilidad para enviarle una solicitud.",
     "togglePersonHint": "Haz clic para mostrar u ocultar",
-    "proposed": "Propuesta"
+    "proposed": "Propuesta",
+    "booked": "Reservado",
+    "working": "Trabajando",
+    "tapToBook": "Libre - toca para reservar",
+    "nobodyAvailable": "Nadie disponible",
+    "awaitingReply": "Esperando respuesta",
+    "upcomingBookingsHint": "Cuidados confirmados que ya están en el calendario",
+    "showHistory": "Ver historial",
+    "hideHistory": "Ocultar historial"
   }
 }
