@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -474,6 +474,32 @@ export function useBookingRequests() {
   });
 }
 
+export type BookingLogFilter = 'all' | BookingRequestStatus;
+
+// Paged log of every booking request ever made, newest first.
+// RLS scopes rows the same way as useBookingRequests (admins see all).
+export function useBookingRequestLog(status: BookingLogFilter, limit: number) {
+  const supabase = createClient();
+
+  return useQuery({
+    queryKey: ['bs-booking-log', status, limit],
+    queryFn: async (): Promise<{ requests: BookingRequest[]; total: number }> => {
+      let query = supabase
+        .from('babysitter_booking_requests')
+        .select('*, babysitter:users!babysitter_booking_requests_babysitter_id_fkey(id, full_name, avatar_url)', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1);
+      if (status !== 'all') {
+        query = query.eq('status', status);
+      }
+      const { data, error, count } = await query;
+      if (error) throw error;
+      return { requests: (data || []).map(transformBookingRequest), total: count ?? 0 };
+    },
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useCreateBookingRequest() {
   const queryClient = useQueryClient();
   const t = useTranslations();
@@ -499,6 +525,7 @@ export function useCreateBookingRequest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bs-booking-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['bs-booking-log'] });
       toast.success(t('babysitting.requestSent'));
     },
     onError: (error) => {
@@ -527,6 +554,7 @@ export function useRespondBookingRequest() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['bs-booking-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['bs-booking-log'] });
       queryClient.invalidateQueries({ queryKey: ['bs-shifts'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });

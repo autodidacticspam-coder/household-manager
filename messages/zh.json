@@ -820,7 +820,11 @@
     "nobodyAvailable": "无人有空",
     "awaitingReply": "等待回复",
     "upcomingBookingsHint": "已确认并列入日程的保姆班次",
-    "showHistory": "显示历史记录",
-    "hideHistory": "隐藏历史记录"
+    "requestLog": "请求记录",
+    "requestLogHint": "所有已发送的请求及其回复结果",
+    "asked": "发送于 {date}",
+    "replied": "回复于 {date}",
+    "noReplyYet": "尚未回复",
+    "showMore": "显示更多"
   }
 }

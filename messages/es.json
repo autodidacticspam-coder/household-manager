@@ -820,7 +820,11 @@
     "nobodyAvailable": "Nadie disponible",
     "awaitingReply": "Esperando respuesta",
     "upcomingBookingsHint": "Cuidados confirmados que ya están en el calendario",
-    "showHistory": "Ver historial",
-    "hideHistory": "Ocultar historial"
+    "requestLog": "Historial de solicitudes",
+    "requestLogHint": "Cada solicitud enviada y cómo se respondió",
+    "asked": "Enviada el {date}",
+    "replied": "Respondida el {date}",
+    "noReplyYet": "Aún sin respuesta",
+    "showMore": "Ver más"
   }
 }

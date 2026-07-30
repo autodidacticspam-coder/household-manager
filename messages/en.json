@@ -820,7 +820,11 @@
     "nobodyAvailable": "No one available",
     "awaitingReply": "Waiting for a reply",
     "upcomingBookingsHint": "Confirmed babysitting that's on the calendar",
-    "showHistory": "Show history",
-    "hideHistory": "Hide history"
+    "requestLog": "Request Log",
+    "requestLogHint": "Every request you've sent and how it was answered",
+    "asked": "Asked {date}",
+    "replied": "Replied {date}",
+    "noReplyYet": "No reply yet",
+    "showMore": "Show more"
   }
 }

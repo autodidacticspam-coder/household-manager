@@ -37,10 +37,11 @@ import {
   LayoutList,
   CalendarDays,
   Hourglass,
-  History,
 } from 'lucide-react';
 import { AdminWeekCalendar } from './admin-week-calendar';
 import { AdminWeekOverview } from './admin-week-overview';
+import { RequestLogCard } from './request-log';
+import { RequestSummary, STATUS_BADGES, initials } from './request-summary';
 import type { AvailabilityRange, BabysitterUser, BookingRequest } from '@/types';
 import {
   useBabysitters,
@@ -69,41 +70,7 @@ type FinderResult = {
   confirmed: boolean;
 };
 
-function initials(name: string): string {
-  return name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
-}
-
-const STATUS_BADGES: Record<string, string> = {
-  accepted: 'bg-green-100 text-green-700',
-  declined: 'bg-red-100 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-600',
-  pending: 'bg-amber-100 text-amber-700',
-};
-
 const TIME_RE = /^\d{2}:\d{2}$/;
-
-function RequestSummary({ request }: { request: BookingRequest }) {
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <Avatar className="h-8 w-8 shrink-0">
-        <AvatarImage src={request.babysitter?.avatarUrl || undefined} />
-        <AvatarFallback>{initials(request.babysitter?.fullName || '?')}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0">
-        <div className="text-sm font-medium">
-          {request.babysitter?.fullName}
-          <span className="font-normal text-muted-foreground">
-            {' '}&middot; {format(parseLocalDate(request.requestDate), 'EEE, MMM d')}{' '}
-            &middot; {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
-          </span>
-        </div>
-        {request.note && (
-          <div className="truncate text-xs italic text-muted-foreground">&ldquo;{request.note}&rdquo;</div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function AdminBabysittingView() {
   const t = useTranslations();
@@ -119,7 +86,6 @@ export function AdminBabysittingView() {
   const [requestDialog, setRequestDialog] = useState<{ user: BabysitterUser } | null>(null);
   const [requestNote, setRequestNote] = useState('');
   const [cancelDialog, setCancelDialog] = useState<BookingRequest | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
 
   const { data: sitters, isLoading: sittersLoading } = useBabysitters();
   const sitterIds = useMemo(() => (sitters || []).map((s) => s.id), [sitters]);
@@ -247,10 +213,6 @@ export function AdminBabysittingView() {
   const upcomingBookings = (requests || [])
     .filter((r) => r.status === 'accepted' && r.requestDate >= todayStr)
     .sort((a, b) => a.requestDate.localeCompare(b.requestDate) || a.startTime.localeCompare(b.startTime));
-  const upcomingIds = new Set(upcomingBookings.map((r) => r.id));
-  const historyRequests = (requests || [])
-    .filter((r) => r.status !== 'pending' && !upcomingIds.has(r.id))
-    .slice(0, 10);
 
   if (sittersLoading) {
     return (
@@ -561,41 +523,14 @@ export function AdminBabysittingView() {
                         </div>
                       ))
                     )}
-
-                    {historyRequests.length > 0 && (
-                      <div className="pt-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-9 px-2 text-muted-foreground"
-                          onClick={() => setShowHistory((v) => !v)}
-                        >
-                          <History className="h-3.5 w-3.5 mr-1" />
-                          {showHistory ? t('babysitting.hideHistory') : t('babysitting.showHistory')}
-                          {!showHistory && <span className="ml-1">({historyRequests.length})</span>}
-                        </Button>
-                        {showHistory && (
-                          <div className="mt-2 space-y-2">
-                            {historyRequests.map((request) => (
-                              <div
-                                key={request.id}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent/40 px-3 py-2"
-                              >
-                                <RequestSummary request={request} />
-                                <Badge variant="secondary" className={STATUS_BADGES[request.status]}>
-                                  {t(`babysitting.status_${request.status}`)}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </>
                 )}
               </CardContent>
             </Card>
           </div>
+
+          {/* Full log of every request and its outcome */}
+          <RequestLogCard />
         </>
       )}
 
