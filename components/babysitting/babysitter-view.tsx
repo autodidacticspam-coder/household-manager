@@ -70,7 +70,7 @@ function RequestCard({ request, onRespond, isPending }: {
 }) {
   const t = useTranslations();
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-accent/50 rounded-lg px-4 py-3">
+    <div className="flex flex-col gap-3 rounded-lg bg-accent/50 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div>
         <div className="font-medium text-sm">
           {formatDateLabel(request.requestDate)}
@@ -85,7 +85,7 @@ function RequestCard({ request, onRespond, isPending }: {
       <div className="flex gap-2">
         <Button
           size="sm"
-          className="bg-green-600 hover:bg-green-700"
+          className="h-10 flex-1 bg-green-600 hover:bg-green-700 sm:h-8 sm:flex-none"
           disabled={isPending}
           onClick={() => onRespond(request.id, 'accept')}
         >
@@ -95,6 +95,7 @@ function RequestCard({ request, onRespond, isPending }: {
         <Button
           size="sm"
           variant="outline"
+          className="h-10 flex-1 sm:h-8 sm:flex-none"
           disabled={isPending}
           onClick={() => onRespond(request.id, 'decline')}
         >
@@ -331,8 +332,8 @@ export function BabysitterView() {
           {weekStarts.map((weekStart, i) => {
             const confirmed = (weekData?.weeks || []).some((w) => w.weekStart === weekStart);
             return (
-              <div key={weekStart} className="flex flex-wrap items-center justify-between gap-2 bg-accent/50 rounded-lg px-4 py-3">
-                <div className="flex items-center gap-2">
+              <div key={weekStart} className="space-y-2.5 rounded-lg bg-accent/50 px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-sm">{weekLabel(weekStart)}</span>
                   {i === 0 && <Badge variant="secondary">{t('common.thisWeek')}</Badge>}
                   <Badge
@@ -342,8 +343,13 @@ export function BabysitterView() {
                     {confirmed ? t('babysitting.customized') : t('babysitting.usingUsual')}
                   </Badge>
                 </div>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => openWeekDialog(weekStart)}>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex-1 sm:flex-none"
+                    onClick={() => openWeekDialog(weekStart)}
+                  >
                     <Pencil className="h-3.5 w-3.5 mr-1" />
                     {t('babysitting.adjust')}
                   </Button>
@@ -351,7 +357,7 @@ export function BabysitterView() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-muted-foreground"
+                      className="h-9 flex-1 text-muted-foreground sm:flex-none"
                       disabled={resetWeek.isPending}
                       onClick={() => resetWeek.mutate({ userId: userId!, weekStart })}
                     >
@@ -383,34 +389,52 @@ export function BabysitterView() {
               dayLabels={DAYS_OF_WEEK}
             />
           )}
-          <Button onClick={handleSaveTemplate} disabled={saveTemplate.isPending}>
+          <Button
+            className="h-11 w-full sm:h-10 sm:w-auto"
+            onClick={handleSaveTemplate}
+            disabled={saveTemplate.isPending}
+          >
             {saveTemplate.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {t('common.save')}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Adjust-week dialog */}
+      {/* Adjust-week dialog: full-screen on phones, centered modal on larger screens */}
       <Dialog open={!!weekDialog} onOpenChange={(open) => !open && setWeekDialog(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent
+          showCloseButton={false}
+          aria-describedby={undefined}
+          className="flex flex-col gap-0 overflow-hidden p-0 max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:w-full max-sm:max-w-full max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:border-0 sm:max-h-[85vh] sm:max-w-2xl"
+        >
+          <DialogHeader className="border-b px-4 py-3 text-left max-sm:pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:py-4">
             <DialogTitle>
               {weekDialog && t('babysitting.adjustWeekTitle', { week: weekLabel(weekDialog.weekStart) })}
             </DialogTitle>
           </DialogHeader>
-          {weekDialog && (
-            <AvailabilityEditor
-              value={weekDialog.edit}
-              onChange={(edit) => setWeekDialog({ ...weekDialog, edit })}
-              dayLabels={DAYS_OF_WEEK}
-              daySublabels={getWeekDates(weekDialog.weekStart).map((d) => format(parseLocalDate(d), 'MMM d'))}
-            />
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setWeekDialog(null)}>
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            {weekDialog && (
+              <AvailabilityEditor
+                value={weekDialog.edit}
+                onChange={(edit) => setWeekDialog({ ...weekDialog, edit })}
+                dayLabels={DAYS_OF_WEEK}
+                daySublabels={getWeekDates(weekDialog.weekStart).map((d) => format(parseLocalDate(d), 'MMM d'))}
+              />
+            )}
+          </div>
+          <DialogFooter className="flex-row gap-2 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+            <Button
+              variant="outline"
+              className="h-11 flex-1 sm:h-10 sm:flex-none"
+              onClick={() => setWeekDialog(null)}
+            >
               {t('common.cancel')}
             </Button>
-            <Button onClick={handleSaveWeek} disabled={saveWeek.isPending}>
+            <Button
+              className="h-11 flex-1 sm:h-10 sm:flex-none"
+              onClick={handleSaveWeek}
+              disabled={saveWeek.isPending}
+            >
               {saveWeek.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {t('common.save')}
             </Button>

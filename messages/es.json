@@ -777,6 +777,7 @@
     "copyWeekdays": "Entre semana (lun-vie)",
     "copyWeekend": "Fin de semana (sáb-dom)",
     "invalidTimes": "Revisa los horarios: cada rango necesita un inicio y un fin válidos, y el fin debe ser después del inicio",
+    "endAfterStart": "La hora de fin debe ser después de la hora de inicio",
     "requestSent": "Solicitud enviada",
     "requestAccepted": "Solicitud aceptada: el turno está en tu calendario",
     "requestDeclined": "Solicitud rechazada",

@@ -777,6 +777,7 @@
     "copyWeekdays": "Weekdays (Mon-Fri)",
     "copyWeekend": "Weekend (Sat-Sun)",
     "invalidTimes": "Please check the times - each range needs a valid start and end, with the end after the start",
+    "endAfterStart": "End time must be after the start time",
     "requestSent": "Request sent",
     "requestAccepted": "Request accepted - the shift is on your schedule",
     "requestDeclined": "Request declined",

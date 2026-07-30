@@ -38,7 +38,7 @@
 - Database migrations are in `supabase/migrations/` (apply manually via Supabase dashboard)
 
 ## Conventions
-- Use 12-hour time format with AM/PM toggle buttons
+- Use 12-hour time format with AM/PM toggle buttons; on mobile-first views (e.g. babysitter availability) prefer native `<input type="time">` pickers, which show 12-hour AM/PM per device locale
 - Always add translations to all three language files (en.json, es.json, zh.json)
 - Use server actions in `app/(admin)/*/actions.ts` for mutations
 - Use hooks in `hooks/use-*.ts` for data fetching and mutations

@@ -11,14 +11,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Plus, Trash2, Copy } from 'lucide-react';
-import { formatTime24h, formatTimeInput } from '@/lib/format-time';
 import type { AvailabilityRange } from '@/types';
 
+// Times are 24h "HH:mm" strings, matching native <input type="time"> values.
+// Phones open their built-in time picker for these, which shows 12h AM/PM
+// (or whatever the device is set to) without needing separate toggles.
 export type EditableRange = {
   start: string;
-  startAmPm: 'AM' | 'PM';
   end: string;
-  endAmPm: 'AM' | 'PM';
 };
 
 // Ranges being edited, keyed by day of week (0 = Sunday .. 6 = Saturday)
@@ -29,49 +29,41 @@ export function emptyWeek(): EditableWeek {
 }
 
 export function defaultRange(): EditableRange {
-  return { start: '9:00', startAmPm: 'AM', end: '5:00', endAmPm: 'PM' };
+  return { start: '09:00', end: '17:00' };
 }
 
-// Convert a stored 24h range to editor fields
+// Convert a stored range ("HH:mm" or "HH:mm:ss") to editor fields
 export function rangeToEditable(range: AvailabilityRange): EditableRange {
-  const to12 = (time: string): { value: string; amPm: 'AM' | 'PM' } => {
-    const [hours, minutes] = time.slice(0, 5).split(':').map(Number);
-    return {
-      value: `${hours % 12 || 12}:${minutes.toString().padStart(2, '0')}`,
-      amPm: hours >= 12 ? 'PM' : 'AM',
-    };
-  };
-  const start = to12(range.startTime);
-  const end = to12(range.endTime);
-  return { start: start.value, startAmPm: start.amPm, end: end.value, endAmPm: end.amPm };
+  return { start: range.startTime.slice(0, 5), end: range.endTime.slice(0, 5) };
 }
 
-// Convert editor fields back to a 24h range; null if invalid or end <= start
+// Convert editor fields back to a range; null if incomplete or end <= start
 export function editableToRange(range: EditableRange): AvailabilityRange | null {
-  const startTime = formatTime24h(`${range.start} ${range.startAmPm}`);
-  const endTime = formatTime24h(`${range.end} ${range.endAmPm}`);
-  if (!startTime || !endTime || endTime <= startTime) return null;
-  return { startTime, endTime };
+  if (!/^\d{2}:\d{2}$/.test(range.start) || !/^\d{2}:\d{2}$/.test(range.end)) return null;
+  if (range.end <= range.start) return null;
+  return { startTime: range.start, endTime: range.end };
 }
 
-function AmPmToggle({ value, onChange }: { value: 'AM' | 'PM'; onChange: (v: 'AM' | 'PM') => void }) {
+function TimeField({
+  value,
+  onChange,
+  invalid,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  invalid?: boolean;
+  label: string;
+}) {
   return (
-    <div className="flex rounded-lg border overflow-hidden shrink-0">
-      {(['AM', 'PM'] as const).map((period) => (
-        <button
-          key={period}
-          type="button"
-          onClick={() => onChange(period)}
-          className={`px-2 py-1 text-xs font-semibold transition-colors ${
-            value === period
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-background hover:bg-muted'
-          }`}
-        >
-          {period}
-        </button>
-      ))}
-    </div>
+    <Input
+      type="time"
+      value={value}
+      aria-label={label}
+      aria-invalid={invalid || undefined}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-11 min-w-0 flex-1 px-2 text-center tabular-nums sm:h-10 sm:max-w-36 [&::-webkit-date-and-time-value]:text-center [&::-webkit-calendar-picker-indicator]:hidden sm:[&::-webkit-calendar-picker-indicator]:inline-block"
+    />
   );
 }
 
@@ -100,117 +92,109 @@ export function AvailabilityEditor({ value, onChange, dayLabels, daySublabels }:
   };
 
   return (
-    <div className="space-y-3">
+    <div>
       {[0, 1, 2, 3, 4, 5, 6].map((day) => {
         const ranges = value[day] || [];
         const enabled = ranges.length > 0;
 
         return (
-          <div key={day} className="flex items-start gap-3 border-b border-border/50 pb-3 last:border-b-0 last:pb-0">
-            <div className="flex items-center gap-2 w-32 shrink-0 pt-1.5">
-              <Switch
-                checked={enabled}
-                onCheckedChange={(checked) => setDay(day, checked ? [defaultRange()] : [])}
-              />
-              <div className="min-w-0">
-                <div className="font-medium text-sm">{dayLabels[day]}</div>
-                {daySublabels && (
-                  <div className="text-xs text-muted-foreground">{daySublabels[day]}</div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex-1 min-w-0">
-              {!enabled ? (
-                <div className="text-sm text-muted-foreground pt-1.5">{t('babysitting.notAvailable')}</div>
-              ) : (
-                <div className="space-y-2">
-                  {ranges.map((range, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-2">
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={range.start}
-                        onChange={(e) => {
-                          const next = [...ranges];
-                          next[i] = { ...range, start: formatTimeInput(e.target.value, range.start) };
-                          setDay(day, next);
-                        }}
-                        className="w-16 h-8"
-                        placeholder="9:00"
-                      />
-                      <AmPmToggle
-                        value={range.startAmPm}
-                        onChange={(amPm) => {
-                          const next = [...ranges];
-                          next[i] = { ...range, startAmPm: amPm };
-                          setDay(day, next);
-                        }}
-                      />
-                      <span className="text-muted-foreground text-sm">-</span>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        value={range.end}
-                        onChange={(e) => {
-                          const next = [...ranges];
-                          next[i] = { ...range, end: formatTimeInput(e.target.value, range.end) };
-                          setDay(day, next);
-                        }}
-                        className="w-16 h-8"
-                        placeholder="5:00"
-                      />
-                      <AmPmToggle
-                        value={range.endAmPm}
-                        onChange={(amPm) => {
-                          const next = [...ranges];
-                          next[i] = { ...range, endAmPm: amPm };
-                          setDay(day, next);
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => setDay(day, ranges.filter((_, j) => j !== i))}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground h-7 px-2"
-                      onClick={() => setDay(day, [...ranges, defaultRange()])}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      {t('babysitting.addTime')}
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground h-7 px-2">
-                          <Copy className="h-3.5 w-3.5 mr-1" />
-                          {t('babysitting.copyTo')}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        <DropdownMenuItem onClick={() => copyDayTo(day, [0, 1, 2, 3, 4, 5, 6])}>
-                          {t('babysitting.copyAllDays')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => copyDayTo(day, [1, 2, 3, 4, 5])}>
-                          {t('babysitting.copyWeekdays')}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => copyDayTo(day, [0, 6])}>
-                          {t('babysitting.copyWeekend')}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
+          <div key={day} className="border-b border-border/50 py-3 first:pt-0 last:border-b-0 last:pb-0">
+            {/* Day header: the whole label is the tap target for the switch */}
+            <div className="flex min-h-9 items-center justify-between gap-3">
+              <label className="-my-1 flex cursor-pointer select-none items-center gap-3 py-2 pr-2">
+                <Switch
+                  checked={enabled}
+                  onCheckedChange={(checked) => setDay(day, checked ? [defaultRange()] : [])}
+                />
+                <span className="text-sm font-medium">
+                  {dayLabels[day]}
+                  {daySublabels && (
+                    <span className="ml-1.5 font-normal text-muted-foreground">{daySublabels[day]}</span>
+                  )}
+                </span>
+              </label>
+              {!enabled && (
+                <span className="text-sm text-muted-foreground">{t('babysitting.notAvailable')}</span>
               )}
             </div>
+
+            {enabled && (
+              <div className="mt-2 space-y-2">
+                {ranges.map((range, i) => {
+                  const invalid = !editableToRange(range);
+                  const bothFilled = range.start !== '' && range.end !== '';
+                  return (
+                    <div key={i}>
+                      <div className="flex items-center gap-2">
+                        <TimeField
+                          value={range.start}
+                          invalid={invalid}
+                          label={t('babysitting.from')}
+                          onChange={(start) => {
+                            const next = [...ranges];
+                            next[i] = { ...range, start };
+                            setDay(day, next);
+                          }}
+                        />
+                        <span className="shrink-0 text-muted-foreground">&ndash;</span>
+                        <TimeField
+                          value={range.end}
+                          invalid={invalid}
+                          label={t('babysitting.to')}
+                          onChange={(end) => {
+                            const next = [...ranges];
+                            next[i] = { ...range, end };
+                            setDay(day, next);
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                          aria-label={t('common.delete')}
+                          onClick={() => setDay(day, ranges.filter((_, j) => j !== i))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {invalid && bothFilled && (
+                        <p className="mt-1 text-xs text-destructive">{t('babysitting.endAfterStart')}</p>
+                      )}
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-2 pt-0.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-2.5 text-muted-foreground"
+                    onClick={() => setDay(day, [...ranges, defaultRange()])}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {t('babysitting.addTime')}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-9 px-2.5 text-muted-foreground">
+                        <Copy className="h-4 w-4" />
+                        {t('babysitting.copyTo')}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => copyDayTo(day, [0, 1, 2, 3, 4, 5, 6])}>
+                        {t('babysitting.copyAllDays')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => copyDayTo(day, [1, 2, 3, 4, 5])}>
+                        {t('babysitting.copyWeekdays')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => copyDayTo(day, [0, 6])}>
+                        {t('babysitting.copyWeekend')}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            )}
           </div>
         );
       })}

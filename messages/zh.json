@@ -777,6 +777,7 @@
     "copyWeekdays": "工作日（周一至周五）",
     "copyWeekend": "周末（周六、周日）",
     "invalidTimes": "请检查时间：每个时间段需要有效的开始和结束时间，且结束时间必须晚于开始时间",
+    "endAfterStart": "结束时间必须晚于开始时间",
     "requestSent": "请求已发送",
     "requestAccepted": "已接受请求，排班已加入你的日程",
     "requestDeclined": "已拒绝请求",
