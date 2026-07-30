@@ -556,6 +556,9 @@ export function useRespondBookingRequest() {
       queryClient.invalidateQueries({ queryKey: ['bs-booking-requests'] });
       queryClient.invalidateQueries({ queryKey: ['bs-booking-log'] });
       queryClient.invalidateQueries({ queryKey: ['bs-shifts'] });
+      // Declining removes the declined window from that week's availability
+      queryClient.invalidateQueries({ queryKey: ['bs-availability-weeks'] });
+      queryClient.invalidateQueries({ queryKey: ['bs-admin-availability'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       queryClient.invalidateQueries({ queryKey: ['one-off-schedules'] });
       if (variables.action === 'accept') {
