@@ -826,5 +826,12 @@
     "replied": "Replied {date}",
     "noReplyYet": "No reply yet",
     "showMore": "Show more"
+  },
+  "textSize": {
+    "title": "Text Size",
+    "hint": "Make everything bigger on phone screens. Saved on this device only - it won't change anyone else's phone.",
+    "normal": "Normal",
+    "large": "Large",
+    "extraLarge": "Extra large"
   }
 }

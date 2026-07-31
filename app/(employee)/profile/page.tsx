@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/date-utils';
 import Link from 'next/link';
 import { getProfile } from './actions';
+import { TextSizeCard } from '@/components/shared/text-size-picker';
 
 type ProfileData = {
   id: string;
@@ -186,6 +187,8 @@ export default function ProfilePage() {
           )}
         </CardContent>
       </Card>
+
+      <TextSizeCard />
     </div>
   );
 }

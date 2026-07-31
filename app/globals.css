@@ -157,3 +157,14 @@
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: none;
 }
+
+/* Device text-size preference (Text Size picker on Profile/Settings).
+   Scales all rem-based sizing on phones only; stored in localStorage. */
+@media (max-width: 767px) {
+  html[data-text-scale="lg"] {
+    font-size: 20px;
+  }
+  html[data-text-scale="xl"] {
+    font-size: 24px;
+  }
+}

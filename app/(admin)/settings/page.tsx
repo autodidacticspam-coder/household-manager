@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useTranslations } from 'next-intl';
+import { TextSizeCard } from '@/components/shared/text-size-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -243,6 +244,8 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+
+      <TextSizeCard />
     </div>
   );
 }

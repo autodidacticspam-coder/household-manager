@@ -118,7 +118,7 @@ export function BottomNav() {
               )}
             >
               {item.icon}
-              <span className="text-[10px] mt-0.5 font-medium">
+              <span className="text-[0.625rem] mt-0.5 font-medium">
                 {t(item.labelKey)}
               </span>
             </Link>

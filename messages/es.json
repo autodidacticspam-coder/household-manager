@@ -826,5 +826,12 @@
     "replied": "Respondida el {date}",
     "noReplyYet": "Aún sin respuesta",
     "showMore": "Ver más"
+  },
+  "textSize": {
+    "title": "Tamaño del texto",
+    "hint": "Agranda todo en pantallas de teléfono. Se guarda solo en este dispositivo; no cambia el teléfono de nadie más.",
+    "normal": "Normal",
+    "large": "Grande",
+    "extraLarge": "Muy grande"
   }
 }

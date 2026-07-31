@@ -62,7 +62,7 @@ function TimeField({
       aria-label={label}
       aria-invalid={invalid || undefined}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 min-w-0 flex-1 px-2 text-center tabular-nums sm:h-10 sm:max-w-36 [&::-webkit-date-and-time-value]:text-center [&::-webkit-calendar-picker-indicator]:hidden sm:[&::-webkit-calendar-picker-indicator]:inline-block"
+      className="h-11 min-w-[5.6em] flex-1 px-2 text-center tabular-nums sm:h-10 sm:max-w-36 [&::-webkit-date-and-time-value]:text-center [&::-webkit-calendar-picker-indicator]:hidden sm:[&::-webkit-calendar-picker-indicator]:inline-block"
     />
   );
 }
@@ -125,7 +125,9 @@ export function AvailabilityEditor({ value, onChange, dayLabels, daySublabels }:
                   const bothFilled = range.start !== '' && range.end !== '';
                   return (
                     <div key={i}>
-                      <div className="flex items-center gap-2">
+                      {/* flex-wrap + em min-widths: at large text-scale settings the
+                          end field wraps to its own line instead of clipping */}
+                      <div className="flex flex-wrap items-center gap-2">
                         <TimeField
                           value={range.start}
                           invalid={invalid}

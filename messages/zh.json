@@ -826,5 +826,12 @@
     "replied": "回复于 {date}",
     "noReplyYet": "尚未回复",
     "showMore": "显示更多"
+  },
+  "textSize": {
+    "title": "文字大小",
+    "hint": "在手机屏幕上放大所有内容。仅保存在本设备上，不会影响其他人的手机。",
+    "normal": "标准",
+    "large": "大",
+    "extraLarge": "特大"
   }
 }

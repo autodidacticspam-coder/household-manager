@@ -33,6 +33,13 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
+        {/* Apply the device text-size preference before first paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var s=localStorage.getItem('hm-text-scale');if(s==='lg'||s==='xl'){document.documentElement.setAttribute('data-text-scale',s);}}catch(e){}",
+          }}
+        />
         <NextIntlClientProvider messages={messages}>
           <Providers>{children}</Providers>
         </NextIntlClientProvider>
