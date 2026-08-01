@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -20,11 +20,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Trash2 } from 'lucide-react';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Tag, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
 import { useAllMenuRatings, useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
+import { MenuTagBadge } from '@/components/food/menu-tag-badge';
+import { MenuTagPicker } from '@/components/food/menu-tag-picker';
+import { buildDishTagLookup, useMenuTags, useSetDishTag, useTaggableMenuItems } from '@/hooks/use-menu-tags';
+import { normalizeMenuItemName } from '@/lib/menu-tags';
 import { useAuth } from '@/contexts/auth-context';
 import type { DayMeals, DayOfWeek } from '@/types';
 import { cn } from '@/lib/utils';
@@ -351,6 +355,22 @@ export default function MenuPage() {
     ) || [];
   };
 
+  // Food tags: match menu lines to catalog dishes by normalized name.
+  const { data: menuTags = [] } = useMenuTags({ enabled: canAccessRatings === true });
+  const { data: taggableItems } = useTaggableMenuItems({ enabled: canAccessRatings === true });
+  const setDishTag = useSetDishTag();
+  const dishLookup = useMemo(() => buildDishTagLookup(taggableItems), [taggableItems]);
+
+  const getDishTagInfo = (dishName: string) => {
+    const entry = dishLookup.get(normalizeMenuItemName(dishName));
+    const tagIds = new Set(entry?.tagIds || []);
+    return {
+      menuItemId: entry?.id || null,
+      tagIds: entry?.tagIds || [],
+      tags: menuTags.filter((tag) => tagIds.has(tag.id)),
+    };
+  };
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedMeals, setEditedMeals] = useState<DayMeals[]>([]);
   const [editedNotes, setEditedNotes] = useState<string>('');
@@ -613,6 +633,9 @@ export default function MenuPage() {
                                                    trimmedLine.toLowerCase().includes('kids');
                                 const itemRatings = getItemRatings(dayMeal.day, key, trimmedLine);
                                 const itemNotes = itemRatings.filter(rating => rating.comment?.trim());
+                                const dishTagInfo = canAccessRatings && trimmedLine && !isKidsLine
+                                  ? getDishTagInfo(trimmedLine)
+                                  : null;
 
                                 return (
                                   <div key={i} className="group">
@@ -648,7 +671,44 @@ export default function MenuPage() {
                                           <Send className="h-3.5 w-3.5" />
                                         </Button>
                                       )}
+                                      {/* Tag editor for admins only */}
+                                      {isAdmin && dishTagInfo && (
+                                        <MenuTagPicker
+                                          assignedTagIds={dishTagInfo.tagIds}
+                                          isSaving={setDishTag.isPending}
+                                          align="end"
+                                          onToggle={(tag, enabled) => {
+                                            setDishTag.mutate({
+                                              dishName: trimmedLine,
+                                              menuItemId: dishTagInfo.menuItemId,
+                                              tagId: tag.id,
+                                              enabled,
+                                            });
+                                          }}
+                                          trigger={
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className={cn(
+                                                "h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 touch-manipulation",
+                                                dishTagInfo.tags.length === 0 && "sm:opacity-0 sm:group-hover:opacity-100"
+                                              )}
+                                              title="Edit tags"
+                                            >
+                                              <Tag className="h-3.5 w-3.5" />
+                                            </Button>
+                                          }
+                                        />
+                                      )}
                                     </div>
+                                    {/* Tag badges (visible to admins and chefs) */}
+                                    {dishTagInfo && dishTagInfo.tags.length > 0 && (
+                                      <div className="ml-2 mt-0.5 flex flex-wrap gap-1">
+                                        {dishTagInfo.tags.map((tag) => (
+                                          <MenuTagBadge key={tag.id} tag={tag} size="sm" />
+                                        ))}
+                                      </div>
+                                    )}
                                     {canAccessRatings && itemNotes.length > 0 && (
                                       <div className="mt-1 ml-2 space-y-1">
                                         {itemNotes.map((rating) => (

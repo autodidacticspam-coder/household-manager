@@ -2,10 +2,13 @@
 
 import { useState, Suspense } from 'react';
 import { useTranslations } from 'next-intl';
+import { Tags } from 'lucide-react';
 import { TextSizeCard } from '@/components/shared/text-size-picker';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { ManageMenuTagsDialog } from '@/components/food/manage-menu-tags-dialog';
 import {
   Select,
   SelectContent,
@@ -20,6 +23,7 @@ import { GoogleCalendarSettings } from '@/components/google-calendar-settings';
 export default function SettingsPage() {
   const t = useTranslations();
   const { user, isLoading, updateUser, isUpdating } = useUser();
+  const [showManageFoodTags, setShowManageFoodTags] = useState(false);
 
   // Log redirect preference - use lazy initialization
   const [redirectAfterLog, setRedirectAfterLog] = useState(() => {
@@ -148,6 +152,28 @@ export default function SettingsPage() {
       }>
         <GoogleCalendarSettings />
       </Suspense>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Tags className="h-5 w-5" />
+            {t('foodTags.title')}
+          </CardTitle>
+          <CardDescription>
+            {t('foodTags.settingsDescription')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => setShowManageFoodTags(true)}>
+            <Tags className="h-4 w-4" />
+            {t('foodTags.manageTags')}
+          </Button>
+          <ManageMenuTagsDialog
+            open={showManageFoodTags}
+            onOpenChange={setShowManageFoodTags}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

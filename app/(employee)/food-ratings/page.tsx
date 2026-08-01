@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,24 @@ import { useMenuItemMerges } from '@/hooks/use-menu-item-merges';
 import { AdminMenuCatalog } from '@/components/food/admin-menu-catalog';
 import { FoodMergeReview } from '@/components/food/food-merge-review';
 import { FoodRequestInsights } from '@/components/food/food-request-insights';
+import { MenuTagBadge } from '@/components/food/menu-tag-badge';
+import { MenuTagFilter } from '@/components/food/menu-tag-filter';
+import { MenuTagPicker } from '@/components/food/menu-tag-picker';
+import {
+  buildDishTagLookup,
+  useMenuTags,
+  useSetDishTag,
+  useTaggableMenuItems,
+  type MenuTag,
+} from '@/hooks/use-menu-tags';
+import { normalizeMenuItemName } from '@/lib/menu-tags';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/auth-context';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,8 +84,13 @@ function getRatingColor(rating: number): string {
   return 'text-red-600';
 }
 
+type SummarySort = 'rating' | 'name' | 'count';
+
 export default function FoodRatingsPage() {
+  const tTags = useTranslations('foodTags');
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [summarySort, setSummarySort] = useState<SummarySort>('rating');
   const [activeTab, setActiveTab] = useState('summary');
   const [selectedDish, setSelectedDish] = useState<string | null>(null);
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -87,6 +111,32 @@ export default function FoodRatingsPage() {
   const canCreateRequests = isAdmin;
   const showRequestAnalysis = isAdmin;
 
+  // Tag data: catalog dishes mapped by normalized name so ratings rows (plain
+  // text dish names) can display and filter by tags.
+  const { data: menuTags = [] } = useMenuTags();
+  const { data: taggableItems } = useTaggableMenuItems();
+  const setDishTag = useSetDishTag();
+  const dishLookup = useMemo(() => buildDishTagLookup(taggableItems), [taggableItems]);
+
+  const getDishEntry = (dishName: string) =>
+    dishLookup.get(normalizeMenuItemName(dishName));
+
+  const getTagIdsForDish = useMemo(() => {
+    return (names: string[]): Set<string> => {
+      const tagIds = new Set<string>();
+      for (const name of names) {
+        const entry = dishLookup.get(normalizeMenuItemName(name));
+        for (const tagId of entry?.tagIds || []) tagIds.add(tagId);
+      }
+      return tagIds;
+    };
+  }, [dishLookup]);
+
+  const getTagsForDish = (names: string[]): MenuTag[] => {
+    const tagIds = getTagIdsForDish(names);
+    return menuTags.filter((tag) => tagIds.has(tag.id));
+  };
+
   // Get all ratings for the selected dish
   const selectedDishRatings = useMemo(() => {
     if (!selectedDish || !allRatings) return [];
@@ -101,23 +151,54 @@ export default function FoodRatingsPage() {
 
   const filteredSummary = useMemo(() => {
     if (!summary) return [];
-    if (!searchTerm) return summary;
-    const normalizedSearch = searchTerm.toLowerCase();
-    return summary.filter(item =>
-      item.menuItem.toLowerCase().includes(normalizedSearch) ||
-      item.rawMenuItems.some(rawItem => rawItem.toLowerCase().includes(normalizedSearch))
-    );
-  }, [summary, searchTerm]);
+    let items = summary;
+
+    if (searchTerm) {
+      const normalizedSearch = searchTerm.toLowerCase();
+      items = items.filter(item =>
+        item.menuItem.toLowerCase().includes(normalizedSearch) ||
+        item.rawMenuItems.some(rawItem => rawItem.toLowerCase().includes(normalizedSearch))
+      );
+    }
+
+    if (selectedTagIds.length > 0) {
+      items = items.filter(item => {
+        const tagIds = getTagIdsForDish([item.menuItem, ...item.rawMenuItems]);
+        return selectedTagIds.every(tagId => tagIds.has(tagId));
+      });
+    }
+
+    if (summarySort === 'name') {
+      items = [...items].sort((a, b) => a.menuItem.localeCompare(b.menuItem));
+    } else if (summarySort === 'count') {
+      items = [...items].sort((a, b) => b.totalRatings - a.totalRatings);
+    }
+    // 'rating' keeps the default order (highest average first).
+
+    return items;
+  }, [summary, searchTerm, selectedTagIds, summarySort, getTagIdsForDish]);
 
   const filteredRatings = useMemo(() => {
     if (!allRatings) return [];
-    if (!searchTerm) return allRatings;
-    const normalizedSearch = searchTerm.toLowerCase();
-    return allRatings.filter(r =>
-      r.menuItem.toLowerCase().includes(normalizedSearch) ||
-      r.canonicalMenuItem.toLowerCase().includes(normalizedSearch)
-    );
-  }, [allRatings, searchTerm]);
+    let items = allRatings;
+
+    if (searchTerm) {
+      const normalizedSearch = searchTerm.toLowerCase();
+      items = items.filter(r =>
+        r.menuItem.toLowerCase().includes(normalizedSearch) ||
+        r.canonicalMenuItem.toLowerCase().includes(normalizedSearch)
+      );
+    }
+
+    if (selectedTagIds.length > 0) {
+      items = items.filter(r => {
+        const tagIds = getTagIdsForDish([r.menuItem, r.canonicalMenuItem]);
+        return selectedTagIds.every(tagId => tagIds.has(tagId));
+      });
+    }
+
+    return items;
+  }, [allRatings, searchTerm, selectedTagIds, getTagIdsForDish]);
 
   const dishesWithComments = useMemo(() => {
     return new Set(
@@ -268,15 +349,30 @@ export default function FoodRatingsPage() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search dishes..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search + tag filter + sort */}
+      <div className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search dishes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <MenuTagFilter selectedTagIds={selectedTagIds} onChange={setSelectedTagIds} />
+          <Select value={summarySort} onValueChange={(value) => setSummarySort(value as SummarySort)}>
+            <SelectTrigger size="sm" className="w-[160px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rating">{tTags('sortRating')}</SelectItem>
+              <SelectItem value="name">{tTags('sortName')}</SelectItem>
+              <SelectItem value="count">{tTags('sortCount')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -360,6 +456,7 @@ export default function FoodRatingsPage() {
                                 Includes {item.rawMenuItems.join(', ')}
                               </p>
                             )}
+                            <DishTagRow tags={getTagsForDish([item.menuItem, ...item.rawMenuItems])} />
                           </div>
                           <RatingBadge rating={item.averageRating} />
                         </div>
@@ -405,16 +502,19 @@ export default function FoodRatingsPage() {
                             className="cursor-pointer hover:bg-muted/50"
                             onClick={() => setSelectedDish(item.menuItem)}
                           >
-                            <TableCell className="font-medium max-w-[300px] truncate">
-                              <span className="hover:underline">{item.menuItem}</span>
-                              {dishesWithComments.has(item.menuItem) && (
-                                <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
-                              )}
+                            <TableCell className="font-medium max-w-[300px]">
+                              <div className="truncate">
+                                <span className="hover:underline">{item.menuItem}</span>
+                                {dishesWithComments.has(item.menuItem) && (
+                                  <MessageSquare className="h-3 w-3 inline ml-2 text-muted-foreground" />
+                                )}
+                              </div>
                               {item.rawMenuItems.length > 1 && (
-                                <div className="mt-1 text-xs font-normal text-muted-foreground">
+                                <div className="mt-1 text-xs font-normal text-muted-foreground truncate">
                                   Includes {item.rawMenuItems.join(', ')}
                                 </div>
                               )}
+                              <DishTagRow tags={getTagsForDish([item.menuItem, ...item.rawMenuItems])} />
                             </TableCell>
                             {isAdmin && (
                               <TableCell className="text-center">
@@ -880,6 +980,33 @@ export default function FoodRatingsPage() {
             )}
           </DialogHeader>
 
+          {/* Tags for this dish (admins can edit) */}
+          {selectedDish && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {getTagsForDish([selectedDish]).map((tag) => (
+                <MenuTagBadge key={tag.id} tag={tag} showName />
+              ))}
+              {isAdmin ? (
+                <MenuTagPicker
+                  assignedTagIds={Array.from(getTagIdsForDish([selectedDish]))}
+                  isSaving={setDishTag.isPending}
+                  onToggle={(tag, enabled) => {
+                    setDishTag.mutate({
+                      dishName: selectedDish,
+                      menuItemId: getDishEntry(selectedDish)?.id || null,
+                      tagId: tag.id,
+                      enabled,
+                    });
+                  }}
+                />
+              ) : (
+                getTagsForDish([selectedDish]).length === 0 && (
+                  <span className="text-xs text-muted-foreground">{tTags('noDishTags')}</span>
+                )
+              )}
+            </div>
+          )}
+
           <div className="space-y-4 mt-4">
             {selectedDishRatings.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">
@@ -1022,6 +1149,18 @@ export default function FoodRatingsPage() {
         </DialogContent>
       </Dialog>
       )}
+    </div>
+  );
+}
+
+function DishTagRow({ tags }: { tags: MenuTag[] }) {
+  if (tags.length === 0) return null;
+
+  return (
+    <div className="mt-1 flex flex-wrap gap-1">
+      {tags.map((tag) => (
+        <MenuTagBadge key={tag.id} tag={tag} size="sm" />
+      ))}
     </div>
   );
 }

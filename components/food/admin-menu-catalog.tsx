@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, Loader2, Plus, Search, Tags } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, Loader2, Plus, Search, Settings2, Tags } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,15 +23,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ManageMenuTagsDialog } from '@/components/food/manage-menu-tags-dialog';
+import { MenuTagBadge } from '@/components/food/menu-tag-badge';
+import { MenuTagFilter } from '@/components/food/menu-tag-filter';
+import { MenuTagPicker } from '@/components/food/menu-tag-picker';
 import {
-  CORE_MENU_TAGS,
   type AdminMenuCatalogItem,
-  type CoreMenuTagSlug,
   useAdminMenuCatalogItems,
-  useCoreMenuTags,
   useCreateAdminMenuCatalogItem,
   useToggleMenuItemTag,
 } from '@/hooks/use-admin-menu-catalog';
+import { useMenuTags } from '@/hooks/use-menu-tags';
 import { cn } from '@/lib/utils';
 
 type CatalogSortField = 'name' | 'tags' | 'averageRating' | 'totalRatings' | 'timesServed' | 'lastServedAt';
@@ -46,58 +49,51 @@ const CATALOG_SORT_OPTIONS: { field: CatalogSortField; label: string }[] = [
 ];
 
 export function AdminMenuCatalog() {
+  const t = useTranslations('foodTags');
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
-  const [selectedTagSlugs, setSelectedTagSlugs] = useState<CoreMenuTagSlug[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [showUntaggedOnly, setShowUntaggedOnly] = useState(false);
+  const [showManageTags, setShowManageTags] = useState(false);
   const [sortField, setSortField] = useState<CatalogSortField>('name');
   const [sortDirection, setSortDirection] = useState<CatalogSortDirection>('asc');
-  const { data: coreTags = [], isLoading: tagsLoading } = useCoreMenuTags();
-  const { data: catalogItems = [], isLoading: itemsLoading } = useAdminMenuCatalogItems({
-    tagSlugs: selectedTagSlugs,
-  });
+  const { data: allTags = [], isLoading: tagsLoading } = useMenuTags();
+  const { data: catalogItems = [], isLoading: itemsLoading } = useAdminMenuCatalogItems();
   const toggleTag = useToggleMenuItemTag();
   const createItem = useCreateAdminMenuCatalogItem();
 
-  const tagBySlug = useMemo(
-    () => new Map(coreTags.map((tag) => [tag.slug, tag])),
-    [coreTags]
+  // Stable display order for badges: group order first, then name.
+  const tagOrder = useMemo(
+    () => new Map(allTags.map((tag, index) => [tag.id, index])),
+    [allTags]
   );
-  const coreSlugSet = useMemo(
-    () => new Set(CORE_MENU_TAGS.map((tag) => tag.slug)),
-    []
-  );
+
   const effectiveCatalogSearchTerm = catalogSearchTerm.trim();
   const visibleItems = useMemo(() => {
-    const searchFilteredItems = effectiveCatalogSearchTerm
-      ? catalogItems.filter((item) => matchesCatalogSearch(item, effectiveCatalogSearchTerm))
-      : catalogItems;
-    const filteredItems = showUntaggedOnly
-      ? searchFilteredItems.filter((item) =>
-        !item.tags.some((tag) => coreSlugSet.has(tag.slug as CoreMenuTagSlug))
-      )
-      : searchFilteredItems;
+    let items = catalogItems;
 
-    return sortMenuCatalogItems(filteredItems, sortField, sortDirection);
-  }, [catalogItems, coreSlugSet, effectiveCatalogSearchTerm, showUntaggedOnly, sortDirection, sortField]);
+    if (selectedTagIds.length > 0) {
+      items = items.filter((item) => {
+        const itemTagIds = new Set(item.tags.map((tag) => tag.id));
+        return selectedTagIds.every((tagId) => itemTagIds.has(tagId));
+      });
+    }
+
+    if (showUntaggedOnly) {
+      items = items.filter((item) => item.tags.length === 0);
+    }
+
+    if (effectiveCatalogSearchTerm) {
+      items = items.filter((item) => matchesCatalogSearch(item, effectiveCatalogSearchTerm));
+    }
+
+    return sortMenuCatalogItems(items, sortField, sortDirection, tagOrder);
+  }, [catalogItems, effectiveCatalogSearchTerm, selectedTagIds, showUntaggedOnly, sortDirection, sortField, tagOrder]);
+
   const trimmedSearch = effectiveCatalogSearchTerm;
   const canAddSearchedDish = trimmedSearch.length > 1 &&
-    selectedTagSlugs.length === 0 &&
+    selectedTagIds.length === 0 &&
     !showUntaggedOnly &&
     !catalogItems.some((item) => item.name.toLowerCase() === trimmedSearch.toLowerCase());
-
-  const toggleFilter = (slug: CoreMenuTagSlug) => {
-    setShowUntaggedOnly(false);
-    setSelectedTagSlugs((current) =>
-      current.includes(slug)
-        ? current.filter((item) => item !== slug)
-        : [...current, slug]
-    );
-  };
-
-  const toggleUntaggedFilter = () => {
-    setSelectedTagSlugs([]);
-    setShowUntaggedOnly((current) => !current);
-  };
 
   const changeSort = (field: CatalogSortField) => {
     if (field === sortField) {
@@ -107,6 +103,10 @@ export function AdminMenuCatalog() {
 
     setSortField(field);
     setSortDirection(getDefaultSortDirection(field));
+  };
+
+  const handleToggleTag = (item: AdminMenuCatalogItem, tagId: string, enabled: boolean) => {
+    toggleTag.mutate({ menuItemId: item.id, tagId, enabled });
   };
 
   if (itemsLoading || tagsLoading) {
@@ -132,21 +132,27 @@ export function AdminMenuCatalog() {
               {visibleItems.length} of {catalogItems.length} dishes shown
             </CardDescription>
           </div>
-          {canAddSearchedDish && (
-            <Button
-              variant="outline"
-              onClick={() => createItem.mutate(trimmedSearch)}
-              disabled={createItem.isPending}
-              className="max-w-full justify-start"
-            >
-              {createItem.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-              <span className="truncate">Add &quot;{trimmedSearch}&quot;</span>
+          <div className="flex flex-wrap gap-2">
+            {canAddSearchedDish && (
+              <Button
+                variant="outline"
+                onClick={() => createItem.mutate(trimmedSearch)}
+                disabled={createItem.isPending}
+                className="max-w-full justify-start"
+              >
+                {createItem.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                <span className="truncate">Add &quot;{trimmedSearch}&quot;</span>
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowManageTags(true)}>
+              <Settings2 className="h-4 w-4" />
+              {t('manageTags')}
             </Button>
-          )}
+          </div>
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -158,32 +164,25 @@ export function AdminMenuCatalog() {
           />
         </div>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {CORE_MENU_TAGS.map((tag) => {
-              const selected = selectedTagSlugs.includes(tag.slug);
-
-              return (
-                <Button
-                  key={tag.slug}
-                  variant={selected ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => toggleFilter(tag.slug)}
-                  className={cn(selected && getActiveTagClassName(tag.slug))}
-                >
-                  {selected && <Check className="h-3.5 w-3.5" />}
-                  {tag.label}
-                  <span className="hidden sm:inline">{tag.name}</span>
-                </Button>
-              );
-            })}
+          <div className="flex flex-wrap items-center gap-2">
+            <MenuTagFilter
+              selectedTagIds={selectedTagIds}
+              onChange={(tagIds) => {
+                setShowUntaggedOnly(false);
+                setSelectedTagIds(tagIds);
+              }}
+            />
             <Button
               variant={showUntaggedOnly ? 'default' : 'outline'}
               size="sm"
-              onClick={toggleUntaggedFilter}
+              onClick={() => {
+                setSelectedTagIds([]);
+                setShowUntaggedOnly((current) => !current);
+              }}
               className={cn(showUntaggedOnly && 'bg-slate-700 text-white hover:bg-slate-800')}
             >
               {showUntaggedOnly && <Check className="h-3.5 w-3.5" />}
-              Untagged
+              {t('untagged')}
             </Button>
           </div>
 
@@ -237,11 +236,9 @@ export function AdminMenuCatalog() {
                 <CatalogItemCard
                   key={item.id}
                   item={item}
-                  tagBySlug={tagBySlug}
+                  tagOrder={tagOrder}
                   isSaving={toggleTag.isPending}
-                  onToggleTag={(tagId, enabled) => {
-                    toggleTag.mutate({ menuItemId: item.id, tagId, enabled });
-                  }}
+                  onToggleTag={(tagId, enabled) => handleToggleTag(item, tagId, enabled)}
                 />
               ))}
             </div>
@@ -322,13 +319,11 @@ export function AdminMenuCatalog() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <TagToggleGroup
+                        <ItemTagEditor
                           item={item}
-                          tagBySlug={tagBySlug}
+                          tagOrder={tagOrder}
                           isSaving={toggleTag.isPending}
-                          onToggleTag={(tagId, enabled) => {
-                            toggleTag.mutate({ menuItemId: item.id, tagId, enabled });
-                          }}
+                          onToggleTag={(tagId, enabled) => handleToggleTag(item, tagId, enabled)}
                         />
                       </TableCell>
                       <TableCell className="text-center">
@@ -351,6 +346,8 @@ export function AdminMenuCatalog() {
           </>
         )}
       </CardContent>
+
+      <ManageMenuTagsDialog open={showManageTags} onOpenChange={setShowManageTags} />
     </Card>
   );
 }
@@ -389,12 +386,12 @@ function SortButton({
 
 function CatalogItemCard({
   item,
-  tagBySlug,
+  tagOrder,
   isSaving,
   onToggleTag,
 }: {
   item: AdminMenuCatalogItem;
-  tagBySlug: Map<string, { id: string; name: string; slug: string }>;
+  tagOrder: Map<string, number>;
   isSaving: boolean;
   onToggleTag: (tagId: string, enabled: boolean) => void;
 }) {
@@ -411,9 +408,9 @@ function CatalogItemCard({
           <Badge variant="secondary">{item.averageRating.toFixed(1)}</Badge>
         ) : null}
       </div>
-      <TagToggleGroup
+      <ItemTagEditor
         item={item}
-        tagBySlug={tagBySlug}
+        tagOrder={tagOrder}
         isSaving={isSaving}
         onToggleTag={onToggleTag}
       />
@@ -421,61 +418,45 @@ function CatalogItemCard({
   );
 }
 
-function TagToggleGroup({
+function ItemTagEditor({
   item,
-  tagBySlug,
+  tagOrder,
   isSaving,
   onToggleTag,
 }: {
   item: AdminMenuCatalogItem;
-  tagBySlug: Map<string, { id: string; name: string; slug: string }>;
+  tagOrder: Map<string, number>;
   isSaving: boolean;
   onToggleTag: (tagId: string, enabled: boolean) => void;
 }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {CORE_MENU_TAGS.map((coreTag) => {
-        const tag = tagBySlug.get(coreTag.slug);
-        const enabled = item.tags.some((itemTag) => itemTag.slug === coreTag.slug);
+  const sortedTags = sortItemTags(item.tags, tagOrder);
 
-        return (
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {sortedTags.map((tag) => (
+        <MenuTagBadge key={tag.id} tag={tag} />
+      ))}
+      <MenuTagPicker
+        assignedTagIds={item.tags.map((tag) => tag.id)}
+        isSaving={isSaving}
+        onToggle={(tag, enabled) => onToggleTag(tag.id, enabled)}
+        trigger={
           <Button
-            key={coreTag.slug}
-            type="button"
-            variant={enabled ? 'default' : 'outline'}
+            variant="outline"
             size="sm"
-            title={coreTag.name}
-            aria-pressed={enabled}
-            disabled={!tag || isSaving}
-            className={cn(
-              'h-8 min-w-11 px-3',
-              enabled && getActiveTagClassName(coreTag.slug),
-              !enabled && getInactiveTagClassName(coreTag.slug)
-            )}
-            onClick={() => {
-              if (!tag) return;
-              onToggleTag(tag.id, !enabled);
-            }}
+            aria-label="Edit tags"
+            className="h-6 w-7 border-dashed p-0 text-muted-foreground hover:text-foreground"
           >
-            {enabled && <Check className="h-3.5 w-3.5" />}
-            {coreTag.label}
+            <Plus className="h-3.5 w-3.5" />
           </Button>
-        );
-      })}
+        }
+      />
     </div>
   );
 }
 
-function getActiveTagClassName(slug: CoreMenuTagSlug): string {
-  if (slug === 'gluten-free') return 'bg-emerald-600 text-white hover:bg-emerald-700';
-  if (slug === 'low-carb') return 'bg-sky-600 text-white hover:bg-sky-700';
-  return 'bg-amber-500 text-white hover:bg-amber-600';
-}
-
-function getInactiveTagClassName(slug: CoreMenuTagSlug): string {
-  if (slug === 'gluten-free') return 'border-emerald-200 text-emerald-700 hover:bg-emerald-50';
-  if (slug === 'low-carb') return 'border-sky-200 text-sky-700 hover:bg-sky-50';
-  return 'border-amber-200 text-amber-700 hover:bg-amber-50';
+function sortItemTags<T extends { id: string }>(tags: T[], tagOrder: Map<string, number>): T[] {
+  return [...tags].sort((a, b) => (tagOrder.get(a.id) ?? 999) - (tagOrder.get(b.id) ?? 999));
 }
 
 function getDefaultSortDirection(field: CatalogSortField): CatalogSortDirection {
@@ -486,10 +467,11 @@ function getDefaultSortDirection(field: CatalogSortField): CatalogSortDirection 
 function sortMenuCatalogItems(
   items: AdminMenuCatalogItem[],
   field: CatalogSortField,
-  direction: CatalogSortDirection
+  direction: CatalogSortDirection,
+  tagOrder: Map<string, number>
 ): AdminMenuCatalogItem[] {
   return [...items].sort((a, b) => {
-    const result = compareCatalogItems(a, b, field, direction);
+    const result = compareCatalogItems(a, b, field, direction, tagOrder);
 
     if (result !== 0) return result;
     return a.name.localeCompare(b.name);
@@ -500,10 +482,11 @@ function compareCatalogItems(
   a: AdminMenuCatalogItem,
   b: AdminMenuCatalogItem,
   field: CatalogSortField,
-  direction: CatalogSortDirection
+  direction: CatalogSortDirection,
+  tagOrder: Map<string, number>
 ): number {
   if (field === 'name') return compareStrings(a.name, b.name, direction);
-  if (field === 'tags') return compareStrings(getCoreTagSortValue(a), getCoreTagSortValue(b), direction, true);
+  if (field === 'tags') return compareStrings(getTagSortValue(a, tagOrder), getTagSortValue(b, tagOrder), direction, true);
   if (field === 'averageRating') return compareNullableNumbers(a.averageRating, b.averageRating, direction);
   if (field === 'totalRatings') return compareNumbers(a.totalRatings, b.totalRatings, direction);
   if (field === 'timesServed') return compareNumbers(a.timesServed, b.timesServed, direction);
@@ -557,12 +540,9 @@ function compareNullableDates(
   return compareNumbers(new Date(a).getTime(), new Date(b).getTime(), direction);
 }
 
-function getCoreTagSortValue(item: AdminMenuCatalogItem): string {
-  const itemTagSlugs = new Set(item.tags.map((tag) => tag.slug));
-
-  return CORE_MENU_TAGS
-    .filter((tag) => itemTagSlugs.has(tag.slug))
-    .map((tag) => tag.label)
+function getTagSortValue(item: AdminMenuCatalogItem, tagOrder: Map<string, number>): string {
+  return sortItemTags(item.tags, tagOrder)
+    .map((tag) => tag.label || tag.name)
     .join(' ');
 }
 
@@ -575,7 +555,6 @@ function matchesCatalogSearch(item: AdminMenuCatalogItem, searchTerm: string): b
 
   if (tokens.length === 0) return true;
 
-  const itemTagSlugs = new Set(item.tags.map((tag) => tag.slug));
   const searchable = [
     item.name,
     item.category || '',
@@ -583,9 +562,7 @@ function matchesCatalogSearch(item: AdminMenuCatalogItem, searchTerm: string): b
     ...item.aliases,
     ...item.mealTypes,
     ...item.tags.map((tag) => tag.name),
-    ...CORE_MENU_TAGS
-      .filter((tag) => itemTagSlugs.has(tag.slug))
-      .flatMap((tag) => [tag.label, tag.name]),
+    ...item.tags.map((tag) => tag.label || ''),
   ].join(' ').toLowerCase();
 
   return tokens.every((token) => searchable.includes(token));

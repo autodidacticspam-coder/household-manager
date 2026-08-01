@@ -4,18 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 
-export const CORE_MENU_TAGS = [
-  { slug: 'gluten-free', label: 'GF', name: 'Gluten Free' },
-  { slug: 'low-carb', label: 'LC', name: 'Low Carb' },
-  { slug: 'kid-friendly', label: 'KF', name: 'Kid Friendly' },
-] as const;
-
-export type CoreMenuTagSlug = typeof CORE_MENU_TAGS[number]['slug'];
-
 export type AdminMenuTag = {
   id: string;
   name: string;
   slug: string;
+  label: string | null;
   color: string | null;
 };
 
@@ -33,60 +26,31 @@ export type AdminMenuCatalogItem = {
   tags: AdminMenuTag[];
 };
 
-export type AdminMenuCatalogFilters = {
-  search?: string;
-  tagSlugs?: string[];
-};
+const CATALOG_ITEM_SELECT = `
+  id,
+  name,
+  category,
+  aliases,
+  meal_types,
+  times_served,
+  last_served_at,
+  average_rating,
+  total_ratings,
+  search_text,
+  menu_item_tags(
+    tag:menu_tags(id, name, slug, label, color)
+  )
+`;
 
-export function useCoreMenuTags() {
+export function useAdminMenuCatalogItems() {
   const supabase = createClient();
 
   return useQuery({
-    queryKey: ['admin-menu-catalog-core-tags'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('menu_tags')
-        .select('id, name, slug, color')
-        .in('slug', CORE_MENU_TAGS.map((tag) => tag.slug));
-
-      if (error) {
-        if (isMissingMenuCatalogError(error)) return [];
-        throw error;
-      }
-
-      const tags = (data || [])
-        .map((row) => transformTag(row as Record<string, unknown>))
-        .filter((tag): tag is AdminMenuTag => Boolean(tag));
-      return CORE_MENU_TAGS
-        .map((coreTag) => tags.find((tag) => tag.slug === coreTag.slug))
-        .filter((tag): tag is AdminMenuTag => Boolean(tag));
-    },
-  });
-}
-
-export function useAdminMenuCatalogItems(filters?: AdminMenuCatalogFilters) {
-  const supabase = createClient();
-
-  return useQuery({
-    queryKey: ['admin-menu-catalog-items', filters],
+    queryKey: ['admin-menu-catalog-items'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('menu_items')
-        .select(`
-          id,
-          name,
-          category,
-          aliases,
-          meal_types,
-          times_served,
-          last_served_at,
-          average_rating,
-          total_ratings,
-          search_text,
-          menu_item_tags(
-            tag:menu_tags(id, name, slug, color)
-          )
-        `)
+        .select(CATALOG_ITEM_SELECT)
         .eq('active', true)
         .order('name', { ascending: true })
         .range(0, 4999);
@@ -96,30 +60,7 @@ export function useAdminMenuCatalogItems(filters?: AdminMenuCatalogFilters) {
         throw error;
       }
 
-      const selectedTagSlugs = filters?.tagSlugs || [];
-      const search = filters?.search?.trim().toLowerCase() || '';
-
-      return (data || [])
-        .map((row) => transformMenuItem(row as Record<string, unknown>))
-        .filter((item) => {
-          if (selectedTagSlugs.length > 0) {
-            const itemTagSlugs = new Set(item.tags.map((tag) => tag.slug));
-            if (!selectedTagSlugs.every((slug) => itemTagSlugs.has(slug))) return false;
-          }
-
-          if (!search) return true;
-
-          const searchable = [
-            item.name,
-            item.category || '',
-            item.searchText || '',
-            ...item.aliases,
-            ...item.mealTypes,
-            ...item.tags.map((tag) => tag.name),
-          ].join(' ').toLowerCase();
-
-          return searchable.includes(search);
-        });
+      return (data || []).map((row) => transformMenuItem(row as Record<string, unknown>));
     },
   });
 }
@@ -186,21 +127,7 @@ export function useCreateAdminMenuCatalogItem() {
           created_by: user?.id || null,
           updated_by: user?.id || null,
         })
-        .select(`
-          id,
-          name,
-          category,
-          aliases,
-          meal_types,
-          times_served,
-          last_served_at,
-          average_rating,
-          total_ratings,
-          search_text,
-          menu_item_tags(
-            tag:menu_tags(id, name, slug, color)
-          )
-        `)
+        .select(CATALOG_ITEM_SELECT)
         .single();
 
       if (error) {
@@ -251,13 +178,15 @@ function transformTag(row?: Record<string, unknown>): AdminMenuTag | undefined {
     id: row.id as string,
     name: row.name as string,
     slug: row.slug as string,
+    label: (row.label as string | null) || null,
     color: row.color as string | null,
   };
 }
 
 function invalidateCatalogQueries(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: ['admin-menu-catalog-items'] });
-  queryClient.invalidateQueries({ queryKey: ['admin-menu-catalog-core-tags'] });
+  queryClient.invalidateQueries({ queryKey: ['menu-tag-usage'] });
+  queryClient.invalidateQueries({ queryKey: ['taggable-menu-items'] });
 }
 
 function asStringArray(value: unknown): string[] {
