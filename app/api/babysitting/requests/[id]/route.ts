@@ -157,13 +157,6 @@ export async function PATCH(
         return NextResponse.json({ error: 'Failed to create the shift' }, { status: 500 });
       }
       oneOffId = oneOff.id;
-
-      after(syncOneOffScheduleChange(oneOff.id, 'create', {
-        userId: bookingRequest.babysitter_id,
-        scheduleDate: bookingRequest.request_date,
-        startTime: bookingRequest.start_time,
-        endTime: bookingRequest.end_time,
-      }).catch((err) => console.error('Error syncing accepted booking to Google Calendar:', err)));
     }
 
     const { data: updated, error: updateError } = await supabase
@@ -174,12 +167,37 @@ export async function PATCH(
         ...(oneOffId ? { one_off_id: oneOffId } : {}),
       })
       .eq('id', id)
+      // Another device may have answered after our initial read. Only one
+      // response is allowed to win.
+      .eq('status', 'pending')
       .select()
-      .single();
+      .maybeSingle();
 
-    if (updateError) {
+    if (updateError || !updated) {
+      if (oneOffId) {
+        const { error: cleanupError } = await supabase
+          .from('schedule_one_offs')
+          .delete()
+          .eq('id', oneOffId);
+        if (cleanupError) {
+          console.error('Error cleaning up unlinked babysitting shift:', cleanupError);
+        }
+      }
+
+      if (!updated && !updateError) {
+        return NextResponse.json({ error: 'This request has already been handled' }, { status: 409 });
+      }
       console.error('Error updating booking request:', updateError);
       return NextResponse.json({ error: 'Failed to update request' }, { status: 500 });
+    }
+
+    if (action === 'accept' && oneOffId) {
+      after(syncOneOffScheduleChange(oneOffId, 'create', {
+        userId: bookingRequest.babysitter_id,
+        scheduleDate: bookingRequest.request_date,
+        startTime: bookingRequest.start_time,
+        endTime: bookingRequest.end_time,
+      }).catch((err) => console.error('Error syncing accepted booking to Google Calendar:', err)));
     }
 
     // Notify all admins of the response
