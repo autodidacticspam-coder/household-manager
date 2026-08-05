@@ -5,16 +5,13 @@ import { defaultLocale, type Locale, locales } from './i18n.config';
 export default getRequestConfig(async () => {
   let locale: Locale = defaultLocale;
 
-  try {
-    const cookieStore = await cookies();
-    const localeCookie = cookieStore.get('locale')?.value as Locale;
+  // cookies() is intentionally dynamic. Let Next.js handle its static-render
+  // bailout instead of catching the framework signal as an application error.
+  const cookieStore = await cookies();
+  const localeCookie = cookieStore.get('locale')?.value as Locale;
 
-    if (localeCookie && locales.includes(localeCookie)) {
-      locale = localeCookie;
-    }
-  } catch (error) {
-    // Cookies may not be available during certain server operations
-    console.warn('Failed to read locale cookie, using default:', error);
+  if (localeCookie && locales.includes(localeCookie)) {
+    locale = localeCookie;
   }
 
   try {
