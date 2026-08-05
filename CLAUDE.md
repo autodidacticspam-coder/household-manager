@@ -42,3 +42,12 @@
 - Always add translations to all three language files (en.json, es.json, zh.json)
 - Use server actions in `app/(admin)/*/actions.ts` for mutations
 - Use hooks in `hooks/use-*.ts` for data fetching and mutations
+
+## Testing
+
+- Run `npm test`; unit and component tests are colocated as `*.test.ts` or `*.test.tsx`.
+- See `TESTING.md` for the framework and conventions.
+- 100% coverage is the goal so changes can ship safely.
+- Add a corresponding test for new functions and both branches of new conditionals.
+- Add a regression test for every bug fix and a test that triggers each new error path.
+- Never commit code that makes existing tests fail.
