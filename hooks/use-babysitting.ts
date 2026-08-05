@@ -6,11 +6,16 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { parseLocalDate } from '@/lib/date-utils';
+import {
+  excludeDeclinedAvailabilityFromEntries,
+  getEffectiveAvailabilityRanges,
+} from '@/lib/babysitting/availability';
 import type {
   AvailabilityRange,
   AvailabilityTemplateSlot,
   AvailabilityEntry,
   AvailabilityWeek,
+  DeclinedAvailabilityBlock,
   BabysitterUser,
   BabysitterWeekAvailability,
   BookingRequest,
@@ -165,12 +170,20 @@ export function useMyWeekAvailability(userId: string | undefined, weekStarts: st
 
   return useQuery({
     queryKey: ['bs-availability-weeks', userId, weekStarts],
-    queryFn: async (): Promise<{ weeks: AvailabilityWeek[]; entries: AvailabilityEntry[] }> => {
-      if (weekStarts.length === 0) return { weeks: [], entries: [] };
+    queryFn: async (): Promise<{
+      weeks: AvailabilityWeek[];
+      entries: AvailabilityEntry[];
+      declinedBlocks: DeclinedAvailabilityBlock[];
+    }> => {
+      if (weekStarts.length === 0) return { weeks: [], entries: [], declinedBlocks: [] };
       const firstDate = weekStarts[0];
       const lastDate = format(addDays(parseLocalDate(weekStarts[weekStarts.length - 1]), 6), 'yyyy-MM-dd');
 
-      const [{ data: weeks, error: weeksError }, { data: entries, error: entriesError }] = await Promise.all([
+      const [
+        { data: weeks, error: weeksError },
+        { data: entries, error: entriesError },
+        { data: declined, error: declinedError },
+      ] = await Promise.all([
         supabase
           .from('babysitter_availability_weeks')
           .select('*')
@@ -184,9 +197,19 @@ export function useMyWeekAvailability(userId: string | undefined, weekStarts: st
           .lte('entry_date', lastDate)
           .order('entry_date')
           .order('start_time'),
+        supabase
+          .from('babysitter_booking_requests')
+          .select('id, babysitter_id, request_date, start_time, end_time')
+          .eq('babysitter_id', userId)
+          .eq('status', 'declined')
+          .gte('request_date', firstDate)
+          .lte('request_date', lastDate)
+          .order('request_date')
+          .order('start_time'),
       ]);
       if (weeksError) throw weeksError;
       if (entriesError) throw entriesError;
+      if (declinedError) throw declinedError;
 
       return {
         weeks: (weeks || []).map((row) => ({
@@ -199,6 +222,13 @@ export function useMyWeekAvailability(userId: string | undefined, weekStarts: st
           id: row.id,
           userId: row.user_id,
           entryDate: row.entry_date,
+          startTime: row.start_time.slice(0, 5),
+          endTime: row.end_time.slice(0, 5),
+        })),
+        declinedBlocks: (declined || []).map((row) => ({
+          id: row.id,
+          userId: row.babysitter_id,
+          entryDate: row.request_date,
           startTime: row.start_time.slice(0, 5),
           endTime: row.end_time.slice(0, 5),
         })),
@@ -221,6 +251,28 @@ export function useSaveWeekAvailability() {
     }) => {
       const weekEnd = format(addDays(parseLocalDate(weekStart), 6), 'yyyy-MM-dd');
 
+      // A decline remains authoritative even if the sitter later saves the
+      // week again. Strip those windows before replacing stored entries.
+      const { data: declined, error: declinedError } = await supabase
+        .from('babysitter_booking_requests')
+        .select('id, babysitter_id, request_date, start_time, end_time')
+        .eq('babysitter_id', userId)
+        .eq('status', 'declined')
+        .gte('request_date', weekStart)
+        .lte('request_date', weekEnd);
+      if (declinedError) throw declinedError;
+
+      const safeEntries = excludeDeclinedAvailabilityFromEntries(
+        entries,
+        (declined || []).map((row) => ({
+          id: row.id,
+          userId: row.babysitter_id,
+          entryDate: row.request_date,
+          startTime: row.start_time.slice(0, 5),
+          endTime: row.end_time.slice(0, 5),
+        }))
+      );
+
       const { error: weekError } = await supabase
         .from('babysitter_availability_weeks')
         .upsert(
@@ -237,10 +289,10 @@ export function useSaveWeekAvailability() {
         .lte('entry_date', weekEnd);
       if (deleteError) throw deleteError;
 
-      if (entries.length > 0) {
+      if (safeEntries.length > 0) {
         const { error: insertError } = await supabase
           .from('babysitter_availability_entries')
-          .insert(entries.map((e) => ({
+          .insert(safeEntries.map((e) => ({
             user_id: userId,
             entry_date: e.entryDate,
             start_time: e.startTime,
@@ -312,7 +364,7 @@ export function useAdminBabysitterAvailability(weekStart: string) {
       if (sitterIds.length === 0) return [];
       const weekEnd = format(addDays(parseLocalDate(weekStart), 6), 'yyyy-MM-dd');
 
-      const [templatesRes, weeksRes, entriesRes] = await Promise.all([
+      const [templatesRes, weeksRes, entriesRes, declinedRes] = await Promise.all([
         supabase
           .from('babysitter_availability_templates')
           .select('*')
@@ -330,10 +382,18 @@ export function useAdminBabysitterAvailability(weekStart: string) {
           .gte('entry_date', weekStart)
           .lte('entry_date', weekEnd)
           .order('start_time'),
+        supabase
+          .from('babysitter_booking_requests')
+          .select('babysitter_id, request_date, start_time, end_time')
+          .in('babysitter_id', sitterIds)
+          .eq('status', 'declined')
+          .gte('request_date', weekStart)
+          .lte('request_date', weekEnd),
       ]);
       if (templatesRes.error) throw templatesRes.error;
       if (weeksRes.error) throw weeksRes.error;
       if (entriesRes.error) throw entriesRes.error;
+      if (declinedRes.error) throw declinedRes.error;
 
       const weekDates = getWeekDates(weekStart);
 
@@ -343,15 +403,23 @@ export function useAdminBabysitterAvailability(weekStart: string) {
 
         if (weekRow) {
           for (let dow = 0; dow < 7; dow++) {
-            days[dow] = (entriesRes.data || [])
+            const storedRanges = (entriesRes.data || [])
               .filter((e) => e.user_id === user.id && e.entry_date === weekDates[dow])
               .map((e) => ({ startTime: e.start_time.slice(0, 5), endTime: e.end_time.slice(0, 5) }));
+            const declinedRanges = (declinedRes.data || [])
+              .filter((r) => r.babysitter_id === user.id && r.request_date === weekDates[dow])
+              .map((r) => ({ startTime: r.start_time.slice(0, 5), endTime: r.end_time.slice(0, 5) }));
+            days[dow] = getEffectiveAvailabilityRanges(storedRanges, declinedRanges);
           }
         } else {
           for (let dow = 0; dow < 7; dow++) {
-            days[dow] = (templatesRes.data || [])
+            const usualRanges = (templatesRes.data || [])
               .filter((s) => s.user_id === user.id && s.day_of_week === dow)
               .map((s) => ({ startTime: s.start_time.slice(0, 5), endTime: s.end_time.slice(0, 5) }));
+            const declinedRanges = (declinedRes.data || [])
+              .filter((r) => r.babysitter_id === user.id && r.request_date === weekDates[dow])
+              .map((r) => ({ startTime: r.start_time.slice(0, 5), endTime: r.end_time.slice(0, 5) }));
+            days[dow] = getEffectiveAvailabilityRanges(usualRanges, declinedRanges);
           }
         }
 

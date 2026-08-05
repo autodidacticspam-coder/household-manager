@@ -1,6 +1,5 @@
 import { NextResponse, after } from 'next/server';
 import { getApiAuthUser, getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
-import { removeDeclinedAvailabilityWindow } from '@/lib/babysitting/availability';
 import { syncOneOffScheduleChange } from '@/lib/google-calendar/sync-service';
 import { sendBookingCancellationPush, sendBookingResponsePush } from '@/lib/notifications/push-service';
 import { formatTime12h } from '@/lib/format-time';
@@ -181,22 +180,6 @@ export async function PATCH(
     if (updateError) {
       console.error('Error updating booking request:', updateError);
       return NextResponse.json({ error: 'Failed to update request' }, { status: 500 });
-    }
-
-    if (action === 'decline') {
-      // Declining means "I'm not free then" - take the declined window out of
-      // this week's availability so it stops showing as bookable. Best-effort:
-      // the decline itself already succeeded.
-      try {
-        await removeDeclinedAvailabilityWindow(supabase, {
-          userId: bookingRequest.babysitter_id,
-          date: bookingRequest.request_date,
-          startTime: bookingRequest.start_time,
-          endTime: bookingRequest.end_time,
-        });
-      } catch (err) {
-        console.error('Error removing declined availability window:', err);
-      }
     }
 
     // Notify all admins of the response

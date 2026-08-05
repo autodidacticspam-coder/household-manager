@@ -6,6 +6,16 @@ export type AvailabilityRange = {
   endTime: string;
 };
 
+export type DatedAvailabilityRange = AvailabilityRange & {
+  entryDate: string; // yyyy-MM-dd
+};
+
+// A declined request permanently blocks its requested window from effective availability.
+export type DeclinedAvailabilityBlock = DatedAvailabilityRange & {
+  id: string;
+  userId: string;
+};
+
 // A template slot: recurring weekly default availability
 export type AvailabilityTemplateSlot = AvailabilityRange & {
   id: string;

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import { parseLocalDate } from '@/lib/date-utils';
 import { formatTime12h } from '@/lib/format-time';
+import { getEffectiveAvailabilityRanges } from '@/lib/babysitting/availability';
 import { getZonedParts } from '@/lib/timezone';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,9 +19,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, CalendarHeart, CalendarClock, Clock, Check, X, Pencil, RotateCcw, Inbox } from 'lucide-react';
+import { Loader2, CalendarHeart, CalendarClock, Clock, Check, X, Pencil, RotateCcw, Inbox, CircleSlash } from 'lucide-react';
 import { DAYS_OF_WEEK } from '@/types';
-import type { BookingRequest } from '@/types';
+import type { AvailabilityRange, BookingRequest } from '@/types';
 import {
   useBookingRequests,
   useRespondBookingRequest,
@@ -141,7 +142,7 @@ export function BabysitterView() {
     const current = getWeekStart(new Date());
     return [0, 1, 2, 3].map((i) => format(addWeeks(parseLocalDate(current), i), 'yyyy-MM-dd'));
   }, []);
-  const { data: weekData } = useMyWeekAvailability(userId, weekStarts);
+  const { data: weekData, isLoading: weekDataLoading } = useMyWeekAvailability(userId, weekStarts);
   const saveWeek = useSaveWeekAvailability();
   const resetWeek = useResetWeekAvailability();
   const [weekDialog, setWeekDialog] = useState<{ weekStart: string; edit: EditableWeek } | null>(null);
@@ -195,6 +196,19 @@ export function BabysitterView() {
         edit[day] = (templateEdit[day] || []).map((r) => ({ ...r }));
       }
     }
+
+    // Declined requests are a durable exception layered over either source.
+    // This also protects older rows where a later week save restored the slot.
+    const weekDates = getWeekDates(weekStart);
+    for (let day = 0; day < 7; day++) {
+      const ranges = (edit[day] || [])
+        .map(editableToRange)
+        .filter((range): range is AvailabilityRange => range !== null);
+      const declinedRanges = (weekData?.declinedBlocks || [])
+        .filter((block) => block.entryDate === weekDates[day])
+        .map(({ startTime, endTime }) => ({ startTime, endTime }));
+      edit[day] = getEffectiveAvailabilityRanges(ranges, declinedRanges).map(rangeToEditable);
+    }
     setWeekDialog({ weekStart, edit });
   };
 
@@ -211,7 +225,7 @@ export function BabysitterView() {
     );
   };
 
-  if (requestsLoading || templateLoading) {
+  if (requestsLoading || templateLoading || weekDataLoading) {
     return (
       <div className="flex items-center justify-center py-16">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -330,7 +344,11 @@ export function BabysitterView() {
         </CardHeader>
         <CardContent className="space-y-2">
           {weekStarts.map((weekStart, i) => {
-            const confirmed = (weekData?.weeks || []).some((w) => w.weekStart === weekStart);
+            const hasSavedWeek = (weekData?.weeks || []).some((w) => w.weekStart === weekStart);
+            const weekDates = getWeekDates(weekStart);
+            const declinedBlocks = (weekData?.declinedBlocks || [])
+              .filter((block) => weekDates.includes(block.entryDate));
+            const adjusted = hasSavedWeek || declinedBlocks.length > 0;
             return (
               <div key={weekStart} className="space-y-2.5 rounded-lg bg-accent/50 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -338,11 +356,17 @@ export function BabysitterView() {
                   {i === 0 && <Badge variant="secondary">{t('common.thisWeek')}</Badge>}
                   <Badge
                     variant="secondary"
-                    className={confirmed ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}
+                    className={adjusted ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}
                   >
-                    {confirmed ? t('babysitting.customized') : t('babysitting.usingUsual')}
+                    {adjusted ? t('babysitting.customized') : t('babysitting.usingUsual')}
                   </Badge>
                 </div>
+                {declinedBlocks.length > 0 && (
+                  <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <CircleSlash className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{t('babysitting.declinedUnavailableHint')}</span>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -353,7 +377,7 @@ export function BabysitterView() {
                     <Pencil className="h-3.5 w-3.5 mr-1" />
                     {t('babysitting.adjust')}
                   </Button>
-                  {confirmed && (
+                  {hasSavedWeek && (
                     <Button
                       variant="ghost"
                       size="sm"
