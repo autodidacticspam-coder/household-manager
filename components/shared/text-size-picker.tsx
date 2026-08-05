@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { ALargeSmall } from 'lucide-react';
 type TextScale = 'default' | 'lg' | 'xl';
 
 const STORAGE_KEY = 'hm-text-scale';
+const CHANGE_EVENT = 'hm-text-scale-change';
 
 // Sample-letter size for each option button
 const PREVIEW_SIZE: Record<TextScale, string> = {
@@ -25,17 +26,28 @@ function applyScale(scale: TextScale) {
     localStorage.setItem(STORAGE_KEY, scale);
     document.documentElement.setAttribute('data-text-scale', scale);
   }
+  window.dispatchEvent(new Event(CHANGE_EVENT));
+}
+
+function subscribeToScale(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange);
+  window.addEventListener(CHANGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener(CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function getScaleSnapshot(): TextScale {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  return stored === 'lg' || stored === 'xl' ? stored : 'default';
 }
 
 export function TextSizeCard() {
   const t = useTranslations();
-  // Read the stored value after mount so server and client render the same
-  // initial markup (reading localStorage during render breaks hydration)
-  const [scale, setScale] = useState<TextScale>('default');
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'lg' || stored === 'xl') setScale(stored);
-  }, []);
+  // useSyncExternalStore supplies the default during SSR/hydration, then reads
+  // localStorage without a state-setting effect once the client takes over.
+  const scale = useSyncExternalStore(subscribeToScale, getScaleSnapshot, () => 'default');
 
   const options: { value: TextScale; label: string }[] = [
     { value: 'default', label: t('textSize.normal') },
@@ -59,7 +71,6 @@ export function TextSizeCard() {
               key={option.value}
               type="button"
               onClick={() => {
-                setScale(option.value);
                 applyScale(option.value);
               }}
               className={cn(
