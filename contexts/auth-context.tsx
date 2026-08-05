@@ -21,6 +21,16 @@ const AuthContext = createContext<AuthContextType>({
   refreshUser: async () => {},
 });
 
+export function isMissingAuthSession(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { name?: string; message?: string; code?: string };
+  return (
+    candidate.name === 'AuthSessionMissingError' ||
+    candidate.code === 'session_not_found' ||
+    candidate.message === 'Auth session missing!'
+  );
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -61,6 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
 
       if (error) {
+        if (isMissingAuthSession(error)) {
+          setSession(null);
+          setUser(null);
+          return;
+        }
         console.error('Session refresh error:', error);
         // Only clear session if it's truly invalid
         if (error.message?.includes('Invalid') || error.message?.includes('expired')) {
@@ -97,8 +112,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const { data: { user: authUser }, error } = await supabase.auth.getUser();
 
         if (error) {
-          console.error('Auth init error:', error);
-          setIsLoading(false);
+          if (!isMissingAuthSession(error)) {
+            console.error('Auth init error:', error);
+          }
+          setSession(null);
+          setUser(null);
           return;
         }
 
