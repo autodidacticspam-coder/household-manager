@@ -62,7 +62,10 @@ export function AccountSwitchBanner() {
   };
 
   return (
-    <div className="fixed left-1/2 top-2 z-[80] w-[calc(100%-1rem)] max-w-3xl -translate-x-1/2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 shadow-lg">
+    <div
+      className="fixed left-1/2 z-[80] w-[calc(100%-1rem)] max-w-3xl -translate-x-1/2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 shadow-lg"
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)' }}
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2 text-sm text-amber-950">
           <UserRoundCog className="h-4 w-4 shrink-0" />
