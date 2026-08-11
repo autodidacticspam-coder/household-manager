@@ -69,6 +69,7 @@ import { toast } from 'sonner';
 import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask, useUpdateFutureTasks } from '@/hooks/use-tasks';
 import { useTaskTemplates, useCreateTaskTemplate, useUpdateTaskTemplate, useDeleteTaskTemplate } from '@/hooks/use-task-templates';
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput, type TaskViewerInput } from '@/lib/validators/task';
+import { withPendingTaskTarget } from '@/lib/task-targets';
 import type { TaskWithRelations, TaskTemplate, TemplateAssignment } from '@/types';
 import { Eye } from 'lucide-react';
 import { TaskVideosSection } from '@/components/admin/task-videos-section';
@@ -348,6 +349,16 @@ export function TaskForm({
     const dueTime24 = dueTimeInput ? to24Hour(dueTimeInput, dueTimeAmPm) : null;
     const startTime24 = startTimeInput ? to24Hour(startTimeInput, startTimeAmPm) : null;
     const endTime24 = endTimeInput ? to24Hour(endTimeInput, endTimeAmPm) : null;
+    const finalAssignments = withPendingTaskTarget(
+      assignments,
+      newAssignmentType,
+      newAssignmentTarget
+    );
+    const finalViewers = withPendingTaskTarget(
+      viewers,
+      newViewerType,
+      newViewerTarget
+    );
 
     const templateData = {
       name: templateName,
@@ -362,12 +373,12 @@ export function TaskForm({
       endTime: formValues.isActivity ? endTime24 : null,
       repeatDays: repeatEnabled && selectedDays.length > 0 ? selectedDays : null,
       repeatInterval: repeatEnabled && selectedDays.length > 0 ? repeatInterval : null,
-      defaultAssignments: assignments.map(a => ({
+      defaultAssignments: finalAssignments.map(a => ({
         targetType: a.targetType,
         targetUserId: a.targetUserId || null,
         targetGroupId: a.targetGroupId || null,
       })) as TemplateAssignment[],
-      defaultViewers: viewers.map(v => ({
+      defaultViewers: finalViewers.map(v => ({
         targetType: v.targetType,
         targetUserId: v.targetUserId || null,
         targetGroupId: v.targetGroupId || null,
@@ -604,49 +615,21 @@ export function TaskForm({
   };
 
   const onSubmit = async (data: CreateTaskInput) => {
-    const finalAssignments = [...assignments];
-    if (newAssignmentType === 'all' && !finalAssignments.some((a) => a.targetType === 'all')) {
-      finalAssignments.push({ targetType: 'all' });
-    } else if (newAssignmentType === 'all_admins' && !finalAssignments.some((a) => a.targetType === 'all_admins')) {
-      finalAssignments.push({ targetType: 'all_admins' });
-    } else if (newAssignmentTarget) {
-      const pendingAssignment: TaskAssignmentInput = {
-        targetType: newAssignmentType,
-        targetUserId: newAssignmentType === 'user' ? newAssignmentTarget : undefined,
-        targetGroupId: newAssignmentType === 'group' ? newAssignmentTarget : undefined,
-      };
-      const isDuplicate = finalAssignments.some((a) => {
-        if (a.targetType !== newAssignmentType) return false;
-        if (newAssignmentType === 'user') return a.targetUserId === newAssignmentTarget;
-        if (newAssignmentType === 'group') return a.targetGroupId === newAssignmentTarget;
-        return false;
-      });
-      if (!isDuplicate) finalAssignments.push(pendingAssignment);
-    }
+    const finalAssignments = withPendingTaskTarget(
+      assignments,
+      newAssignmentType,
+      newAssignmentTarget
+    );
 
     const dueTime24 = dueTimeInput ? to24Hour(dueTimeInput, dueTimeAmPm) : null;
     const startTime24 = startTimeInput ? to24Hour(startTimeInput, startTimeAmPm) : null;
     const endTime24 = endTimeInput ? to24Hour(endTimeInput, endTimeAmPm) : null;
 
-    const finalViewers = [...viewers];
-    if (newViewerType === 'all' && !finalViewers.some((v) => v.targetType === 'all')) {
-      finalViewers.push({ targetType: 'all' });
-    } else if (newViewerType === 'all_admins' && !finalViewers.some((v) => v.targetType === 'all_admins')) {
-      finalViewers.push({ targetType: 'all_admins' });
-    } else if (newViewerTarget) {
-      const pendingViewer: TaskViewerInput = {
-        targetType: newViewerType,
-        targetUserId: newViewerType === 'user' ? newViewerTarget : undefined,
-        targetGroupId: newViewerType === 'group' ? newViewerTarget : undefined,
-      };
-      const isDuplicate = finalViewers.some((v) => {
-        if (v.targetType !== newViewerType) return false;
-        if (newViewerType === 'user') return v.targetUserId === newViewerTarget;
-        if (newViewerType === 'group') return v.targetGroupId === newViewerTarget;
-        return false;
-      });
-      if (!isDuplicate) finalViewers.push(pendingViewer);
-    }
+    const finalViewers = withPendingTaskTarget(
+      viewers,
+      newViewerType,
+      newViewerTarget
+    );
 
     const repeatData = (() => {
       if (!allowRepeatEditing) {
