@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -135,6 +138,8 @@ export function usePendingSupplyRequests() {
 }
 
 export function useCreateSupplyRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -154,15 +159,17 @@ export function useCreateSupplyRequest() {
       queryClient.invalidateQueries({ queryKey: ['my-supply-requests'] });
       queryClient.invalidateQueries({ queryKey: ['supply-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-supply-requests'] });
-      toast.success('Supply request submitted');
+      toast.success(tUi('supplyRequestSubmitted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useCancelSupplyRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -180,15 +187,17 @@ export function useCancelSupplyRequest() {
       queryClient.invalidateQueries({ queryKey: ['my-supply-requests'] });
       queryClient.invalidateQueries({ queryKey: ['supply-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-supply-requests'] });
-      toast.success('Supply request cancelled');
+      toast.success(tUi('supplyRequestCancelled'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useApproveSupplyRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -207,15 +216,17 @@ export function useApproveSupplyRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supply-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-supply-requests'] });
-      toast.success('Supply request approved');
+      toast.success(tUi('supplyRequestApproved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useRejectSupplyRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -234,10 +245,10 @@ export function useRejectSupplyRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supply-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-supply-requests'] });
-      toast.success('Supply request rejected');
+      toast.success(tUi('supplyRequestRejected'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

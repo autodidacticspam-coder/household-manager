@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -76,6 +79,8 @@ export function useCurrentWeekMenu() {
 }
 
 export function useUpdateMenu(weekStart: string) {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const supabase = createClient();
   const queryClient = useQueryClient();
 
@@ -104,10 +109,10 @@ export function useUpdateMenu(weekStart: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weekly-menu'] });
-      toast.success('Menu updated successfully');
+      toast.success(tUi('menuUpdatedSuccessfully'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

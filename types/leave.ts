@@ -1,5 +1,7 @@
-export type LeaveType = 'vacation' | 'pto' | 'sick' | 'holiday';
-export type LeaveStatus = 'pending' | 'approved' | 'denied';
+import type { Enums } from '@/types/database';
+
+export type LeaveType = Enums<'leave_type'>;
+export type LeaveStatus = Enums<'leave_status'>;
 
 export interface LeaveRequest {
   id: string;

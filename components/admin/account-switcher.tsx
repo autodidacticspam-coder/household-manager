@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -41,6 +44,8 @@ export function AccountSwitcherDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -111,12 +116,12 @@ export function AccountSwitcherDialog({
 
       queryClient.clear();
       onOpenChange(false);
-      toast.success(`Viewing as ${data.targetUser.fullName}`);
+      toast.success(feedback(`Viewing as ${data.targetUser.fullName}`));
       router.push(data.redirectTo);
       router.refresh();
     } catch (error) {
       clearAdminSwitchSession();
-      toast.error(error instanceof Error ? error.message : 'Failed to switch account');
+      toast.error(feedback(error instanceof Error ? error.message : 'Failed to switch account'));
     } finally {
       setSwitchingUserId(null);
     }
@@ -128,11 +133,9 @@ export function AccountSwitcherDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserRoundCog className="h-5 w-5" />
-            Switch Account
-          </DialogTitle>
+            {tUi('switchAccount')} </DialogTitle>
           <DialogDescription>
-            Open another household account in this browser tab. Your admin session is saved until you return.
-          </DialogDescription>
+            {tUi('openAnotherHouseholdAccountInThisBrowserTabYourAdmin')} </DialogDescription>
         </DialogHeader>
 
         <div className="relative">
@@ -140,7 +143,7 @@ export function AccountSwitcherDialog({
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name, email, or group"
+            placeholder={tUi('searchByNameEmailOrGroup')}
             className="pl-9"
           />
         </div>
@@ -149,12 +152,10 @@ export function AccountSwitcherDialog({
           {isLoading ? (
             <div className="flex items-center justify-center py-10 text-muted-foreground">
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Loading accounts
-            </div>
+              {tUi('loadingAccounts')} </div>
           ) : filteredAccounts.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
-              No matching accounts
-            </p>
+              {tUi('noMatchingAccounts')} </p>
           ) : (
             <div className="space-y-2">
               {filteredAccounts.map((account) => (
@@ -170,7 +171,7 @@ export function AccountSwitcherDialog({
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium leading-tight">{account.fullName}</p>
                       <Badge variant={account.role === 'admin' ? 'default' : 'secondary'}>
-                        {account.role === 'admin' ? 'Admin' : 'Employee'}
+                        {account.role === 'admin' ? tUi('admin') : tUi('employee')}
                       </Badge>
                     </div>
                     <p className="truncate text-sm text-muted-foreground">{account.email}</p>
@@ -189,7 +190,7 @@ export function AccountSwitcherDialog({
                     {switchingUserId === account.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      'Switch'
+                      tUi('switch')
                     )}
                   </Button>
                 </div>

@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -72,6 +73,7 @@ const getPresetDates = (preset: PresetKey): DateRange => {
 };
 
 export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const [open, setOpen] = useState(false);
   const [customStart, setCustomStart] = useState(value.startDate);
@@ -98,7 +100,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   };
 
   const displayText = value.preset === 'custom' && value.startDate && value.endDate
-    ? `${format(parseLocalDate(value.startDate), 'MMM d, yyyy')} - ${format(parseLocalDate(value.endDate), 'MMM d, yyyy')}`
+    ? `${formatDate(parseLocalDate(value.startDate), 'MMM d, yyyy')} - ${formatDate(parseLocalDate(value.endDate), 'MMM d, yyyy')}`
     : t(`reports.dateRange.presets.${value.preset || 'last30days'}`);
 
   return (

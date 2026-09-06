@@ -17,12 +17,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useUser } from '@/hooks/use-user';
+import { useLanguagePreference } from '@/hooks/use-language-preference';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GoogleCalendarSettings } from '@/components/google-calendar-settings';
 
 export default function SettingsPage() {
   const t = useTranslations();
-  const { user, isLoading, updateUser, isUpdating } = useUser();
+  const { user, isLoading } = useUser();
+  const { changeLanguage, isChangingLanguage } = useLanguagePreference();
   const [showManageFoodTags, setShowManageFoodTags] = useState(false);
 
   // Log redirect preference - use lazy initialization
@@ -68,21 +70,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleLocaleChange = async (locale: 'en' | 'es' | 'zh') => {
-    // First, set the locale cookie via API
-    await fetch('/api/locale', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locale }),
-    });
-
-    // Update user preference in database
-    await updateUser({ preferredLocale: locale });
-
-    // Reload the page to apply the new locale
-    window.location.reload();
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -123,8 +110,8 @@ export default function SettingsPage() {
             <Label htmlFor="language">{t('settings.language')}</Label>
             <Select
               value={user?.preferredLocale || 'en'}
-              onValueChange={(value) => handleLocaleChange(value as 'en' | 'es' | 'zh')}
-              disabled={isUpdating}
+              onValueChange={(value) => changeLanguage(value as 'en' | 'es' | 'zh')}
+              disabled={isChangingLanguage}
             >
               <SelectTrigger className="w-48">
                 <SelectValue />

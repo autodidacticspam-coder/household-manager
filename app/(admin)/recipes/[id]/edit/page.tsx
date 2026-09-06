@@ -11,6 +11,7 @@ interface EditRecipePageProps {
 }
 
 export default function EditRecipePage({ params }: EditRecipePageProps) {
+  const tUi = useTranslations('interface');
   const { id } = use(params);
   const t = useTranslations();
   const { data: recipe, isLoading } = useRecipe(id);
@@ -30,7 +31,7 @@ export default function EditRecipePage({ params }: EditRecipePageProps) {
   if (!recipe) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">Recipe not found</p>
+        <p className="text-muted-foreground">{tUi('recipeNotFound')}</p>
       </div>
     );
   }

@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -15,12 +16,13 @@ const PAGE_SIZE = 25;
 const FILTERS: BookingLogFilter[] = ['all', 'pending', 'accepted', 'declined', 'cancelled'];
 
 // "Jul 30" this year, "Jul 30, 2025" otherwise
-function formatLogDate(iso: string): string {
+function formatLogDate(iso: string, format: ReturnType<typeof useDateFormat>): string {
   const date = new Date(iso);
   return format(date, date.getFullYear() === new Date().getFullYear() ? 'MMM d' : 'MMM d, yyyy');
 }
 
 export function RequestLogCard() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const [filter, setFilter] = useState<BookingLogFilter>('all');
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -79,9 +81,9 @@ export function RequestLogCard() {
                     request={request}
                     meta={
                       <>
-                        {t('babysitting.asked', { date: formatLogDate(request.createdAt) })}
+                        {t('babysitting.asked', { date: formatLogDate(request.createdAt, formatDate) })}
                         {request.respondedAt ? (
-                          <> &middot; {t('babysitting.replied', { date: formatLogDate(request.respondedAt) })}</>
+                          <> &middot; {t('babysitting.replied', { date: formatLogDate(request.respondedAt, formatDate) })}</>
                         ) : request.status === 'pending' ? (
                           <> &middot; {t('babysitting.noReplyYet')}</>
                         ) : null}

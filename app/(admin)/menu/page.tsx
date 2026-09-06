@@ -1,8 +1,10 @@
 'use client';
+import { MealSuggestions } from '@/components/food/meal-suggestions';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, startOfWeek, addDays, addWeeks, subWeeks, isToday } from 'date-fns';
+import { startOfWeek, addDays, addWeeks, subWeeks, isToday } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -56,6 +58,7 @@ function RatingSelector({
   mealType: string;
   currentRating?: MenuRating;
 }) {
+  const tUi = useTranslations('interface');
   const [isOpen, setIsOpen] = useState(false);
   const [comment, setComment] = useState(currentRating?.comment || '');
   const [selectedRating, setSelectedRating] = useState<number | null>(currentRating?.rating || null);
@@ -101,14 +104,14 @@ function RatingSelector({
           )}
         >
           <Star className={cn("h-4 w-4 sm:h-3 sm:w-3", currentRating && "fill-amber-500")} />
-          <span className="hidden sm:inline">{currentRating ? currentRating.rating : 'Rate'}</span>
+          <span className="hidden sm:inline">{currentRating ? currentRating.rating : tUi('rate')}</span>
           <span className="sm:hidden">{currentRating ? currentRating.rating : ''}</span>
           {currentRating?.comment && <MessageSquare className="h-3 w-3 ml-0.5" />}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[calc(100vw-2rem)] sm:w-72 p-3" align="start" sideOffset={5}>
         <div className="flex flex-col gap-3">
-          <p className="text-sm sm:text-xs font-medium text-muted-foreground">Rate this item (1-10)</p>
+          <p className="text-sm sm:text-xs font-medium text-muted-foreground">{tUi('rateThisItem110')}</p>
           <div className="grid grid-cols-5 gap-2 sm:flex sm:gap-1 sm:flex-wrap">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
               <Button
@@ -135,12 +138,11 @@ function RatingSelector({
           <div className="space-y-1">
             <Label className="text-sm sm:text-xs text-muted-foreground flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
-              Comment (optional)
-            </Label>
+              {tUi('commentOptional')} </Label>
             <Textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Add a note..."
+              placeholder={tUi('addANote')}
               rows={5}
               className="text-base sm:text-sm resize-none"
             />
@@ -156,7 +158,7 @@ function RatingSelector({
               {rateMenuItem.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'Save Rating'
+                tUi('saveRating')
               )}
             </Button>
             {currentRating && (
@@ -181,7 +183,7 @@ function RatingSelector({
 
           {currentRating?.comment && (
             <p className="text-xs text-muted-foreground italic border-t pt-2">
-              Current note: {currentRating.comment}
+              {tUi('currentNote')} {currentRating.comment}
             </p>
           )}
         </div>
@@ -299,15 +301,17 @@ function parseMenuText(text: string): DayMeals[] {
 }
 
 export default function MenuPage() {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const [selectedWeek, setSelectedWeek] = useState(() => {
     // SSR-safe initialization
     if (typeof window === 'undefined') return new Date();
     return startOfWeek(new Date(), { weekStartsOn: 1 });
   });
-  const weekStartStr = format(selectedWeek, 'yyyy-MM-dd');
+  const weekStartStr = formatDate(selectedWeek, 'yyyy-MM-dd');
   const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const isCurrentWeek = format(selectedWeek, 'yyyy-MM-dd') === format(currentWeekStart, 'yyyy-MM-dd');
+  const isCurrentWeek = formatDate(selectedWeek, 'yyyy-MM-dd') === formatDate(currentWeekStart, 'yyyy-MM-dd');
 
   // Ref for scrolling to today
   const todayRef = useRef<HTMLDivElement>(null);
@@ -372,6 +376,7 @@ export default function MenuPage() {
   };
 
   const [isEditing, setIsEditing] = useState(false);
+  const [showMealIdeas, setShowMealIdeas] = useState(false);
   const [editedMeals, setEditedMeals] = useState<DayMeals[]>([]);
   const [editedNotes, setEditedNotes] = useState<string>('');
   const [showPasteDialog, setShowPasteDialog] = useState(false);
@@ -464,7 +469,8 @@ export default function MenuPage() {
             </h1>
           </div>
           {canEdit && !isEditing && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" aria-expanded={showMealIdeas} onClick={() => setShowMealIdeas(value => !value)}>{t('mealSuggestions.title')}</Button>
               <Button variant="outline" onClick={handleOpenPasteDialog}>
                 <ClipboardPaste className="h-4 w-4 mr-2" />
                 {t('menu.pasteMenu')}
@@ -500,7 +506,7 @@ export default function MenuPage() {
           </Button>
           <div className="text-center min-w-[200px]">
             <p className="font-medium">
-              {t('menu.weekOf')} {format(selectedWeek, 'MMMM d, yyyy')}
+              {t('menu.weekOf')} {formatDate(selectedWeek, 'MMMM d, yyyy')}
             </p>
             {isCurrentWeek && (
               <Badge variant="secondary" className="mt-1">{t('menu.currentWeek')}</Badge>
@@ -516,6 +522,8 @@ export default function MenuPage() {
           )}
         </div>
       </div>
+
+      {canEdit && showMealIdeas && <MealSuggestions onRequestFood={isAdmin ? name => { setRequestFoodName(name); setShowRequestDialog(true); } : undefined} />}
 
       {/* Restaurant-Style Menu */}
       <div className="max-w-4xl mx-auto">
@@ -535,7 +543,7 @@ export default function MenuPage() {
               {t('menu.weekOf')}
             </h2>
             <p className="text-lg text-amber-700 dark:text-amber-300 font-medium mt-1">
-              {format(selectedWeek, 'MMMM d')} - {format(addDays(selectedWeek, 6), 'MMMM d, yyyy')}
+              {formatDate(selectedWeek, 'MMMM d')} - {formatDate(addDays(selectedWeek, 6), 'MMMM d, yyyy')}
             </p>
           </div>
 
@@ -544,8 +552,7 @@ export default function MenuPage() {
             <div className="px-6 py-4 bg-amber-100/50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-900">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-amber-600 dark:text-amber-500 text-sm font-semibold uppercase tracking-widest">
-                  Chef&apos;s Notes
-                </span>
+                  {tUi('chefSNotes')} </span>
               </div>
               {isEditing ? (
                 <Textarea
@@ -581,7 +588,7 @@ export default function MenuPage() {
                         {t(`menu.days.${dayMeal.day.toLowerCase()}`)}
                       </h3>
                       <span className="text-amber-600 dark:text-amber-400 text-sm">
-                        {format(dayDate, 'MMM d')}
+                        {formatDate(dayDate, 'MMM d')}
                       </span>
                     </div>
                     {isTodayDay && (
@@ -666,7 +673,7 @@ export default function MenuPage() {
                                             setRequestFoodName(trimmedLine);
                                             setShowRequestDialog(true);
                                           }}
-                                          title="Request this dish"
+                                          title={tUi('requestThisDish')}
                                         >
                                           <Send className="h-3.5 w-3.5" />
                                         </Button>
@@ -693,7 +700,7 @@ export default function MenuPage() {
                                                 "h-7 w-7 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30 touch-manipulation",
                                                 dishTagInfo.tags.length === 0 && "sm:opacity-0 sm:group-hover:opacity-100"
                                               )}
-                                              title="Edit tags"
+                                              title={tUi('editTags')}
                                             >
                                               <Tag className="h-3.5 w-3.5" />
                                             </Button>
@@ -719,7 +726,7 @@ export default function MenuPage() {
                                             <MessageSquare className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
                                             <div className="min-w-0">
                                               <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                                                {rating.ratedByUser?.fullName || 'Unknown'}
+                                                {rating.ratedByUser?.fullName || tUi('unknown')}
                                               </p>
                                               <p className="whitespace-pre-wrap break-words text-sm">{rating.comment}</p>
                                             </div>
@@ -753,7 +760,7 @@ export default function MenuPage() {
       {/* Last Updated Info */}
       {menu?.updatedAt && menu.updatedByUser && (
         <p className="text-sm text-muted-foreground text-center">
-          {t('menu.lastUpdated')}: {format(new Date(menu.updatedAt), 'MMM d, yyyy h:mm a')} {t('menu.by')} {menu.updatedByUser.fullName}
+          {t('menu.lastUpdated')}: {formatDate(new Date(menu.updatedAt), 'MMM d, yyyy h:mm a')} {t('menu.by')} {menu.updatedByUser.fullName}
         </p>
       )}
 
@@ -795,29 +802,27 @@ export default function MenuPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5" />
-              Request Food
-            </DialogTitle>
+              {tUi('requestFood')} </DialogTitle>
             <DialogDescription>
-              Request a specific dish from the chef
-            </DialogDescription>
+              {tUi('requestASpecificDishFromTheChef')} </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="food-name">What would you like?</Label>
+              <Label htmlFor="food-name">{tUi('whatWouldYouLike')}</Label>
               <Input
                 id="food-name"
                 value={requestFoodName}
                 onChange={(e) => setRequestFoodName(e.target.value)}
-                placeholder="e.g., Grilled salmon, Chocolate cake..."
+                placeholder={tUi('eGGrilledSalmonChocolateCake')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="request-notes">Notes (optional)</Label>
+              <Label htmlFor="request-notes">{tUi('notesOptional')}</Label>
               <Textarea
                 id="request-notes"
                 value={requestNotes}
                 onChange={(e) => setRequestNotes(e.target.value)}
-                placeholder="Any special instructions or preferences..."
+                placeholder={tUi('anySpecialInstructionsOrPreferences')}
                 rows={3}
               />
             </div>
@@ -847,8 +852,7 @@ export default function MenuPage() {
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Submit Request
-            </Button>
+              {tUi('submitRequest')} </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

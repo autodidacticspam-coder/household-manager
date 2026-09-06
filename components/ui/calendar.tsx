@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import { useTranslations } from "next-intl"
+import { useDateLocale } from "@/hooks/use-date-format"
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -28,9 +30,23 @@ function Calendar({
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const dateLocale = useDateLocale()
+  const t = useTranslations('datePicker')
 
   return (
     <DayPicker
+      locale={dateLocale}
+      labels={{
+        labelPrevious: () => t('previousMonth'),
+        labelNext: () => t('nextMonth'),
+        labelMonthDropdown: () => t('month'),
+        labelYearDropdown: () => t('year'),
+        labelDayButton: (date, modifiers) => [
+          modifiers.today ? t('today') : '',
+          date.toLocaleDateString(dateLocale.code, { dateStyle: 'full' }),
+          modifiers.selected ? t('selected') : '',
+        ].filter(Boolean).join(', '),
+      }}
       showOutsideDays={showOutsideDays}
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
@@ -41,7 +57,7 @@ function Calendar({
       captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
-          date.toLocaleString("default", { month: "short" }),
+          date.toLocaleString(dateLocale.code, { month: "short" }),
         ...formatters,
       }}
       classNames={{

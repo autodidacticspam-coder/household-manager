@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -65,6 +68,8 @@ export function useMenuItemMerges(options?: { activeOnly?: boolean }) {
 }
 
 export function useCreateMenuItemMerges() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -101,16 +106,19 @@ export function useCreateMenuItemMerges() {
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       invalidateFoodMergeQueries(queryClient);
-      toast.success('Food items merged');
+      toast.success(tUi('foodItemsMerged'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUndoMenuItemMerge() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -132,11 +140,12 @@ export function useUndoMenuItemMerge() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       invalidateFoodMergeQueries(queryClient);
-      toast.success('Food item unmerged');
+      toast.success(tUi('foodItemUnmerged'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { NextIntlClientProvider } from 'next-intl';
+import messages from '@/messages/en.json';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
@@ -55,7 +57,7 @@ import { AccountSwitchBanner } from '@/components/admin/account-switch-banner';
 // Regression: the mobile account-switch banner rendered beneath the iOS status bar.
 describe('AccountSwitchBanner', () => {
   it('positions the return action below the device safe area', async () => {
-    const { container } = render(<AccountSwitchBanner />);
+    const { container } = render(<NextIntlClientProvider locale="en" messages={messages}><AccountSwitchBanner /></NextIntlClientProvider>);
 
     expect(await screen.findByRole('button', { name: 'Return to Admin' })).toBeTruthy();
     await waitFor(() => expect(container.firstElementChild).not.toBeNull());

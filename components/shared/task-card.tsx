@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+
 import { parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +67,8 @@ export function TaskCard({
   showActions = true,
   isEmployee = false,
 }: TaskCardProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const { data: employees } = useEmployees();
   const quickAssign = useQuickAssign();
@@ -208,8 +211,7 @@ export function TaskCard({
                     onClick={() => onUndo(task.id)}
                   >
                     <Undo2 className="h-4 w-4 mr-1" />
-                    Undo
-                  </Button>
+                    {tUi('undo')} </Button>
                 )
               ) : (
                 onComplete && (
@@ -220,8 +222,7 @@ export function TaskCard({
                     onClick={() => onComplete(task.id)}
                   >
                     <CheckCircle className="h-4 w-4 mr-1" />
-                    Complete
-                  </Button>
+                    {tUi('complete')} </Button>
                 )
               )
             ) : (
@@ -314,10 +315,10 @@ export function TaskCard({
               isOverdue ? 'text-red-600' : 'text-muted-foreground'
             )}>
               <Calendar className="h-4 w-4 mr-1" />
-              {format(parseLocalDate(task.dueDate), 'EEE, MMM d')}
+              {formatDate(parseLocalDate(task.dueDate), 'EEE, MMM d')}
               {task.dueTime && !task.isAllDay && (
                 <span className="ml-1">
-                  at {formatTime12h(task.dueTime)}
+                  {tUi('at')} {formatTime12h(task.dueTime)}
                 </span>
               )}
             </div>
@@ -357,7 +358,7 @@ export function TaskCard({
         {/* Videos section */}
         {task.videos && task.videos.length > 0 && (
           <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-2">Videos:</p>
+            <p className="text-xs text-muted-foreground mb-2">{tUi('videos')}</p>
             <div className="flex flex-col gap-2">
               {task.videos.map((video) => (
                 <a
@@ -368,7 +369,7 @@ export function TaskCard({
                   className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline"
                 >
                   <Video className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{video.title || (video.videoType === 'upload' ? 'Uploaded video' : 'Video link')}</span>
+                  <span className="truncate">{video.title || (video.videoType === 'upload' ? tUi('uploadedVideo') : tUi('videoLink'))}</span>
                   <ExternalLink className="h-3 w-3 flex-shrink-0" />
                 </a>
               ))}
@@ -379,7 +380,7 @@ export function TaskCard({
         {/* Created date */}
         {task.createdAt && (
           <div className="text-xs text-muted-foreground pt-2 border-t">
-            Created {format(new Date(task.createdAt), 'MMM d, yyyy')}
+            {tUi('created')} {formatDate(new Date(task.createdAt), 'MMM d, yyyy')}
           </div>
         )}
       </CardContent>

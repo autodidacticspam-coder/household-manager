@@ -130,7 +130,7 @@ export function normalizeFoodName(name: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/&/g, ' and ')
     .replace(/\bw\//g, ' with ')
-    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }

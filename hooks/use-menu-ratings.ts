@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -236,6 +239,8 @@ export function useMenuRatingsSummary() {
 
 // Create or update a rating
 export function useRateMenuItem() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -265,19 +270,22 @@ export function useRateMenuItem() {
       return data;
     },
     onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['menu-ratings', variables.weekStart] });
       queryClient.invalidateQueries({ queryKey: ['menu-ratings-all'] });
       queryClient.invalidateQueries({ queryKey: ['menu-ratings-summary'] });
-      toast.success('Rating saved');
+      toast.success(tUi('ratingSaved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Delete a rating
 export function useDeleteMenuRating() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -291,13 +299,14 @@ export function useDeleteMenuRating() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['menu-ratings'] });
       queryClient.invalidateQueries({ queryKey: ['menu-ratings-all'] });
       queryClient.invalidateQueries({ queryKey: ['menu-ratings-summary'] });
-      toast.success('Rating deleted');
+      toast.success(tUi('ratingDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

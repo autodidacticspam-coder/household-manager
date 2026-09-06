@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -18,11 +19,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useEmployeesList } from '@/hooks/use-employees';
-import { format } from 'date-fns';
+
 import { parseLocalDate } from '@/lib/date-utils';
 import { Plus, Search, Mail, Users } from 'lucide-react';
 
 export default function EmployeesPage() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -120,7 +122,7 @@ export default function EmployeesPage() {
                     </TableCell>
                     <TableCell className="hidden sm:table-cell">
                       {employee.profile?.hireDate ? (
-                        format(parseLocalDate(employee.profile.hireDate), 'MMM d, yyyy')
+                        formatDate(parseLocalDate(employee.profile.hireDate), 'MMM d, yyyy')
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}

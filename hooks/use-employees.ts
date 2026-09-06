@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -136,6 +137,7 @@ export type CreateEmployeeInput = {
 };
 
 export function useCreateEmployee() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -162,7 +164,7 @@ export function useCreateEmployee() {
       toast.success(t('employees.employeeCreated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
@@ -179,6 +181,7 @@ export type UpdateEmployeeInput = {
 };
 
 export function useUpdateEmployee() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
   const supabase = createClient();
@@ -258,12 +261,14 @@ export function useUpdateEmployee() {
       toast.success(t('employees.employeeUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteEmployee() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -283,10 +288,10 @@ export function useDeleteEmployee() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employees-list'] });
       queryClient.invalidateQueries({ queryKey: ['employees'] });
-      toast.success('Employee deleted successfully');
+      toast.success(tUi('employeeDeletedSuccessfully'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

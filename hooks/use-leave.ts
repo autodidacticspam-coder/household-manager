@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -193,6 +194,7 @@ export function useCurrentlyOnLeave() {
 }
 
 export function useCreateLeaveRequest() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -213,12 +215,13 @@ export function useCreateLeaveRequest() {
       toast.success(t('leave.requestSubmitted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useApproveLeaveRequest() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -239,12 +242,13 @@ export function useApproveLeaveRequest() {
       toast.success(t('leave.requestApproved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDenyLeaveRequest() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -264,12 +268,14 @@ export function useDenyLeaveRequest() {
       toast.success(t('leave.requestDenied'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useCancelLeaveRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -286,10 +292,10 @@ export function useCancelLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ['upcoming-leave'] });
       queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      toast.success('Leave request cancelled');
+      toast.success(tUi('leaveRequestCancelled'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

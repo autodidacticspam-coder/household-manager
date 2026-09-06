@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useActionState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -11,6 +12,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
 
 export default function ResetPasswordPage() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
 
   const [state, formAction, isPending] = useActionState<AuthState, FormData>(
@@ -26,13 +29,12 @@ export default function ResetPasswordPage() {
             {t('auth.resetPassword')}
           </CardTitle>
           <CardDescription className="text-center">
-            Enter your new password below.
-          </CardDescription>
+            {tUi('enterYourNewPasswordBelow')} </CardDescription>
         </CardHeader>
         <CardContent>
           {state.error && (
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{feedback(state.error)}</AlertDescription>
             </Alert>
           )}
 

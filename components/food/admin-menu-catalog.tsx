@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, Loader2, Plus, Search, Settings2, Tags } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -40,15 +41,17 @@ type CatalogSortField = 'name' | 'tags' | 'averageRating' | 'totalRatings' | 'ti
 type CatalogSortDirection = 'asc' | 'desc';
 
 const CATALOG_SORT_OPTIONS: { field: CatalogSortField; label: string }[] = [
-  { field: 'name', label: 'Dish' },
-  { field: 'tags', label: 'Tags' },
-  { field: 'averageRating', label: 'Rating' },
-  { field: 'totalRatings', label: 'Ratings' },
-  { field: 'timesServed', label: 'Seen' },
-  { field: 'lastServedAt', label: 'Last Seen' },
+  { field: 'name', label: 'dish' },
+  { field: 'tags', label: 'tags' },
+  { field: 'averageRating', label: 'rating_136' },
+  { field: 'totalRatings', label: 'ratings' },
+  { field: 'timesServed', label: 'seen' },
+  { field: 'lastServedAt', label: 'lastSeen' },
 ];
 
 export function AdminMenuCatalog() {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations('foodTags');
   const [catalogSearchTerm, setCatalogSearchTerm] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -126,11 +129,9 @@ export function AdminMenuCatalog() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Tags className="h-5 w-5" />
-              Menu Catalog
-            </CardTitle>
+              {tUi('menuCatalog')} </CardTitle>
             <CardDescription>
-              {visibleItems.length} of {catalogItems.length} dishes shown
-            </CardDescription>
+              {visibleItems.length}  {tUi('of')} {catalogItems.length}  {tUi('dishesShown')} </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
             {canAddSearchedDish && (
@@ -145,7 +146,7 @@ export function AdminMenuCatalog() {
                 ) : (
                   <Plus className="h-4 w-4" />
                 )}
-                <span className="truncate">Add &quot;{trimmedSearch}&quot;</span>
+                <span className="truncate">{tUi('addDishName', { name: trimmedSearch })}</span>
               </Button>
             )}
             <Button variant="outline" onClick={() => setShowManageTags(true)}>
@@ -159,7 +160,7 @@ export function AdminMenuCatalog() {
           <Input
             value={catalogSearchTerm}
             onChange={(event) => setCatalogSearchTerm(event.target.value)}
-            placeholder="Search catalog..."
+            placeholder={tUi('searchCatalog')}
             className="pl-10"
           />
         </div>
@@ -201,7 +202,7 @@ export function AdminMenuCatalog() {
               <SelectContent>
                 {CATALOG_SORT_OPTIONS.map((option) => (
                   <SelectItem key={option.field} value={option.field}>
-                    {option.label}
+                    {tUi(option.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -211,14 +212,14 @@ export function AdminMenuCatalog() {
               variant="outline"
               size="sm"
               onClick={() => setSortDirection((current) => current === 'asc' ? 'desc' : 'asc')}
-              aria-label="Toggle catalog sort direction"
+              aria-label={tUi('toggleCatalogSortDirection')}
             >
               {sortDirection === 'asc' ? (
                 <ArrowUp className="h-4 w-4" />
               ) : (
                 <ArrowDown className="h-4 w-4" />
               )}
-              {sortDirection === 'asc' ? 'Asc' : 'Desc'}
+              {sortDirection === 'asc' ? tUi('asc') : tUi('desc')}
             </Button>
           </div>
         </div>
@@ -227,7 +228,7 @@ export function AdminMenuCatalog() {
         {visibleItems.length === 0 ? (
           <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 text-center text-muted-foreground">
             <Search className="h-8 w-8" />
-            <p>No catalog dishes found</p>
+            <p>{tUi('noCatalogDishesFound')}</p>
           </div>
         ) : (
           <>
@@ -249,7 +250,7 @@ export function AdminMenuCatalog() {
                     <TableHead>
                       <SortButton
                         field="name"
-                        label="Dish"
+                        label={tUi('dish')}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={changeSort}
@@ -258,7 +259,7 @@ export function AdminMenuCatalog() {
                     <TableHead>
                       <SortButton
                         field="tags"
-                        label="Tags"
+                        label={tUi('tags')}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={changeSort}
@@ -267,7 +268,7 @@ export function AdminMenuCatalog() {
                     <TableHead className="text-center">
                       <SortButton
                         field="averageRating"
-                        label="Rating"
+                        label={tUi('rating_136')}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={changeSort}
@@ -277,7 +278,7 @@ export function AdminMenuCatalog() {
                     <TableHead className="text-center">
                       <SortButton
                         field="totalRatings"
-                        label="Ratings"
+                        label={tUi('ratings')}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={changeSort}
@@ -287,7 +288,7 @@ export function AdminMenuCatalog() {
                     <TableHead className="text-center">
                       <SortButton
                         field="timesServed"
-                        label="Seen"
+                        label={tUi('seen')}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={changeSort}
@@ -297,7 +298,7 @@ export function AdminMenuCatalog() {
                     <TableHead>
                       <SortButton
                         field="lastServedAt"
-                        label="Last Seen"
+                        label={tUi('lastSeen')}
                         sortField={sortField}
                         sortDirection={sortDirection}
                         onSort={changeSort}
@@ -336,7 +337,7 @@ export function AdminMenuCatalog() {
                       <TableCell className="text-center">{item.totalRatings}</TableCell>
                       <TableCell className="text-center">{item.timesServed}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {item.lastServedAt ? format(new Date(item.lastServedAt), 'MMM d, yyyy') : '-'}
+                        {item.lastServedAt ? formatDate(new Date(item.lastServedAt), 'MMM d, yyyy') : '-'}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -395,13 +396,14 @@ function CatalogItemCard({
   isSaving: boolean;
   onToggleTag: (tagId: string, enabled: boolean) => void;
 }) {
+  const tUi = useTranslations('interface');
   return (
     <div className="rounded-lg border bg-card p-3">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-medium">{item.name}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {item.totalRatings} ratings - seen {item.timesServed}
+            {item.totalRatings}  {tUi('ratingsSeen')} {item.timesServed}
           </p>
         </div>
         {item.averageRating ? (
@@ -429,6 +431,7 @@ function ItemTagEditor({
   isSaving: boolean;
   onToggleTag: (tagId: string, enabled: boolean) => void;
 }) {
+  const tUi = useTranslations('interface');
   const sortedTags = sortItemTags(item.tags, tagOrder);
 
   return (
@@ -444,7 +447,7 @@ function ItemTagEditor({
           <Button
             variant="outline"
             size="sm"
-            aria-label="Edit tags"
+            aria-label={tUi('editTags')}
             className="h-6 w-7 border-dashed p-0 text-muted-foreground hover:text-foreground"
           >
             <Plus className="h-3.5 w-3.5" />

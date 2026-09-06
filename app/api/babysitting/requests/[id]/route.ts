@@ -5,15 +5,6 @@ import { sendBookingCancellationPush, sendBookingResponsePush } from '@/lib/noti
 import { formatTime12h } from '@/lib/format-time';
 import { getZonedDateString } from '@/lib/timezone';
 
-function formatRequestDateLabel(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -115,7 +106,7 @@ export async function PATCH(
         ));
       }
 
-      const dateLabel = formatRequestDateLabel(bookingRequest.request_date);
+      const dateLabel = bookingRequest.request_date;
       const timeLabel = `${formatTime12h(bookingRequest.start_time)} - ${formatTime12h(bookingRequest.end_time)}`;
       after(sendBookingCancellationPush(
         [bookingRequest.babysitter_id],
@@ -208,7 +199,7 @@ export async function PATCH(
 
     const adminIds = (admins || []).map((a) => a.id);
     if (adminIds.length > 0) {
-      const dateLabel = formatRequestDateLabel(bookingRequest.request_date);
+      const dateLabel = bookingRequest.request_date;
       const timeLabel = `${formatTime12h(bookingRequest.start_time)} - ${formatTime12h(bookingRequest.end_time)}`;
       after(sendBookingResponsePush(
         adminIds,

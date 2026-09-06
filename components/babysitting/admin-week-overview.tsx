@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+
 import { parseLocalDate } from '@/lib/date-utils';
 import { formatTimeCompact } from '@/lib/format-time';
 import { subtractRanges, rangeMinutes } from '@/lib/time-ranges';
@@ -157,9 +158,10 @@ export function AdminWeekOverview({
   onBookSlot,
   onCancelBooking,
 }: AdminWeekOverviewProps) {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const dates = getWeekDates(weekStart);
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayStr = formatDate(new Date(), 'yyyy-MM-dd');
 
   const requestsByKey = useMemo(() => {
     const map = new Map<string, BookingRequest[]>();
@@ -210,7 +212,7 @@ export function AdminWeekOverview({
             <div key={date} className="py-2.5 first:pt-0 last:pb-0 sm:grid sm:grid-cols-[6.5rem_1fr] sm:gap-3">
               <div className="flex items-center gap-2 sm:block sm:pt-1">
                 <div className={cn('text-sm font-medium', isToday && 'text-primary')}>
-                  {format(parseLocalDate(date), 'EEE, MMM d')}
+                  {formatDate(parseLocalDate(date), 'EEE, MMM d')}
                 </div>
                 {isToday && (
                   <Badge variant="secondary" className="bg-primary/10 text-primary sm:mt-1">

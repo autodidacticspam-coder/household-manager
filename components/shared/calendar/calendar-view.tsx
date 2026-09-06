@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
@@ -164,6 +165,8 @@ function loadFiltersFromStorage(): CalendarFiltersState {
 }
 
 export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const calendarRef = useRef<FullCalendar>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -198,11 +201,11 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   // Use visible range if available, otherwise fall back to current month
   // Add buffer of 1 week on each side to ensure smooth navigation
   const startDate = visibleRange
-    ? format(subWeeks(visibleRange.start, 1), 'yyyy-MM-dd')
-    : format(startOfMonth(currentDate), 'yyyy-MM-dd');
+    ? formatDate(subWeeks(visibleRange.start, 1), 'yyyy-MM-dd')
+    : formatDate(startOfMonth(currentDate), 'yyyy-MM-dd');
   const endDate = visibleRange
-    ? format(addWeeks(visibleRange.end, 1), 'yyyy-MM-dd')
-    : format(endOfMonth(currentDate), 'yyyy-MM-dd');
+    ? formatDate(addWeeks(visibleRange.end, 1), 'yyyy-MM-dd')
+    : formatDate(endOfMonth(currentDate), 'yyyy-MM-dd');
 
   const { data: events, isLoading, refetch } = useCalendarEvents({
     startDate,
@@ -370,7 +373,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     setActivityRepeatEnabled(false);
     setActivityRepeatDays([dayOfWeek]);
     setActivityRepeatInterval('weekly');
-    setActivityRepeatEndDate(format(addYears(clickedDate, 1), 'yyyy-MM-dd'));
+    setActivityRepeatEndDate(formatDate(addYears(clickedDate, 1), 'yyyy-MM-dd'));
 
     setAddScheduleDialog({
       open: true,
@@ -402,7 +405,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     // Validate time format
     if (!startTime24 || !endTime24) return;
 
-    const scheduleDate = format(addScheduleDialog.date, 'yyyy-MM-dd');
+    const scheduleDate = formatDate(addScheduleDialog.date, 'yyyy-MM-dd');
 
     await createOneOffSchedule.mutateAsync({
       userId: newScheduleEmployee,
@@ -449,7 +452,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     await createTask.mutateAsync({
       title: newActivityTitle.trim(),
       priority: 'medium',
-      dueDate: format(addScheduleDialog.date, 'yyyy-MM-dd'),
+      dueDate: formatDate(addScheduleDialog.date, 'yyyy-MM-dd'),
       dueTime: startTime24,
       isAllDay: false,
       isActivity: true,
@@ -668,7 +671,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     // Handle one-off schedule events - moving updates the row's own date and times
     if (eventId.startsWith('one-off-schedule-')) {
       const oneOffScheduleId = info.event.extendedProps.oneOffScheduleId as string;
-      const newDate = format(newStart, 'yyyy-MM-dd');
+      const newDate = formatDate(newStart, 'yyyy-MM-dd');
       const newStartTime = format(newStart, 'HH:mm:ss');
       const newEndTime = newEnd ? format(newEnd, 'HH:mm:ss') : format(newStart, 'HH:mm:ss');
 
@@ -691,7 +694,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       const scheduleId = info.event.extendedProps.scheduleId as string;
       const scheduleDate = info.event.extendedProps.scheduleDate as string;
       const scheduleUserId = info.event.extendedProps.userId as string;
-      const newDate = format(newStart, 'yyyy-MM-dd');
+      const newDate = formatDate(newStart, 'yyyy-MM-dd');
       const newStartTime = format(newStart, 'HH:mm:ss');
       const newEndTime = newEnd ? format(newEnd, 'HH:mm:ss') : format(newStart, 'HH:mm:ss');
 
@@ -733,7 +736,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
     }
 
     const taskId = extractTaskId(eventId);
-    const newDate = format(newStart, 'yyyy-MM-dd');
+    const newDate = formatDate(newStart, 'yyyy-MM-dd');
     const newTime = format(newStart, 'HH:mm:ss');
     const isActivity = !!info.event.extendedProps.isActivity;
     const isRecurring = !!info.event.extendedProps.isRecurring;
@@ -741,7 +744,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
 
     // Activities render start-to-end on one day; a drop whose end crosses
     // midnight can't be stored, so snap it back.
-    if (isActivity && newEnd && format(newEnd, 'yyyy-MM-dd') !== newDate && format(newEnd, 'HH:mm:ss') !== '00:00:00') {
+    if (isActivity && newEnd && formatDate(newEnd, 'yyyy-MM-dd') !== newDate && format(newEnd, 'HH:mm:ss') !== '00:00:00') {
       info.revert();
       return;
     }
@@ -865,13 +868,13 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       return;
     }
 
-    const dueDate = format(start, 'yyyy-MM-dd');
+    const dueDate = formatDate(start, 'yyyy-MM-dd');
     const startTime = format(start, 'HH:mm:ss');
     const newEndTime = format(newEnd, 'HH:mm:ss');
 
     // Activities render start-to-end on one day; resizing past midnight
     // can't be stored, so snap it back.
-    if (format(newEnd, 'yyyy-MM-dd') !== dueDate && newEndTime !== '00:00:00') {
+    if (formatDate(newEnd, 'yyyy-MM-dd') !== dueDate && newEndTime !== '00:00:00') {
       info.revert();
       return;
     }
@@ -1004,7 +1007,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             {t('common.today')}
           </Button>
           <h2 className="text-lg font-semibold ml-2">
-            {format(currentDate, 'MMMM yyyy')}
+            {formatDate(currentDate, 'MMMM yyyy')}
           </h2>
         </div>
 
@@ -1284,9 +1287,9 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
           <CardContent>
             <h3 className="font-semibold">{selectedEvent.title}</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {format(selectedEvent.start, 'MMM d, yyyy')}
+              {formatDate(selectedEvent.start, 'MMM d, yyyy')}
               {selectedEvent.start.toDateString() !== selectedEvent.end.toDateString() && (
-                <> - {format(selectedEvent.end, 'MMM d, yyyy')}</>
+                <> - {formatDate(selectedEvent.end, 'MMM d, yyyy')}</>
               )}
             </p>
 
@@ -1294,7 +1297,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               <div className="mt-3 space-y-3">
                 {!!selectedEvent.extendedProps.isActivity && (
                   <p className="text-sm text-muted-foreground">
-                    {format(selectedEvent.start, 'h:mm a')} - {format(selectedEvent.end, 'h:mm a')}
+                    {formatDate(selectedEvent.start, 'h:mm a')} - {formatDate(selectedEvent.end, 'h:mm a')}
                   </p>
                 )}
                 <div className="flex flex-wrap gap-2">
@@ -1443,7 +1446,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {format(selectedEvent.start, 'h:mm a')}
+                  {formatDate(selectedEvent.start, 'h:mm a')}
                 </p>
                 {Boolean(selectedEvent.extendedProps.description) && (
                   <p className="text-sm">{String(selectedEvent.extendedProps.description)}</p>
@@ -1488,8 +1491,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   {String(selectedEvent.extendedProps.employeeName)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Recurring annually
-                </p>
+                  {tUi('recurringAnnually')} </p>
                 {/* Edit button to navigate to employee profile (Admin only) */}
                 {!isEmployee && !!selectedEvent.extendedProps.employeeId && (
                   <Button
@@ -1516,7 +1518,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                 {!editingSchedule ? (
                   <>
                     <p className="text-sm">
-                      {format(selectedEvent.start, 'h:mm a')} - {format(selectedEvent.end, 'h:mm a')}
+                      {formatDate(selectedEvent.start, 'h:mm a')} - {formatDate(selectedEvent.end, 'h:mm a')}
                     </p>
                     {Boolean(selectedEvent.extendedProps.hasOverride) && (
                       <p className="text-xs text-muted-foreground">
@@ -1602,7 +1604,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                   <div className="space-y-3">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground w-12">Start:</span>
+                        <span className="text-sm text-muted-foreground w-12">{tUi('start')}</span>
                         <Input
                           type="text"
                           inputMode="numeric"
@@ -1637,7 +1639,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground w-12">End:</span>
+                        <span className="text-sm text-muted-foreground w-12">{tUi('end')}</span>
                         <Input
                           type="text"
                           inputMode="numeric"
@@ -1898,7 +1900,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
             {addScheduleDialog && (
               <p className="text-sm text-muted-foreground">
                 {t('employees.scheduleFor', {
-                  day: format(addScheduleDialog.date, 'EEEE, MMMM d, yyyy'),
+                  day: formatDate(addScheduleDialog.date, 'EEEE, MMMM d, yyyy'),
                 })}
               </p>
             )}
@@ -2091,7 +2093,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
                         type="date"
                         value={activityRepeatEndDate}
                         onChange={(e) => setActivityRepeatEndDate(e.target.value)}
-                        min={addScheduleDialog ? format(addScheduleDialog.date, 'yyyy-MM-dd') : undefined}
+                        min={addScheduleDialog ? formatDate(addScheduleDialog.date, 'yyyy-MM-dd') : undefined}
                       />
                     </div>
 

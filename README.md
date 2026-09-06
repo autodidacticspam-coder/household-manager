@@ -1,10 +1,10 @@
 # Household Manager
 
-A comprehensive dual-portal web application for household management with separate Admin and Employee interfaces. Built with Next.js 14, TypeScript, Tailwind CSS, and Supabase.
+A household management application with Admin and Employee interfaces. Built with Next.js 16, TypeScript, Tailwind CSS, and Supabase.
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS
 - **UI Components**: shadcn/ui
 - **Backend**: Supabase (PostgreSQL, Auth, Storage, Row Level Security)
 - **State Management**: TanStack Query (React Query)
@@ -20,7 +20,7 @@ A comprehensive dual-portal web application for household management with separa
 
 - **Role-based access**: Separate Admin and Employee portals
 - **Email/password login** for administrators
-- **Passwordless login** for employees (simplified access)
+- **Email-only employee login** for existing employee accounts (no emailed verification code in the current flow)
 - **Password reset** functionality
 - **Session management** with persistent login
 - **Protected routes** based on user role
@@ -47,7 +47,7 @@ A comprehensive dual-portal web application for household management with separa
 - **Assign tasks** to individual employees, groups, or all staff
 - **Task categories** with custom colors
 - **Priority levels**: Low, Medium, High, Urgent
-- **Recurring tasks**: Daily, Weekly, Monthly
+- **Repeating tasks**: Selected weekdays with weekly, biweekly, or monthly intervals and a fixed end date; completed occurrences keep their history
 - **Activity mode**: Tasks with start/end times
 - **All-day tasks** option
 - Search and filter by status, priority, category
@@ -55,7 +55,7 @@ A comprehensive dual-portal web application for household management with separa
 
 ### Employee Management
 
-- Add new employees with email invitations
+- Add employee accounts with a password and group memberships
 - View employee directory with search
 - **Employee profiles**:
   - Contact information
@@ -253,7 +253,7 @@ A comprehensive dual-portal web application for household management with separa
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.9+ (Node.js 22 is used for this checkout)
 - npm or yarn
 - Supabase account
 
@@ -282,14 +282,16 @@ A comprehensive dual-portal web application for household management with separa
    SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
    ```
 
-4. Run database migrations in Supabase SQL editor (see `/supabase/migrations/`)
+4. Follow [database setup](docs/database-setup.md). For a fresh Supabase project, apply `supabase/baseline/schema.sql` and `supabase/baseline/seed.sql` in one transaction. Existing installations use only unapplied incremental migrations. Do not replay the historical migration chain over an existing database.
 
 5. Start the development server:
    ```bash
    npm run dev
    ```
 
-6. Open [http://household.localhost](http://household.localhost) or [http://localhost:3501](http://localhost:3501)
+6. Open [http://localhost:3501](http://localhost:3501). Set `NEXT_PUBLIC_APP_URL` to the matching URL.
+
+Read the [employee guide](docs/employee-guide.md) for current task, request, leave, and language behavior. Run `npm test`, `npm run lint`, and `npm run build` before releasing. See [TESTING.md](TESTING.md) for validation conventions.
 
 ### Deployment
 

@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -120,6 +121,7 @@ export function useTaskTemplate(id: string) {
 }
 
 export function useCreateTaskTemplate() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -185,12 +187,13 @@ export function useCreateTaskTemplate() {
       toast.success(t('templates.created'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUpdateTaskTemplate() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -257,12 +260,13 @@ export function useUpdateTaskTemplate() {
       toast.success(t('templates.updated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteTaskTemplate() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -281,12 +285,14 @@ export function useDeleteTaskTemplate() {
       toast.success(t('templates.deleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteTemplateVideo() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -317,10 +323,10 @@ export function useDeleteTemplateVideo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['task-templates'] });
-      toast.success('Video removed');
+      toast.success(tUi('videoRemoved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

@@ -1,6 +1,8 @@
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type TaskStatus = 'pending' | 'in_progress' | 'completed';
-export type AssignmentTargetType = 'user' | 'group' | 'all' | 'all_admins';
+import type { Enums } from '@/types/database';
+
+export type TaskPriority = Enums<'task_priority'>;
+export type TaskStatus = Enums<'task_status'>;
+export type AssignmentTargetType = Enums<'assignment_target_type'>;
 
 export interface TaskCategory {
   id: string;
@@ -76,6 +78,8 @@ export interface TemplateVideo {
 export interface Task {
   id: string;
   seriesId?: string | null;
+  originalTitle?: string;
+  originalDescription?: string | null;
   title: string;
   titleEs: string | null;
   titleZh: string | null;

@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
@@ -149,6 +150,7 @@ export type MenuTagInput = {
 };
 
 export function useCreateMenuTag() {
+  const feedback = useFeedback();
   const t = useTranslations('foodTags');
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -180,12 +182,13 @@ export function useCreateMenuTag() {
       toast.success(t('tagCreated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUpdateMenuTag() {
+  const feedback = useFeedback();
   const t = useTranslations('foodTags');
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -212,12 +215,13 @@ export function useUpdateMenuTag() {
       toast.success(t('tagUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteMenuTag() {
+  const feedback = useFeedback();
   const t = useTranslations('foodTags');
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -236,7 +240,7 @@ export function useDeleteMenuTag() {
       toast.success(t('tagDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
@@ -245,6 +249,7 @@ export function useDeleteMenuTag() {
 // record on the fly when the dish (e.g. a fresh weekly-menu line) is not in
 // the catalog yet.
 export function useSetDishTag() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -336,7 +341,7 @@ export function useSetDishTag() {
       invalidateTagQueries(queryClient);
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

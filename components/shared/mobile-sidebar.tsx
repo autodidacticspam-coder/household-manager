@@ -63,6 +63,7 @@ const logsNavItem: NavItem = { href: '/logs', labelKey: 'nav.log', icon: <Clipbo
 const foodNavItem: NavItem = { href: '/food-ratings', labelKey: 'nav.food', icon: <Star className="h-5 w-5" /> };
 
 export function MobileSidebar() {
+  const tUi = useTranslations('interface');
   const [open, setOpen] = useState(false);
   const t = useTranslations();
   const pathname = usePathname();
@@ -103,7 +104,7 @@ export function MobileSidebar() {
     return (
       <Button variant="ghost" size="icon" className="lg:hidden min-w-[48px] min-h-[48px]" disabled>
         <Menu className="h-6 w-6 animate-pulse" />
-        <span className="sr-only">Loading menu</span>
+        <span className="sr-only">{tUi('loadingMenu')}</span>
       </Button>
     );
   }
@@ -113,7 +114,7 @@ export function MobileSidebar() {
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="lg:hidden min-w-[48px] min-h-[48px]">
           <Menu className="h-6 w-6" />
-          <span className="sr-only">Toggle menu</span>
+          <span className="sr-only">{tUi('toggleMenu')}</span>
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0 safe-area-top">

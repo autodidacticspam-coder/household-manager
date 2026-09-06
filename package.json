@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -p 3501",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:types": "node scripts/generate-database-types.mjs",
+    "db:check": "node scripts/check-database.mjs"
   },
   "dependencies": {
     "@capacitor/cli": "^8.0.0",

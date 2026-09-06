@@ -27,6 +27,7 @@ type ScheduleEditorProps = {
 };
 
 export function ScheduleEditor({ userId }: ScheduleEditorProps) {
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const { data: schedules, isLoading } = useEmployeeSchedules(userId);
   const createSchedule = useCreateSchedule();
@@ -350,7 +351,7 @@ export function ScheduleEditor({ userId }: ScheduleEditorProps) {
               </div>
             </div>
 
-            <span className="text-muted-foreground">to</span>
+            <span className="text-muted-foreground">{tUi('to')}</span>
 
             {/* End time */}
             <div className="flex items-center gap-1">

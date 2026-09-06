@@ -1,4 +1,6 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { use, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -42,7 +44,7 @@ import { useEmployeeGroups } from '@/hooks/use-tasks';
 import { useMyLeaveRequests } from '@/hooks/use-leave';
 import { useMyTasks } from '@/hooks/use-tasks';
 import { changeUserPassword } from '../actions';
-import { format, eachDayOfInterval, parseISO } from 'date-fns';
+import { eachDayOfInterval, parseISO } from 'date-fns';
 import type { LeaveRequest } from '@/types/leave';
 
 // Parse date string as local date (not UTC) to avoid timezone issues
@@ -69,6 +71,9 @@ type EmployeeDetailPageProps = {
 };
 
 export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
+  const feedback = useFeedback();
   const { id } = use(params);
   const t = useTranslations();
   const router = useRouter();
@@ -304,8 +309,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{employee.fullName}</h1>
             <p className="text-muted-foreground">
-              Employee Profile
-            </p>
+              {tUi('employeeProfile')} </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -342,7 +346,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                   <h2 className="text-xl font-semibold">{employee.fullName}</h2>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant={employee.role === 'admin' ? 'default' : 'secondary'}>
-                      {employee.role === 'admin' ? 'Administrator' : 'Employee'}
+                      {employee.role === 'admin' ? tUi('administrator') : tUi('employee')}
                     </Badge>
                     {employee.groups.map((group) => (
                       <Badge key={group.id} variant="outline">
@@ -370,7 +374,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      Hired: {format(parseLocalDate(employee.profile.hireDate), 'MMM d, yyyy')}
+                      {tUi('hired')} {formatDate(parseLocalDate(employee.profile.hireDate), 'MMM d, yyyy')}
                     </span>
                   </div>
                 )}
@@ -378,7 +382,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                   <div className="flex items-center space-x-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      Birthday: {format(parseLocalDate(employee.profile.dateOfBirth), 'MMM d')}
+                      {tUi('birthday')} {formatDate(parseLocalDate(employee.profile.dateOfBirth), 'MMM d')}
                     </span>
                   </div>
                 )}
@@ -388,7 +392,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                 <>
                   <Separator className="my-6" />
                   <div>
-                    <h3 className="font-medium mb-2">Notes</h3>
+                    <h3 className="font-medium mb-2">{tUi('notes')}</h3>
                     <p className="text-sm text-muted-foreground">{employee.profile.notes}</p>
                   </div>
                 </>
@@ -404,7 +408,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                         <div key={index} className="flex justify-between text-sm">
                           <span>{date.label}</span>
                           <span className="text-muted-foreground">
-                            {format(parseLocalDate(date.date), 'MMM d')}
+                            {formatDate(parseLocalDate(date.date), 'MMM d')}
                           </span>
                         </div>
                       ))}
@@ -417,7 +421,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Leave Requests</CardTitle>
+              <CardTitle>{tUi('recentLeaveRequests')}</CardTitle>
             </CardHeader>
             <CardContent>
               {sortedLeaveRequests.length > 0 ? (
@@ -437,12 +441,12 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                             {request.status}
                           </Badge>
                         </div>
-                        <span className="text-sm font-medium">{request.totalDays} {request.totalDays === 1 ? 'day' : 'days'}</span>
+                        <span className="text-sm font-medium">{request.totalDays} {request.totalDays === 1 ? tUi('day') : tUi('days')}</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
                         {getRequestDates(request).map((date, idx) => (
                           <Badge key={idx} variant="outline" className="text-xs font-normal">
-                            {format(date, 'EEE, MMM d')}
+                            {formatDate(date, 'EEE, MMM d')}
                           </Badge>
                         ))}
                       </div>
@@ -451,8 +455,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
-                  No leave requests found.
-                </p>
+                  {tUi('noLeaveRequestsFound')} </p>
               )}
             </CardContent>
           </Card>
@@ -466,8 +469,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
             <CardHeader>
               <CardTitle className="flex items-center">
                 <CheckSquare className="h-4 w-4 mr-2" />
-                Tasks
-              </CardTitle>
+                {tUi('tasks')} </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
@@ -501,8 +503,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Not assigned to any groups.
-                </p>
+                  {tUi('notAssignedToAnyGroups')} </p>
               )}
             </CardContent>
           </Card>
@@ -570,7 +571,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                       key={index}
                       className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
                     >
-                      <span>{format(day.date, 'EEE, MMM d, yyyy')}</span>
+                      <span>{formatDate(day.date, 'EEE, MMM d, yyyy')}</span>
                       <Badge
                         variant="secondary"
                         className={day.leaveType === 'sick' ? 'bg-orange-100 text-orange-700' : day.leaveType === 'holiday' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}
@@ -598,8 +599,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
           <DialogHeader>
             <DialogTitle>{t('employees.editEmployee')}</DialogTitle>
             <DialogDescription>
-              Update employee information
-            </DialogDescription>
+              {tUi('updateEmployeeInformation')} </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -667,7 +667,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">{tUi('notes')}</Label>
               <Textarea
                 id="notes"
                 value={editForm.notes}
@@ -692,7 +692,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="text-sm font-medium">{date.label}</span>
                           <span className="text-sm text-muted-foreground">
-                            {format(new Date(date.date + 'T00:00:00'), 'MMM d')}
+                            {formatDate(new Date(date.date + 'T00:00:00'), 'MMM d')}
                           </span>
                         </div>
                         <Button
@@ -734,8 +734,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Add birthdays, anniversaries, and other dates to track
-                </p>
+                  {tUi('addBirthdaysAnniversariesAndOtherDatesToTrack')} </p>
               </div>
             </div>
           </div>
@@ -755,10 +754,9 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogTitle>{tUi('deleteEmployee')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {employee.fullName}? This will permanently remove their account, all task assignments, leave requests, and other data. This action cannot be undone.
-            </AlertDialogDescription>
+              {tUi('deleteEmployeeExplanation', { name: employee.fullName })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
@@ -793,7 +791,7 @@ export default function EmployeeDetailPage({ params }: EmployeeDetailPageProps) 
                 placeholder={t('employees.newPasswordPlaceholder')}
               />
               {passwordError && (
-                <p className="text-sm text-destructive">{passwordError}</p>
+                <p className="text-sm text-destructive">{feedback(passwordError)}</p>
               )}
             </div>
           </div>

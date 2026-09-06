@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ export default function AdminError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const tUi = useTranslations('interface');
   const router = useRouter();
 
   useEffect(() => {
@@ -22,23 +24,20 @@ export default function AdminError({
     <div className="flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6 text-center">
         <h2 className="text-xl font-semibold text-gray-900 mb-2">
-          Something went wrong
-        </h2>
+          {tUi('somethingWentWrong')} </h2>
         <p className="text-gray-600 mb-4">
-          {error.message || 'An unexpected error occurred'}
+          {tUi('anUnexpectedErrorOccurred')}
         </p>
         {error.digest && (
           <p className="text-xs text-gray-400 mb-4">
-            Error ID: {error.digest}
+            {tUi('errorId')} {error.digest}
           </p>
         )}
         <div className="flex gap-2 justify-center">
           <Button onClick={reset} variant="default">
-            Try again
-          </Button>
+            {tUi('tryAgain')} </Button>
           <Button onClick={() => router.push('/dashboard')} variant="outline">
-            Go to Dashboard
-          </Button>
+            {tUi('goToDashboard')} </Button>
         </div>
       </div>
     </div>

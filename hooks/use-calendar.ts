@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations, useLocale } from 'next-intl';
 
 import { leaveDates, leaveDateRanges, storedLeaveDates } from '@/lib/leave-dates';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +35,6 @@ function extractUser(rawUser: unknown): UserJoinResult {
   if (Array.isArray(rawUser)) return rawUser[0] as UserJoinResult;
   return rawUser as UserJoinResult;
 }
-
 
 export type CalendarFilters = {
   startDate: string;
@@ -126,20 +126,22 @@ function expandRecurringTask(
   return occurrences;
 }
 
-function formatAssignees(assignments: Array<{ target_type: string; user?: { full_name: string } | null; group?: { name: string } | null }>): string[] {
+function formatAssignees(assignments: Array<{ target_type: string; user?: { full_name: string } | null; group?: { name: string } | null }>, t: ReturnType<typeof useTranslations>): string[] {
   return assignments.map(a => {
-    if (a.target_type === 'all') return 'All Employees';
-    if (a.target_type === 'all_admins') return 'All Admins';
+    if (a.target_type === 'all') return t('tasks.assignmentTypes.all');
+    if (a.target_type === 'all_admins') return t('tasks.assignmentTypes.allAdmins');
     if (a.target_type === 'user' && a.user) return a.user.full_name;
-    if (a.target_type === 'group' && a.group) return a.group.name + ' (Group)';
+    if (a.target_type === 'group' && a.group) return t('interface.groupName', { name: a.group.name });
     return '';
   }).filter(Boolean);
 }
 
 export function useCalendarEvents(filters: CalendarFilters) {
+  const t = useTranslations();
+  const locale = useLocale();
   const supabase = createClient();
   return useQuery({
-    queryKey: ['calendar-events', filters],
+    queryKey: ['calendar-events', filters, locale],
     queryFn: async () => {
       const events: CalendarEvent[] = [];
       const rangeStart = parseLocalDate(filters.startDate);
@@ -285,7 +287,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
           // Mark as view-only if user is only a viewer (not assigned)
           const isViewOnly = filters.userId && !isUserAssigned && isUserViewer;
 
-          const assignees = formatAssignees(task.assignments);
+          const assignees = formatAssignees(task.assignments, t);
 
           // Calculate start and end times based on activity mode
           const getEventTimes = (date: string) => {
@@ -381,19 +383,19 @@ export function useCalendarEvents(filters: CalendarFilters) {
           let displayType: string;
           let color: string;
           if (isHoliday) {
-            displayType = 'Holiday';
+            displayType = t('leave.holiday');
             color = '#fbbf24'; // soft gold for holidays
           } else if (l.leave_type === 'vacation' || l.leave_type === 'pto') {
-            displayType = 'Vacation';
+            displayType = t('leave.pto');
             color = '#67e8f9'; // soft cyan for vacation
           } else {
-            displayType = 'Sick';
+            displayType = t('leave.sick');
             color = '#fca5a5'; // soft coral for sick
           }
 
           const title = isHoliday
-            ? `${leaveUser?.full_name || 'Employee'} - ${holidayName}`
-            : `${leaveUser?.full_name || 'Employee'} - ${displayType}`;
+            ? `${leaveUser?.full_name || t('interface.employee')} - ${holidayName}`
+            : `${leaveUser?.full_name || t('interface.employee')} - ${displayType}`;
 
           const baseEventProps = {
             type: 'leave' as const,

@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -6,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { getTodayString } from '@/lib/date-utils';
-import { format, addYears } from 'date-fns';
+import { addYears } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -96,6 +99,9 @@ export function TaskForm({
   allowRepeatEditing = !task,
   initialRepeatSettings = null,
 }: TaskFormProps) {
+  const feedback = useFeedback();
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const router = useRouter();
 
@@ -198,7 +204,7 @@ export function TaskForm({
   const initialRepeatEnabled = !!initialRepeatSettings || initialTemplateRepeatEnabled;
   const initialSelectedDays = initialRepeatSettings?.repeatDays || loadedTemplate?.repeatDays || [];
   const initialRepeatInterval = initialRepeatSettings?.repeatInterval || (loadedTemplate?.repeatInterval as 'weekly' | 'biweekly' | 'monthly') || 'weekly';
-  const initialRepeatEndDate = initialRepeatSettings?.repeatEndDate || format(addYears(new Date(), 1), 'yyyy-MM-dd');
+  const initialRepeatEndDate = initialRepeatSettings?.repeatEndDate || formatDate(addYears(new Date(), 1), 'yyyy-MM-dd');
 
   const [repeatEnabled, setRepeatEnabled] = useState(
     () => initialRepeatEnabled
@@ -244,7 +250,7 @@ export function TaskForm({
   const [endTimeInput, setEndTimeInput] = useState(endTimeInit.time);
   const [endTimeAmPm, setEndTimeAmPm] = useState<'AM' | 'PM'>(endTimeInit.ampm);
 
-  const DAYS_OF_WEEK_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const DAYS_OF_WEEK_LABELS = Array.from({ length: 7 }, (_, day) => formatDate(new Date(2026, 8, 6 + day), 'EEE'));
   const today = useMemo(() => getTodayString(), []);
 
   const form = useForm<CreateTaskInput>({
@@ -340,7 +346,7 @@ export function TaskForm({
     setExistingVideosToKeep(newVideos);
     setPendingVideos([]);
 
-    toast.success(`Template "${template.name}" loaded`);
+    toast.success(feedback(`Template "${template.name}" loaded`));
   };
 
   // Save current form state as template
@@ -389,16 +395,16 @@ export function TaskForm({
     try {
       if (overwriteTemplateId) {
         await updateTemplate.mutateAsync({ id: overwriteTemplateId, ...templateData });
-        toast.success(`Template "${templateName}" updated`);
+        toast.success(feedback(`Template "${templateName}" updated`));
       } else {
         await createTemplate.mutateAsync(templateData);
-        toast.success(`Template "${templateName}" saved`);
+        toast.success(feedback(`Template "${templateName}" saved`));
       }
       setSaveTemplateDialogOpen(false);
       setTemplateName('');
       setOverwriteTemplateId(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save template');
+      toast.error(feedback(error instanceof Error ? error.message : tUi('failedToSaveTemplate')));
     }
   };
 
@@ -478,9 +484,9 @@ export function TaskForm({
   };
 
   const getRepeatSectionTitle = () => {
-    if (batchMode) return 'Update Repeating Tasks';
-    if (task) return 'Make This a Repeating Task';
-    return 'Create Repeating Tasks';
+    if (batchMode) return tUi('updateRepeatingTasks');
+    if (task) return tUi('makeRepeatingTask');
+    return tUi('createRepeatingTasks');
   };
 
   const isLoading = categoriesLoading || groupsLoading || employeesLoading;
@@ -541,13 +547,13 @@ export function TaskForm({
     if (assignment.targetType === 'all_admins') return t('tasks.assignmentTypes.allAdmins');
     if (assignment.targetType === 'group' && assignment.targetGroupId) {
       const group = groups?.find((g) => g.id === assignment.targetGroupId);
-      return group?.name || 'Unknown Group';
+      return group?.name || tUi('unknownGroup');
     }
     if (assignment.targetType === 'user' && assignment.targetUserId) {
       const employee = employees?.find((e) => e.id === assignment.targetUserId);
-      return employee?.full_name || 'Unknown User';
+      return employee?.full_name || tUi('unknownUser');
     }
-    return 'Unknown';
+    return tUi('unknown');
   };
 
   // Viewer handlers
@@ -605,13 +611,13 @@ export function TaskForm({
     if (viewer.targetType === 'all_admins') return t('tasks.assignmentTypes.allAdmins');
     if (viewer.targetType === 'group' && viewer.targetGroupId) {
       const group = groups?.find((g) => g.id === viewer.targetGroupId);
-      return group?.name || 'Unknown Group';
+      return group?.name || tUi('unknownGroup');
     }
     if (viewer.targetType === 'user' && viewer.targetUserId) {
       const employee = employees?.find((e) => e.id === viewer.targetUserId);
-      return employee?.full_name || 'Unknown User';
+      return employee?.full_name || tUi('unknownUser');
     }
-    return 'Unknown';
+    return tUi('unknown');
   };
 
   const onSubmit = async (data: CreateTaskInput) => {
@@ -777,7 +783,7 @@ export function TaskForm({
 
             {loadedTemplate && (
               <Badge variant="secondary" className="text-sm">
-                Template: {loadedTemplate.name}
+                {tUi('template')} {loadedTemplate.name}
               </Badge>
             )}
           </div>
@@ -795,7 +801,7 @@ export function TaskForm({
                     <FormItem>
                       <FormLabel>{t('tasks.taskTitle')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Enter task title" />
+                        <Input {...field} placeholder={tUi('enterTaskTitle')} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -812,7 +818,7 @@ export function TaskForm({
                         <Textarea
                           {...field}
                           value={field.value || ''}
-                          placeholder="Enter task description"
+                          placeholder={tUi('enterTaskDescription')}
                           rows={4}
                         />
                       </FormControl>
@@ -831,7 +837,7 @@ export function TaskForm({
                         <Select value={field.value || ''} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
+                              <SelectValue placeholder={tUi('selectCategory')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -1115,12 +1121,11 @@ export function TaskForm({
                       <div className="space-y-4 pl-6 border-l-2 border-primary/20">
                         {batchMode && (
                           <p className="text-xs text-muted-foreground">
-                            Changes here update the future schedule starting from this task.
-                          </p>
+                            {tUi('changesHereUpdateTheFutureScheduleStartingFromThisTask')} </p>
                         )}
 
                         <div className="space-y-2">
-                          <Label>Select Days</Label>
+                          <Label>{tUi('selectDays')}</Label>
                           <div className="flex flex-wrap gap-1">
                             {DAYS_OF_WEEK_LABELS.map((dayLabel, index) => (
                               <button
@@ -1140,7 +1145,7 @@ export function TaskForm({
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Repeat Frequency</Label>
+                          <Label>{tUi('repeatFrequency')}</Label>
                           <Select
                             value={repeatInterval}
                             onValueChange={(v) => setRepeatInterval(v as 'weekly' | 'biweekly' | 'monthly')}
@@ -1149,15 +1154,15 @@ export function TaskForm({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="weekly">Weekly</SelectItem>
-                              <SelectItem value="biweekly">Bi-weekly (every 2 weeks)</SelectItem>
-                              <SelectItem value="monthly">Monthly (same week pattern)</SelectItem>
+                              <SelectItem value="weekly">{tUi('weekly')}</SelectItem>
+                              <SelectItem value="biweekly">{tUi('biWeeklyEvery2Weeks')}</SelectItem>
+                              <SelectItem value="monthly">{tUi('monthlySameWeekPattern')}</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Repeat Until</Label>
+                          <Label>{tUi('repeatUntil')}</Label>
                           <Input
                             type="date"
                             value={repeatEndDate}
@@ -1166,20 +1171,20 @@ export function TaskForm({
                           />
                           <p className="text-xs text-muted-foreground">
                             {batchMode
-                              ? 'Future tasks will be kept or created for each occurrence until this date'
-                              : 'Individual tasks will be created for each occurrence until this date'}
+                              ? tUi('futureTasksWillBeKeptOrCreatedForEachOccurrence')
+                              : tUi('individualTasksWillBeCreatedForEachOccurrenceUntilThis')}
                           </p>
                         </div>
 
                         {selectedDays.length > 0 && repeatEndDate && (
                           <div className="p-3 bg-muted/50 rounded-md">
                             <p className="text-sm text-muted-foreground">
-                              <span className="font-medium text-foreground">Preview: </span>
-                              Tasks will be created on{' '}
+                              <span className="font-medium text-foreground">{tUi('preview')} </span>
+                              {tUi('tasksWillBeCreatedOn')}{' '}
                               {normalizeDays(selectedDays).map(d => DAYS_OF_WEEK_LABELS[d]).join(', ')}
-                              {repeatInterval === 'weekly' && ' every week'}
-                              {repeatInterval === 'biweekly' && ' every 2 weeks'}
-                              {repeatInterval === 'monthly' && ' each month (same week pattern)'}
+                              {repeatInterval === 'weekly' && tUi('everyWeek')}
+                              {repeatInterval === 'biweekly' && tUi('every2Weeks')}
+                              {repeatInterval === 'monthly' && tUi('eachMonthSameWeekPattern')}
                             </p>
                           </div>
                         )}
@@ -1217,7 +1222,7 @@ export function TaskForm({
 
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label>{tUi('type')}</Label>
                   <Select
                     value={newAssignmentType}
                     onValueChange={(v) => {
@@ -1239,10 +1244,10 @@ export function TaskForm({
 
                 {newAssignmentType !== 'all' && newAssignmentType !== 'all_admins' && (
                   <div className="flex-1 min-w-48 space-y-2">
-                    <Label>{newAssignmentType === 'user' ? 'Employee' : 'Group'}</Label>
+                    <Label>{newAssignmentType === 'user' ? tUi('employee') : tUi('group')}</Label>
                     <Select value={newAssignmentTarget} onValueChange={setNewAssignmentTarget}>
                       <SelectTrigger>
-                        <SelectValue placeholder={`Select ${newAssignmentType}`} />
+                        <SelectValue placeholder={tUi('selectValue', { value0: newAssignmentType === 'user' ? tUi('employee') : tUi('group') })} />
                       </SelectTrigger>
                       <SelectContent>
                         {newAssignmentType === 'user' &&
@@ -1275,8 +1280,7 @@ export function TaskForm({
                   disabled={newAssignmentType !== 'all' && newAssignmentType !== 'all_admins' && !newAssignmentTarget}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
+                  {tUi('add')} </Button>
 
                 <Popover open={multiSelectOpen} onOpenChange={setMultiSelectOpen}>
                   <PopoverTrigger asChild>
@@ -1309,13 +1313,13 @@ export function TaskForm({
                               <AvatarFallback className="text-xs">{employee.full_name?.[0] || 'U'}</AvatarFallback>
                             </Avatar>
                             <span className="text-sm flex-1">{employee.full_name}</span>
-                            {isAlreadyAssigned && <Badge variant="secondary" className="text-xs">Added</Badge>}
+                            {isAlreadyAssigned && <Badge variant="secondary" className="text-xs">{tUi('added')}</Badge>}
                           </div>
                         );
                       })}
                     </div>
                     <div className="p-3 border-t flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">{selectedUsers.length} selected</span>
+                      <span className="text-sm text-muted-foreground">{selectedUsers.length}  {tUi('selected_179')}</span>
                       <Button type="button" size="sm" onClick={handleAddSelectedUsers} disabled={selectedUsers.length === 0}>
                         {t('tasks.addSelected')}
                       </Button>
@@ -1356,7 +1360,7 @@ export function TaskForm({
 
               <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-2">
-                  <Label>Type</Label>
+                  <Label>{tUi('type')}</Label>
                   <Select
                     value={newViewerType}
                     onValueChange={(v) => {
@@ -1378,10 +1382,10 @@ export function TaskForm({
 
                 {newViewerType !== 'all' && newViewerType !== 'all_admins' && (
                   <div className="flex-1 min-w-48 space-y-2">
-                    <Label>{newViewerType === 'user' ? 'Employee' : 'Group'}</Label>
+                    <Label>{newViewerType === 'user' ? tUi('employee') : tUi('group')}</Label>
                     <Select value={newViewerTarget} onValueChange={setNewViewerTarget}>
                       <SelectTrigger>
-                        <SelectValue placeholder={`Select ${newViewerType}`} />
+                        <SelectValue placeholder={tUi('selectValue', { value0: newViewerType === 'user' ? tUi('employee') : tUi('group') })} />
                       </SelectTrigger>
                       <SelectContent>
                         {newViewerType === 'user' &&
@@ -1414,8 +1418,7 @@ export function TaskForm({
                   disabled={newViewerType !== 'all' && newViewerType !== 'all_admins' && !newViewerTarget}
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Add
-                </Button>
+                  {tUi('add')} </Button>
 
                 <Popover open={viewerMultiSelectOpen} onOpenChange={setViewerMultiSelectOpen}>
                   <PopoverTrigger asChild>
@@ -1448,13 +1451,13 @@ export function TaskForm({
                               <AvatarFallback className="text-xs">{employee.full_name?.[0] || 'U'}</AvatarFallback>
                             </Avatar>
                             <span className="text-sm flex-1">{employee.full_name}</span>
-                            {isAlreadyViewer && <Badge variant="secondary" className="text-xs">Added</Badge>}
+                            {isAlreadyViewer && <Badge variant="secondary" className="text-xs">{tUi('added')}</Badge>}
                           </div>
                         );
                       })}
                     </div>
                     <div className="p-3 border-t flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">{selectedViewerUsers.length} selected</span>
+                      <span className="text-sm text-muted-foreground">{selectedViewerUsers.length}  {tUi('selected_179')}</span>
                       <Button type="button" size="sm" onClick={handleAddSelectedViewerUsers} disabled={selectedViewerUsers.length === 0}>
                         {t('tasks.addSelected')}
                       </Button>

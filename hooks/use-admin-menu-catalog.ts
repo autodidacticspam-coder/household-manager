@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -66,6 +69,7 @@ export function useAdminMenuCatalogItems() {
 }
 
 export function useToggleMenuItemTag() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -103,12 +107,14 @@ export function useToggleMenuItemTag() {
       invalidateCatalogQueries(queryClient);
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useCreateAdminMenuCatalogItem() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -139,10 +145,10 @@ export function useCreateAdminMenuCatalogItem() {
     },
     onSuccess: () => {
       invalidateCatalogQueries(queryClient);
-      toast.success('Dish added');
+      toast.success(tUi('dishAdded'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

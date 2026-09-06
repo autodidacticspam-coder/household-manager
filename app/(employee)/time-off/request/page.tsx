@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { LeaveRequestForm } from '@/components/employee/leave-request-form';
 
 export default function RequestTimeOffPage() {
+  const tUi = useTranslations('interface');
   const t = useTranslations();
 
   return (
@@ -11,8 +12,7 @@ export default function RequestTimeOffPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{t('leave.requestTimeOff')}</h1>
         <p className="text-muted-foreground">
-          Submit a new time off request for approval.
-        </p>
+          {tUi('submitANewTimeOffRequestForApproval')} </p>
       </div>
 
       <LeaveRequestForm />

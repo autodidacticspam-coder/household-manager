@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -77,6 +80,7 @@ export function getMediaTypeFromFile(file: File): RecipeMediaType {
 
 // Upload an image file
 export function useUploadRecipeImage() {
+  const feedback = useFeedback();
   return useMutation({
     mutationFn: async (file: File): Promise<RecipeMediaInput> => {
       // Validate file type
@@ -128,13 +132,14 @@ export function useUploadRecipeImage() {
       };
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Upload a video file
 export function useUploadRecipeVideo() {
+  const feedback = useFeedback();
   return useMutation({
     mutationFn: async (file: File): Promise<RecipeMediaInput> => {
       // Validate file type
@@ -186,13 +191,14 @@ export function useUploadRecipeVideo() {
       };
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Add a media link (YouTube, Vimeo, etc.)
 export function useAddRecipeMediaLink() {
+  const feedback = useFeedback();
   return useMutation({
     mutationFn: async ({ url, title }: { url: string; title?: string }): Promise<RecipeMediaInput> => {
       try {
@@ -213,13 +219,15 @@ export function useAddRecipeMediaLink() {
       };
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Delete recipe media from storage
 export function useDeleteRecipeMedia() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const supabase = createClient();
   const queryClient = useQueryClient();
 
@@ -251,10 +259,10 @@ export function useDeleteRecipeMedia() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
       queryClient.invalidateQueries({ queryKey: ['recipe'] });
-      toast.success('Media removed');
+      toast.success(tUi('mediaRemoved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

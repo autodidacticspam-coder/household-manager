@@ -50,6 +50,7 @@ export function RecipeDetailDialog({
   onRequest,
   canRequest = true,
 }: RecipeDetailDialogProps) {
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const router = useRouter();
   const deleteRecipe = useDeleteRecipe();
@@ -164,7 +165,7 @@ export function RecipeDetailDialog({
               {/* Video platform badge */}
               {currentMedia.mediaType === 'video' && currentMedia.storageType === 'link' && (
                 <Badge className="absolute top-2 right-2 bg-black/50">
-                  {getVideoPlatform(currentMedia.url) || 'Video'}
+                  {getVideoPlatform(currentMedia.url) || tUi('video')}
                 </Badge>
               )}
             </div>

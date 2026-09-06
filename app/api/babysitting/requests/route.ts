@@ -24,15 +24,6 @@ function isValidTime(value: unknown): value is string {
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
 }
 
-function formatRequestDateLabel(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 export async function POST(request: Request) {
   try {
     const { user } = await requireApiAdminRole();
@@ -155,7 +146,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create booking request' }, { status: 500 });
     }
 
-    const dateLabel = formatRequestDateLabel(requestDate);
+    const dateLabel = requestDate;
     const timeLabel = `${formatTime12h(startTime)} - ${formatTime12h(endTime)}`;
     after(sendBookingRequestPush([babysitterId], dateLabel, timeLabel, note).catch((err) =>
       console.error('Error sending booking request push:', err)

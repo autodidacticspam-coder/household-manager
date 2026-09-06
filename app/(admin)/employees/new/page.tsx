@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -34,6 +35,8 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function NewEmployeePage() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,7 +64,7 @@ export default function NewEmployeePage() {
       });
       const result = await response.json();
       if (!response.ok || result.error) {
-        toast.error(result.error || 'Failed to create employee');
+        toast.error(feedback(result.error || 'Failed to create employee'));
       } else {
         toast.success(t('employees.employeeCreated'));
         router.push('/employees');
@@ -113,7 +116,7 @@ export default function NewEmployeePage() {
                   <FormItem>
                     <FormLabel>{t('employees.fullName')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="John Doe" />
+                      <Input {...field} placeholder={tUi('johnDoe')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

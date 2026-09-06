@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { taskSeriesKey } from '@/lib/task-series';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -360,6 +361,7 @@ export function useEmployees() {
 }
 
 export function useCreateTask() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -386,12 +388,13 @@ export function useCreateTask() {
       toast.success(t('tasks.taskCreated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUpdateTask() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -418,12 +421,13 @@ export function useUpdateTask() {
       toast.success(t('tasks.taskUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteTask() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -447,12 +451,13 @@ export function useDeleteTask() {
       toast.success(t('tasks.taskDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteFutureTasks() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -476,12 +481,13 @@ export function useDeleteFutureTasks() {
       toast.success(t('tasks.futureTasksDeleted', { count: result.deletedCount }));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUpdateFutureTasks() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -509,7 +515,7 @@ export function useUpdateFutureTasks() {
       toast.success(t('tasks.futureTasksUpdated', { count: result.updatedCount }));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
@@ -557,6 +563,7 @@ export function useTaskBatchInfo(taskId: string | null) {
 }
 
 export function useCompleteTask() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -580,12 +587,13 @@ export function useCompleteTask() {
       toast.success(t('tasks.taskCompleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUpdateTaskStatus() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -609,7 +617,7 @@ export function useUpdateTaskStatus() {
       queryClient.refetchQueries({ queryKey: ['pending-tasks'] });
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
@@ -851,6 +859,8 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
     id: row.id as string,
     seriesId: row.series_id as string | null,
     title: getTranslatedTitle(row, locale),
+    originalTitle: row.title as string,
+    originalDescription: row.description as string | null,
     titleEs: row.title_es as string | null,
     titleZh: row.title_zh as string | null,
     description: getTranslatedDescription(row, locale),
@@ -937,6 +947,7 @@ function transformTask(row: Record<string, unknown>, locale: SupportedLocale = '
 }
 
 export function useQuickAssign() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -974,13 +985,14 @@ export function useQuickAssign() {
       toast.success(t('tasks.assignedSuccess'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Update task date/time (for drag and drop)
 export function useUpdateTaskDateTime() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -1015,7 +1027,7 @@ export function useUpdateTaskDateTime() {
       toast.success(t('tasks.taskMoved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
@@ -1024,6 +1036,7 @@ export function useUpdateTaskDateTime() {
 // These tasks track per-date completion in task_completions, so completing the
 // base row would leave every occurrence forever pending on the calendar.
 export function useCompleteTaskInstance() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -1044,10 +1057,10 @@ export function useCompleteTaskInstance() {
       queryClient.refetchQueries({ queryKey: ['tasks'] });
       queryClient.refetchQueries({ queryKey: ['my-tasks'] });
       queryClient.refetchQueries({ queryKey: ['calendar-events'] });
-      toast.success(variables.completed ? t('tasks.taskCompleted') : t('tasks.taskUncompleted'));
+      toast.success(feedback(variables.completed ? t('tasks.taskCompleted') : t('tasks.taskUncompleted')));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
@@ -1055,6 +1068,7 @@ export function useCompleteTaskInstance() {
 // Override the time of a single occurrence of a legacy recurring-rule task
 // (used by calendar drag and drop; the series itself keeps its original time)
 export function useOverrideTaskInstanceTime() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const t = useTranslations();
 
@@ -1089,7 +1103,7 @@ export function useOverrideTaskInstanceTime() {
       toast.success(t('tasks.taskMoved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

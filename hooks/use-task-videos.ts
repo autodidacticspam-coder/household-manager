@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -81,6 +84,7 @@ export function getVideoThumbnail(url: string, videoType: TaskVideoType): string
 
 // Upload a video file using signed URL (bypasses RLS)
 export function useUploadTaskVideo() {
+  const feedback = useFeedback();
   return useMutation({
     mutationFn: async (file: File): Promise<VideoInput> => {
       // Validate file type
@@ -135,13 +139,14 @@ export function useUploadTaskVideo() {
       };
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Add a video link
 export function useAddVideoLink() {
+  const feedback = useFeedback();
   return useMutation({
     mutationFn: async ({ url, title }: { url: string; title?: string }): Promise<VideoInput> => {
       try {
@@ -157,13 +162,15 @@ export function useAddVideoLink() {
       };
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Delete a video from storage (for uploaded videos)
 export function useDeleteTaskVideo() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const supabase = createClient();
   const queryClient = useQueryClient();
 
@@ -193,10 +200,10 @@ export function useDeleteTaskVideo() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
-      toast.success('Video removed');
+      toast.success(tUi('videoRemoved'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

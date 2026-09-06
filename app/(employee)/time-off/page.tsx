@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo, useState } from 'react';
 import { formatTime12h } from '@/lib/format-time';
@@ -21,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useMyLeaveRequests, useCancelLeaveRequest } from '@/hooks/use-leave';
-import { eachDayOfInterval, format } from 'date-fns';
+import { eachDayOfInterval } from 'date-fns';
 import { Plus, Calendar, X, Clock } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
 
@@ -78,6 +79,7 @@ const statusColors = {
 };
 
 export default function TimeOffPage() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const router = useRouter();
   const { user } = useAuth();
@@ -125,15 +127,15 @@ export default function TimeOffPage() {
             </div>
             <div className="flex items-center text-sm text-muted-foreground mt-2">
               <Calendar className="h-4 w-4 mr-1" />
-              {format(parseLocalDate(request.startDate), 'MMM d, yyyy')}
+              {formatDate(parseLocalDate(request.startDate), 'MMM d, yyyy')}
               {request.startDate !== request.endDate && (
-                <> - {format(parseLocalDate(request.endDate), 'MMM d, yyyy')}</>
+                <> - {formatDate(parseLocalDate(request.endDate), 'MMM d, yyyy')}</>
               )}
             </div>
               <div className="flex flex-wrap gap-1 mt-2">
                 {requestDates.map((date, index) => (
                   <Badge key={`${request.id}-${index}`} variant="outline" className="text-xs font-normal">
-                    {format(date, 'EEE, MMM d')}
+                    {formatDate(date, 'EEE, MMM d')}
                   </Badge>
                 ))}
               </div>

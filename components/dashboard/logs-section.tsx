@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dialog';
 import { ClipboardList, Moon, Utensils, Droplets, Bath, Loader2 } from 'lucide-react';
 import { useRecentChildLogs, useCanAccessChildLogs } from '@/hooks/use-child-logs';
-import { format } from 'date-fns';
+
 import { formatTime12h } from '@/lib/format-time';
 import { getTodayString, parseLocalDate } from '@/lib/date-utils';
 import type { ChildLogCategory } from '@/types';
@@ -101,6 +102,8 @@ export function LogsTopCard({ onClick }: { onClick: () => void }) {
 }
 
 export function LogsBottomCard({ onClick }: { onClick: () => void }) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const { data: canAccessLogs } = useCanAccessChildLogs();
   const { data: recentLogs, isLoading } = useRecentChildLogs(10);
@@ -144,7 +147,7 @@ export function LogsBottomCard({ onClick }: { onClick: () => void }) {
                       <span className="text-sm font-medium capitalize">{log.category}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {format(parseLocalDate(log.logDate), 'MMM d')} at {formatTime12h(log.logTime)}
+                      {formatDate(parseLocalDate(log.logDate), 'MMM d')}  {tUi('at')} {formatTime12h(log.logTime)}
                     </p>
                   </div>
                 </div>
@@ -162,6 +165,8 @@ export function LogsBottomCard({ onClick }: { onClick: () => void }) {
 }
 
 export function LogsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const { data: recentLogs } = useRecentChildLogs(10);
 
@@ -192,14 +197,14 @@ export function LogsDialog({ open, onClose }: { open: boolean; onClose: () => vo
                   </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {format(parseLocalDate(log.logDate), 'EEE, MMM d')} at {formatTime12h(log.logTime)}
+                  {formatDate(parseLocalDate(log.logDate), 'EEE, MMM d')}  {tUi('at')} {formatTime12h(log.logTime)}
                   {log.category === 'sleep' && (
                     log.startTime && log.endTime ? (
                       <span className="ml-2">({formatTime12h(log.startTime)} - {formatTime12h(log.endTime)})</span>
                     ) : log.startTime && !log.endTime ? (
-                      <span className="ml-2">(Put to bed {formatTime12h(log.startTime)})</span>
+                      <span className="ml-2">{tUi('putToBed')} {formatTime12h(log.startTime)})</span>
                     ) : log.endTime && !log.startTime ? (
-                      <span className="ml-2">(Woke up {formatTime12h(log.endTime)})</span>
+                      <span className="ml-2">{tUi('wokeUp')} {formatTime12h(log.endTime)})</span>
                     ) : null
                   )}
                 </div>

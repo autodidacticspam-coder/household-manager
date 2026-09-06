@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, addDays } from 'date-fns';
+import { addDays } from 'date-fns';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -25,9 +26,10 @@ type AdminWeekCalendarProps = {
 };
 
 export function AdminWeekCalendar({ weekStart, availability, requests, onPickSlot }: AdminWeekCalendarProps) {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const weekDates = getWeekDates(weekStart);
-  const weekEnd = format(addDays(parseLocalDate(weekStart), 6), 'yyyy-MM-dd');
+  const weekEnd = formatDate(addDays(parseLocalDate(weekStart), 6), 'yyyy-MM-dd');
 
   // Real work shifts for ALL employees this week, assembled exactly like the
   // main calendar (recurring + overrides + one-offs, minus approved leave)

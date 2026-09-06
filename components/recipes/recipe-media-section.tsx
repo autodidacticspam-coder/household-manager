@@ -50,6 +50,7 @@ export function RecipeMediaSection({
   onRemoveExistingMedia,
   onSetHero,
 }: RecipeMediaSectionProps) {
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -231,12 +232,11 @@ export function RecipeMediaSection({
                 {media.isHero && (
                   <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
                     <Star className="h-3 w-3 mr-1" />
-                    Cover
-                  </Badge>
+                    {tUi('cover')} </Badge>
                 )}
                 {media.mediaType === 'video' && (
                   <Badge variant="secondary">
-                    {getVideoPlatform(media.url) || 'Video'}
+                    {getVideoPlatform(media.url) || tUi('video')}
                   </Badge>
                 )}
               </div>
@@ -299,10 +299,10 @@ export function RecipeMediaSection({
 
               {/* Badges */}
               <div className="absolute top-2 left-2 flex gap-1">
-                <Badge variant="outline" className="bg-white/80">New</Badge>
+                <Badge variant="outline" className="bg-white/80">{tUi('new')}</Badge>
                 {media.mediaType === 'video' && media.storageType === 'link' && (
                   <Badge variant="secondary">
-                    {getVideoPlatform(media.url) || 'Video'}
+                    {getVideoPlatform(media.url) || tUi('video')}
                   </Badge>
                 )}
               </div>
@@ -363,7 +363,7 @@ export function RecipeMediaSection({
               <Input
                 value={linkTitle}
                 onChange={(e) => setLinkTitle(e.target.value)}
-                placeholder="e.g., Recipe walkthrough video"
+                placeholder={tUi('eGRecipeWalkthroughVideo')}
               />
             </div>
           </div>

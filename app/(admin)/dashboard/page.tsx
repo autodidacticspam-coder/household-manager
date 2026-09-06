@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -30,7 +31,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useUpcomingImportantDates } from '@/hooks/use-employees';
 import { LogsTopCard, LogsDialog, useLogsAccess } from '@/components/dashboard/logs-section';
-import { format, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
+import { eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
 import type { LeaveRequest } from '@/types';
 import Link from 'next/link';
 
@@ -124,6 +125,7 @@ function groupLeaveByEmployee(leaves: LeaveRequest[] | undefined): GroupedLeave[
 }
 
 export default function DashboardPage() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const router = useRouter();
   const [openDialog, setOpenDialog] = useState<DialogType>(null);
@@ -367,7 +369,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-sm font-medium truncate max-w-[200px]">{batch.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {t('dashboard.endsOn')} {format(lastDate, 'MMM d, yyyy')}
+                          {t('dashboard.endsOn')} {formatDate(lastDate, 'MMM d, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -415,7 +417,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium text-sm">{task.title}</p>
                       <p className="text-xs text-red-600">
-                        {t('tasks.dueDate')}: {task.due_date ? format(parseLocalDate(task.due_date), 'MMM d') : '-'}
+                        {t('tasks.dueDate')}: {task.due_date ? formatDate(parseLocalDate(task.due_date), 'MMM d') : '-'}
                       </p>
                     </div>
                     <Badge variant="destructive" className="text-xs">
@@ -435,7 +437,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium text-sm">{task.title}</p>
                     <p className="text-xs text-muted-foreground">
-                      {task.due_date ? format(parseLocalDate(task.due_date), 'MMM d') : t('tasks.noDueDate')}
+                      {task.due_date ? formatDate(parseLocalDate(task.due_date), 'MMM d') : t('tasks.noDueDate')}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs">
@@ -476,7 +478,7 @@ export default function DashboardPage() {
                     <div>
                       <p className="font-medium">{request.user?.fullName}</p>
                       <p className="text-sm text-muted-foreground">
-                        {format(parseLocalDate(request.startDate), 'MMM d')} - {format(parseLocalDate(request.endDate), 'MMM d')}
+                        {formatDate(parseLocalDate(request.startDate), 'MMM d')} - {formatDate(parseLocalDate(request.endDate), 'MMM d')}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {request.totalDays} {t('common.days')}
@@ -536,7 +538,7 @@ export default function DashboardPage() {
                         <div className="flex flex-wrap gap-1">
                           {filteredDates.map((date, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs font-normal">
-                              {format(date, 'EEE, MMM d')}
+                              {formatDate(date, 'EEE, MMM d')}
                             </Badge>
                           ))}
                         </div>
@@ -576,7 +578,7 @@ export default function DashboardPage() {
                         {request.user?.fullName}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(request.createdAt), 'MMM d, yyyy')}
+                        {formatDate(new Date(request.createdAt), 'MMM d, yyyy')}
                       </p>
                     </div>
                   </div>
@@ -620,7 +622,7 @@ export default function DashboardPage() {
                       <div className="space-y-1">
                         <p className="font-medium">{batch.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {t('dashboard.lastOccurrence')}: {format(lastDate, 'EEEE, MMMM d, yyyy')}
+                          {t('dashboard.lastOccurrence')}: {formatDate(lastDate, 'EEEE, MMMM d, yyyy')}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {batch.taskCount} {t('dashboard.totalInstances')}

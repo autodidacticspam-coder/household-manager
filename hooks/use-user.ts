@@ -52,6 +52,7 @@ export function useUser() {
     isLoading,
     isAdmin,
     updateUser: updateUser.mutate,
+    updateUserAsync: updateUser.mutateAsync,
     isUpdating: updateUser.isPending,
     updateError: updateUser.error,
   };

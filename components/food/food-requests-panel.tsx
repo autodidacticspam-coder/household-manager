@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Check, Loader2, Search, Send, X } from 'lucide-react';
 import { FoodRequestInsights } from '@/components/food/food-request-insights';
+import { MealSuggestions } from '@/components/food/meal-suggestions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -91,7 +92,10 @@ export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChang
                 ))}
               </TabsContent>
             ))}
-            {isAdmin && <TabsContent value="insights"><FoodRequestInsights requests={requests} userId={userId} canCreateRequests onRequestFood={onNewRequest} /></TabsContent>}
+            {isAdmin && <TabsContent value="insights" className="space-y-6">
+              <MealSuggestions onRequestFood={onNewRequest} onViewRequests={name => { setSearch(name); setMineOnly(false); onViewChange('pending'); }} />
+              <FoodRequestInsights requests={requests} userId={userId} canCreateRequests onRequestFood={onNewRequest} />
+            </TabsContent>}
           </Tabs>
         )}
       </CardContent>

@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Pencil, Calendar, Phone, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+
 import { parseLocalDate } from '@/lib/date-utils';
 import Link from 'next/link';
 import { getProfile } from './actions';
@@ -28,6 +29,7 @@ type ProfileData = {
 };
 
 export default function ProfilePage() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const { user, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -125,7 +127,7 @@ export default function ProfilePage() {
                 {profile.dateOfBirth && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{t('profile.dateOfBirth')}: {format(parseLocalDate(profile.dateOfBirth), 'MMMM d, yyyy')}</span>
+                    <span>{t('profile.dateOfBirth')}: {formatDate(parseLocalDate(profile.dateOfBirth), 'MMMM d, yyyy')}</span>
                   </div>
                 )}
                 {profile.emergencyContact && (
@@ -179,7 +181,7 @@ export default function ProfilePage() {
                     <span className="font-medium">{date.label}</span>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    {format(parseLocalDate(date.date), 'MMMM d, yyyy')}
+                    {formatDate(parseLocalDate(date.date), 'MMMM d, yyyy')}
                   </span>
                 </div>
               ))}

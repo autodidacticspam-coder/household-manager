@@ -1,7 +1,8 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+
 import { parseLocalDate } from '@/lib/date-utils';
 import {
   Dialog,
@@ -69,6 +70,8 @@ export function TaskDetailDialog({
   onDelete,
   showActions = true,
 }: TaskDetailDialogProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
 
   if (!task) return null;
@@ -89,7 +92,7 @@ export function TaskDetailDialog({
       return (
         <div key={video.id} className="space-y-2">
           <p className="text-sm font-medium">
-            {video.title || 'Uploaded video'}
+            {video.title || tUi('uploadedVideo')}
           </p>
           <video
             controls
@@ -97,8 +100,7 @@ export function TaskDetailDialog({
             className="w-full max-h-[400px] rounded-lg bg-black"
           >
             <source src={video.url} />
-            Your browser does not support video playback.
-          </video>
+            {tUi('yourBrowserDoesNotSupportVideoPlayback')} </video>
         </div>
       );
     }
@@ -116,7 +118,7 @@ export function TaskDetailDialog({
           {thumbnail ? (
             <Image
               src={thumbnail}
-              alt={video.title || 'Video thumbnail'}
+              alt={video.title || tUi('videoThumbnail')}
               fill
               className="object-cover"
               unoptimized
@@ -127,11 +129,11 @@ export function TaskDetailDialog({
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate group-hover:text-blue-600">
-            {video.title || 'Video link'}
+            {video.title || tUi('videoLink')}
           </p>
           {platform && (
             <p className="text-xs text-muted-foreground capitalize">
-              {platform === 'youtube' ? 'YouTube' : platform === 'vimeo' ? 'Vimeo' : 'External link'}
+              {platform === 'youtube' ? 'YouTube' : platform === 'vimeo' ? 'Vimeo' : tUi('externalLink')}
             </p>
           )}
         </div>
@@ -156,6 +158,13 @@ export function TaskDetailDialog({
         </DialogHeader>
 
         <div className="space-y-6">
+          {((task.originalTitle && task.originalTitle !== task.title) || (task.originalDescription && task.originalDescription !== task.description)) && (
+            <details className="rounded-lg border p-3 text-sm">
+              <summary className="cursor-pointer font-medium">{t('interface.showOriginal')}</summary>
+              <p className="mt-2 font-medium">{task.originalTitle}</p>
+              {task.originalDescription && <p className="mt-1 whitespace-pre-wrap">{task.originalDescription}</p>}
+            </details>
+          )}
           {/* Status and Priority badges */}
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline" className={priorityColors[task.priority]}>
@@ -187,10 +196,10 @@ export function TaskDetailDialog({
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">{t('tasks.dueDate')}:</span>
-              <span>{format(parseLocalDate(task.dueDate), 'EEEE, MMMM d, yyyy')}</span>
+              <span>{formatDate(parseLocalDate(task.dueDate), 'EEEE, MMMM d, yyyy')}</span>
               {task.dueTime && !task.isAllDay && (
                 <span className="text-muted-foreground">
-                  at {formatTime12h(task.dueTime)}
+                  {tUi('at')} {formatTime12h(task.dueTime)}
                 </span>
               )}
               {task.isAllDay && (
@@ -324,14 +333,14 @@ export function TaskDetailDialog({
           <div className="text-xs text-muted-foreground space-y-1">
             {task.createdByUser && (
               <p>
-                Created by {task.createdByUser.fullName} on{' '}
-                {format(new Date(task.createdAt), 'MMM d, yyyy')}
+                {tUi('createdBy')} {task.createdByUser.fullName}  {tUi('on')}{' '}
+                {formatDate(new Date(task.createdAt), 'MMM d, yyyy')}
               </p>
             )}
             {task.completedByUser && task.completedAt && (
               <p>
-                Completed by {task.completedByUser.fullName} on{' '}
-                {format(new Date(task.completedAt), 'MMM d, yyyy')}
+                {tUi('completedBy')} {task.completedByUser.fullName}  {tUi('on')}{' '}
+                {formatDate(new Date(task.completedAt), 'MMM d, yyyy')}
               </p>
             )}
           </div>

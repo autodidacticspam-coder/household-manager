@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,7 +9,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +26,7 @@ import {
 import { ArrowLeft, Plus, Trash2, Save, Loader2, Calendar, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { getProfile, updateProfile, type UpdateProfileInput } from '../actions';
-import { useUser } from '@/hooks/use-user';
+import { useLanguagePreference } from '@/hooks/use-language-preference';
 import Link from 'next/link';
 
 const importantDateSchema = z.object({
@@ -56,9 +59,11 @@ type ProfileData = {
 };
 
 export default function ProfileEditPage() {
+  const feedback = useFeedback();
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const router = useRouter();
-  const { updateUser } = useUser();
+  const { changeLanguage, isChangingLanguage } = useLanguagePreference();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -130,7 +135,7 @@ export default function ProfileEditPage() {
       const result = await updateProfile(input);
 
       if (result.error) {
-        toast.error(result.error);
+        toast.error(feedback(result.error));
         return;
       }
 
@@ -153,24 +158,11 @@ export default function ProfileEditPage() {
   };
 
   const addImportantDate = () => {
-    append({ label: '', date: format(new Date(), 'yyyy-MM-dd') });
+    append({ label: '', date: formatDate(new Date(), 'yyyy-MM-dd') });
   };
 
   const handleLocaleChange = async (locale: string) => {
-    // Set the locale cookie via API
-    await fetch('/api/locale', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locale }),
-    });
-
-    // Update user preference in database
-    updateUser({ preferredLocale: locale as 'en' | 'es' | 'zh' });
-
-    setCurrentLocale(locale);
-
-    // Reload the page to apply the new locale
-    window.location.reload();
+    await changeLanguage(locale as 'en' | 'es' | 'zh');
   };
 
   if (isLoading) {
@@ -246,6 +238,7 @@ export default function ProfileEditPage() {
               <Select
                 value={currentLocale}
                 onValueChange={handleLocaleChange}
+                disabled={isChangingLanguage}
               >
                 <SelectTrigger className="w-48">
                   <SelectValue />
@@ -285,7 +278,7 @@ export default function ProfileEditPage() {
                 placeholder={t('profile.fullNamePlaceholder')}
               />
               {errors.fullName && (
-                <p className="text-sm text-destructive">{errors.fullName.message}</p>
+                <p className="text-sm text-destructive">{feedback(errors.fullName.message)}</p>
               )}
             </div>
 
@@ -298,7 +291,7 @@ export default function ProfileEditPage() {
                 placeholder={t('profile.phonePlaceholder')}
               />
               {errors.phone && (
-                <p className="text-sm text-destructive">{errors.phone.message}</p>
+                <p className="text-sm text-destructive">{feedback(errors.phone.message)}</p>
               )}
             </div>
 
@@ -319,7 +312,7 @@ export default function ProfileEditPage() {
                 placeholder={t('profile.emergencyContactPlaceholder')}
               />
               {errors.emergencyContact && (
-                <p className="text-sm text-destructive">{errors.emergencyContact.message}</p>
+                <p className="text-sm text-destructive">{feedback(errors.emergencyContact.message)}</p>
               )}
             </div>
           </CardContent>
@@ -370,7 +363,7 @@ export default function ProfileEditPage() {
                       />
                       {errors.importantDates?.[index]?.label && (
                         <p className="text-sm text-destructive">
-                          {errors.importantDates[index]?.label?.message}
+                          {feedback(errors.importantDates[index]?.label?.message)}
                         </p>
                       )}
                     </div>
@@ -382,7 +375,7 @@ export default function ProfileEditPage() {
                       />
                       {errors.importantDates?.[index]?.date && (
                         <p className="text-sm text-destructive">
-                          {errors.importantDates[index]?.date?.message}
+                          {feedback(errors.importantDates[index]?.date?.message)}
                         </p>
                       )}
                     </div>

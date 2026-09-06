@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useActionState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -12,6 +13,8 @@ import { Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ForgotPasswordPage() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
 
   const [state, formAction, isPending] = useActionState<AuthState, FormData>(
@@ -32,12 +35,11 @@ export default function ForgotPasswordPage() {
                 {t('auth.passwordResetSent')}
               </h2>
               <p className="text-muted-foreground">
-                Check your email for a link to reset your password.
-              </p>
+                {tUi('checkYourEmailForALinkToResetYourPassword')} </p>
               <Link href="/login">
                 <Button variant="outline">
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  {t('common.back')} to {t('auth.login')}
+                  {t('common.back')}  {tUi('to')} {t('auth.login')}
                 </Button>
               </Link>
             </div>
@@ -55,13 +57,12 @@ export default function ForgotPasswordPage() {
             {t('auth.resetPassword')}
           </CardTitle>
           <CardDescription className="text-center">
-            Enter your email address and we&apos;ll send you a reset link.
-          </CardDescription>
+            {tUi('enterYourEmailAddressAndWeLlSendYouA')} </CardDescription>
         </CardHeader>
         <CardContent>
           {state.error && (
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{state.error}</AlertDescription>
+              <AlertDescription>{feedback(state.error)}</AlertDescription>
             </Alert>
           )}
 
@@ -97,7 +98,7 @@ export default function ForgotPasswordPage() {
               className="text-sm text-primary hover:underline inline-flex items-center"
             >
               <ArrowLeft className="mr-1 h-4 w-4" />
-              {t('common.back')} to {t('auth.login')}
+              {t('common.back')}  {tUi('to')} {t('auth.login')}
             </Link>
           </div>
         </CardContent>

@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState, useMemo, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
@@ -37,7 +40,7 @@ import {
   useCancelLeaveRequest,
 } from '@/hooks/use-leave';
 import { useEmployeesList } from '@/hooks/use-employees';
-import { format, eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
+import { eachDayOfInterval, addDays, isAfter, isBefore, isEqual } from 'date-fns';
 import { Calendar, CheckCircle, XCircle, Users, Clock, Plus, Sparkles, Loader2, X, Trash2, User } from 'lucide-react';
 import type { LeaveRequest } from '@/types';
 import { toast } from 'sonner';
@@ -190,6 +193,9 @@ const statusColors = {
 };
 
 export default function LeaveRequestsPage() {
+  const feedback = useFeedback();
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const queryClient = useQueryClient();
   const supabase = createClient();
@@ -279,7 +285,7 @@ export default function LeaveRequestsPage() {
 
   const handleAddLeave = async () => {
     if (!addingEmployee || selectedDates.length === 0) {
-      toast.error('Please select an employee and at least one date');
+      toast.error(tUi('pleaseSelectAnEmployeeAndAtLeastOneDate'));
       return;
     }
 
@@ -289,9 +295,9 @@ export default function LeaveRequestsPage() {
       if (!user) throw new Error('Not authenticated');
 
       const sortedDates = selectedDates.sort((a, b) => a.getTime() - b.getTime());
-      const startDate = format(sortedDates[0], 'yyyy-MM-dd');
-      const endDate = format(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd');
-      const selectedDatesStr = sortedDates.map(d => format(d, 'yyyy-MM-dd'));
+      const startDate = formatDate(sortedDates[0], 'yyyy-MM-dd');
+      const endDate = formatDate(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd');
+      const selectedDatesStr = sortedDates.map(d => formatDate(d, 'yyyy-MM-dd'));
       // Store the canonical 'vacation' value (migration 022). Writing the
       // legacy 'pto' here is what made leave-type filters miss these rows.
       const leaveType = addingLeaveType === 'vacation' ? 'vacation' : 'sick';
@@ -314,7 +320,7 @@ export default function LeaveRequestsPage() {
 
       if (error) throw error;
 
-      toast.success(`${addingLeaveType === 'vacation' ? 'Vacation' : 'Sick leave'} days added successfully`);
+      toast.success(feedback(`${addingLeaveType === 'vacation' ? 'Vacation' : 'Sick leave'} days added successfully`));
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
       setShowAddDialog(false);
@@ -322,7 +328,7 @@ export default function LeaveRequestsPage() {
     } catch (error: unknown) {
       const err = error as { message?: string };
       console.error('Error adding leave:', err);
-      toast.error(err.message || 'Failed to add leave days');
+      toast.error(feedback(err.message || 'Failed to add leave days'));
     } finally {
       setIsSubmitting(false);
     }
@@ -330,7 +336,7 @@ export default function LeaveRequestsPage() {
 
   const handleAddHolidays = async () => {
     if (selectedEmployeesForHolidays.length === 0 || selectedHolidays.length === 0) {
-      toast.error('Please select at least one employee and one holiday');
+      toast.error(tUi('pleaseSelectAtLeastOneEmployeeAndOneHoliday'));
       return;
     }
 
@@ -346,9 +352,9 @@ export default function LeaveRequestsPage() {
           user_id: employeeId,
           leave_type: 'holiday' as const,
           status: 'approved' as const,
-          start_date: format(holiday.date, 'yyyy-MM-dd'),
-          end_date: format(holiday.date, 'yyyy-MM-dd'),
-          selected_dates: [format(holiday.date, 'yyyy-MM-dd')],
+          start_date: formatDate(holiday.date, 'yyyy-MM-dd'),
+          end_date: formatDate(holiday.date, 'yyyy-MM-dd'),
+          selected_dates: [formatDate(holiday.date, 'yyyy-MM-dd')],
           is_full_day: true,
           total_days: 1,
           reason: `Holiday: ${holiday.name}`,
@@ -363,7 +369,7 @@ export default function LeaveRequestsPage() {
 
       if (error) throw error;
 
-      toast.success(`Added ${holidayDates.length} holiday(s) for ${selectedEmployeesForHolidays.length} employee(s)`);
+      toast.success(feedback(`Added ${holidayDates.length} holiday(s) for ${selectedEmployeesForHolidays.length} employee(s)`));
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
       setShowHolidayDialog(false);
@@ -372,7 +378,7 @@ export default function LeaveRequestsPage() {
     } catch (error: unknown) {
       const err = error as { message?: string };
       console.error('Error adding holidays:', err);
-      toast.error(err.message || 'Failed to add holidays');
+      toast.error(feedback(err.message || 'Failed to add holidays'));
     } finally {
       setIsSubmitting(false);
     }
@@ -433,7 +439,7 @@ export default function LeaveRequestsPage() {
                 <div className="flex flex-wrap gap-1">
                   {getRequestDates(request).map((date, idx) => (
                     <Badge key={idx} variant="outline" className="text-xs font-normal">
-                      {format(date, 'EEE, MMM d')}
+                      {formatDate(date, 'EEE, MMM d')}
                     </Badge>
                   ))}
                 </div>
@@ -490,7 +496,7 @@ export default function LeaveRequestsPage() {
             <div className="flex items-center gap-2 mt-2">
               <Badge variant="secondary" className="flex items-center gap-1">
                 <User className="h-3 w-3" />
-                Filtering: {employees?.find(e => e.id === employeeFilter)?.fullName}
+                {tUi('filtering')} {employees?.find(e => e.id === employeeFilter)?.fullName}
                 <button
                   onClick={() => setEmployeeFilter('all')}
                   className="ml-1 hover:text-destructive"
@@ -504,16 +510,13 @@ export default function LeaveRequestsPage() {
         <div className="flex flex-wrap gap-2 sm:justify-end">
           <Button variant="outline" onClick={() => setShowHolidayDialog(true)}>
             <Sparkles className="h-4 w-4 mr-2" />
-            Add Holidays
-          </Button>
+            {tUi('addHolidays')} </Button>
           <Button onClick={() => openAddLeaveDialog('vacation')}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Vacation
-          </Button>
+            {tUi('addVacation')} </Button>
           <Button variant="outline" onClick={() => openAddLeaveDialog('sick')}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Sick Leave
-          </Button>
+            {tUi('addSickLeave')} </Button>
         </div>
       </div>
 
@@ -533,7 +536,7 @@ export default function LeaveRequestsPage() {
               {pendingLoading ? <Skeleton className="h-8 w-8" /> : pendingRequests?.length || 0}
             </div>
             {pendingRequests && pendingRequests.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">Click for details</p>
+              <p className="text-xs text-muted-foreground mt-1">{tUi('clickForDetails')}</p>
             )}
           </CardContent>
         </Card>
@@ -551,7 +554,7 @@ export default function LeaveRequestsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{groupedCurrentlyOnLeave.length}</div>
             {groupedCurrentlyOnLeave.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">Click for details</p>
+              <p className="text-xs text-muted-foreground mt-1">{tUi('clickForDetails')}</p>
             )}
           </CardContent>
         </Card>
@@ -569,7 +572,7 @@ export default function LeaveRequestsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{upcomingLeave?.length || 0}</div>
             {upcomingLeave && upcomingLeave.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">Click for details</p>
+              <p className="text-xs text-muted-foreground mt-1">{tUi('clickForDetails')}</p>
             )}
           </CardContent>
         </Card>
@@ -588,10 +591,10 @@ export default function LeaveRequestsPage() {
             <Select value={employeeFilter} onValueChange={setEmployeeFilter}>
               <SelectTrigger className="w-48">
                 <User className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="All Employees" />
+                <SelectValue placeholder={tUi('allEmployees')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Employees</SelectItem>
+                <SelectItem value="all">{tUi('allEmployees')}</SelectItem>
                 {employees?.map(emp => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.fullName}
@@ -676,7 +679,7 @@ export default function LeaveRequestsPage() {
                 <div className="flex flex-wrap gap-1">
                   {getRequestDates(actionRequest.request).map((date, idx) => (
                     <Badge key={idx} variant="outline" className="text-xs font-normal">
-                      {format(date, 'EEE, MMM d')}
+                      {formatDate(date, 'EEE, MMM d')}
                     </Badge>
                   ))}
                 </div>
@@ -757,14 +760,14 @@ export default function LeaveRequestsPage() {
                   <div className="flex flex-wrap gap-1.5">
                     {getRequestDates(selectedRequest).map((date, idx) => (
                       <Badge key={idx} variant="outline" className="text-xs py-1">
-                        {format(date, 'EEE, MMM d')}
+                        {formatDate(date, 'EEE, MMM d')}
                       </Badge>
                     ))}
                   </div>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-muted-foreground">{t('leave.submitted')}</span>
-                  <span className="font-medium">{format(new Date(selectedRequest.createdAt), 'MMM d, yyyy h:mm a')}</span>
+                  <span className="font-medium">{formatDate(new Date(selectedRequest.createdAt), 'MMM d, yyyy h:mm a')}</span>
                 </div>
               </div>
 
@@ -794,8 +797,7 @@ export default function LeaveRequestsPage() {
               }}
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
+              {tUi('delete')} </Button>
             {selectedRequest?.status === 'pending' && (
               <>
                 <Button
@@ -835,19 +837,18 @@ export default function LeaveRequestsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="h-5 w-5" />
-              {addingLeaveType === 'vacation' ? 'Add Vacation Days' : 'Add Sick Leave'}
+              {addingLeaveType === 'vacation' ? tUi('addVacationDays') : tUi('addSickLeave')}
             </DialogTitle>
             <DialogDescription>
-              Select an employee and pick {addingLeaveType === 'vacation' ? 'vacation' : 'sick'} days from the calendar
-            </DialogDescription>
+              {tUi('pickLeaveDays', { type: addingLeaveType === 'vacation' ? tUi('vacation') : tUi('sick') })}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label>Employee</Label>
+              <Label>{tUi('employee')}</Label>
               <Select value={addingEmployee} onValueChange={setAddingEmployee}>
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select employee..." />
+                  <SelectValue placeholder={tUi('selectEmployee')} />
                 </SelectTrigger>
                 <SelectContent>
                   {employees?.map(emp => (
@@ -863,7 +864,7 @@ export default function LeaveRequestsPage() {
               <div className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">
-                    Selected: {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}
+                    {tUi('selected')} {tUi('dayCount', { count: selectedDates.length })}
                   </span>
                   <Button
                     type="button"
@@ -872,8 +873,7 @@ export default function LeaveRequestsPage() {
                     onClick={() => setSelectedDates([])}
                     className="h-6 px-2 text-xs"
                   >
-                    Clear all
-                  </Button>
+                    {tUi('clearAll')} </Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {selectedDates.sort((a, b) => a.getTime() - b.getTime()).map((date) => (
@@ -882,7 +882,7 @@ export default function LeaveRequestsPage() {
                       variant="secondary"
                       className="flex items-center gap-1"
                     >
-                      {format(date, 'EEE, MMM d')}
+                      {formatDate(date, 'EEE, MMM d')}
                       <button
                         type="button"
                         onClick={() => removeDate(date)}
@@ -912,14 +912,13 @@ export default function LeaveRequestsPage() {
               setShowAddDialog(false);
               resetAddLeaveForm();
             }}>
-              Cancel
-            </Button>
+              {tUi('cancel')} </Button>
             <Button
               onClick={handleAddLeave}
               disabled={isSubmitting || !addingEmployee || selectedDates.length === 0}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add {selectedDates.length} Day{selectedDates.length !== 1 ? 's' : ''}
+              {tUi('add')} {tUi('dayCount', { count: selectedDates.length })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -931,17 +930,15 @@ export default function LeaveRequestsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
-              Add Holidays for Employees
-            </DialogTitle>
+              {tUi('addHolidaysForEmployees')} </DialogTitle>
             <DialogDescription>
-              Pre-populate holiday vacation days for selected employees
-            </DialogDescription>
+              {tUi('prePopulateHolidayVacationDaysForSelectedEmployees')} </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Select Holidays</Label>
+                <Label>{tUi('selectHolidays')}</Label>
               </div>
               <div className="space-y-2 p-3 border rounded-lg">
                 {holidays.map(holiday => (
@@ -955,7 +952,7 @@ export default function LeaveRequestsPage() {
                       {holiday.name}
                     </label>
                     <span className="text-sm text-muted-foreground">
-                      {format(holiday.date, 'EEE, MMM d, yyyy')}
+                      {formatDate(holiday.date, 'EEE, MMM d, yyyy')}
                     </span>
                   </div>
                 ))}
@@ -964,10 +961,9 @@ export default function LeaveRequestsPage() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label>Select Employees</Label>
+                <Label>{tUi('selectEmployees')}</Label>
                 <Button variant="ghost" size="sm" onClick={selectAllEmployees}>
-                  Select All
-                </Button>
+                  {tUi('selectAll')} </Button>
               </div>
               <div className="space-y-2 p-3 border rounded-lg max-h-48 overflow-y-auto">
                 {employees?.map(emp => (
@@ -992,15 +988,13 @@ export default function LeaveRequestsPage() {
               setSelectedHolidays([]);
               setSelectedEmployeesForHolidays([]);
             }}>
-              Cancel
-            </Button>
+              {tUi('cancel')} </Button>
             <Button
               onClick={handleAddHolidays}
               disabled={isSubmitting || selectedHolidays.length === 0 || selectedEmployeesForHolidays.length === 0}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add Holidays
-            </Button>
+              {tUi('addHolidays')} </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1014,8 +1008,7 @@ export default function LeaveRequestsPage() {
               {t('leave.pendingRequests')}
             </DialogTitle>
             <DialogDescription>
-              {pendingRequests?.length || 0} request(s) awaiting approval
-            </DialogDescription>
+              {pendingRequests?.length || 0}  {tUi('requestSAwaitingApproval')} </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {pendingRequests?.map((request) => (
@@ -1072,13 +1065,12 @@ export default function LeaveRequestsPage() {
                   <div className="flex flex-wrap gap-1 mt-2">
                     {getRequestDates(request).slice(0, 5).map((date, idx) => (
                       <Badge key={idx} variant="outline" className="text-xs font-normal">
-                        {format(date, 'MMM d')}
+                        {formatDate(date, 'MMM d')}
                       </Badge>
                     ))}
                     {getRequestDates(request).length > 5 && (
                       <Badge variant="outline" className="text-xs font-normal">
-                        +{getRequestDates(request).length - 5} more
-                      </Badge>
+                        +{getRequestDates(request).length - 5}  {tUi('more')} </Badge>
                     )}
                   </div>
                 </div>
@@ -1102,8 +1094,7 @@ export default function LeaveRequestsPage() {
               {t('leave.currentlyOut')}
             </DialogTitle>
             <DialogDescription>
-              {groupedCurrentlyOnLeave.length} employee(s) currently on leave
-            </DialogDescription>
+              {groupedCurrentlyOnLeave.length}  {tUi('employeeSCurrentlyOnLeave')} </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {groupedCurrentlyOnLeave.map((group) => (
@@ -1141,7 +1132,7 @@ export default function LeaveRequestsPage() {
                         <div className="flex flex-wrap gap-1">
                           {filteredDates.map((date, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs font-normal">
-                              {format(date, 'EEE, MMM d')}
+                              {formatDate(date, 'EEE, MMM d')}
                             </Badge>
                           ))}
                         </div>
@@ -1169,8 +1160,7 @@ export default function LeaveRequestsPage() {
               {t('leave.upcoming')}
             </DialogTitle>
             <DialogDescription>
-              {upcomingLeave?.length || 0} upcoming leave request(s)
-            </DialogDescription>
+              {upcomingLeave?.length || 0}  {tUi('upcomingLeaveRequestS')} </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             {upcomingLeave?.map((request) => (
@@ -1195,8 +1185,7 @@ export default function LeaveRequestsPage() {
                       {getLeaveTypeLabel(request, t)}
                     </Badge>
                     <Badge className="bg-green-100 text-green-700 text-xs">
-                      Upcoming
-                    </Badge>
+                      {tUi('upcoming')} </Badge>
                     <span className="text-sm text-muted-foreground">
                       {request.totalDays} {t('common.days')}
                     </span>
@@ -1204,13 +1193,12 @@ export default function LeaveRequestsPage() {
                   <div className="flex flex-wrap gap-1 mt-2">
                     {getRequestDates(request).slice(0, 5).map((date, idx) => (
                       <Badge key={idx} variant="outline" className="text-xs font-normal">
-                        {format(date, 'MMM d')}
+                        {formatDate(date, 'MMM d')}
                       </Badge>
                     ))}
                     {getRequestDates(request).length > 5 && (
                       <Badge variant="outline" className="text-xs font-normal">
-                        +{getRequestDates(request).length - 5} more
-                      </Badge>
+                        +{getRequestDates(request).length - 5}  {tUi('more')} </Badge>
                     )}
                   </div>
                   {request.reason && (
@@ -1234,11 +1222,9 @@ export default function LeaveRequestsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="h-5 w-5" />
-              Delete Leave Request
-            </DialogTitle>
+              {tUi('deleteLeaveRequest')} </DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this leave request? This action cannot be undone.
-            </DialogDescription>
+              {tUi('areYouSureYouWantToDeleteThisLeaveRequest')} </DialogDescription>
           </DialogHeader>
 
           {deleteRequest && (
@@ -1265,13 +1251,12 @@ export default function LeaveRequestsPage() {
               <div className="flex flex-wrap gap-1 mt-2">
                 {getRequestDates(deleteRequest).slice(0, 5).map((date, idx) => (
                   <Badge key={idx} variant="outline" className="text-xs font-normal">
-                    {format(date, 'MMM d')}
+                    {formatDate(date, 'MMM d')}
                   </Badge>
                 ))}
                 {getRequestDates(deleteRequest).length > 5 && (
                   <Badge variant="outline" className="text-xs font-normal">
-                    +{getRequestDates(deleteRequest).length - 5} more
-                  </Badge>
+                    +{getRequestDates(deleteRequest).length - 5}  {tUi('more')} </Badge>
                 )}
               </div>
             </div>
@@ -1296,8 +1281,7 @@ export default function LeaveRequestsPage() {
               ) : (
                 <Trash2 className="h-4 w-4 mr-2" />
               )}
-              Delete
-            </Button>
+              {tUi('delete')} </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

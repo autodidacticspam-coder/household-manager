@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -20,7 +21,7 @@ import {
   useApproveSupplyRequest,
   useRejectSupplyRequest,
 } from '@/hooks/use-supplies';
-import { format } from 'date-fns';
+
 import {
   Package,
   ExternalLink,
@@ -39,6 +40,7 @@ const statusColors = {
 };
 
 export default function AdminSupplyRequestsPage() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const [selectedRequest, setSelectedRequest] = useState<SupplyRequest | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
@@ -127,7 +129,7 @@ export default function AdminSupplyRequestsPage() {
             )}
 
             <p className="text-xs text-muted-foreground">
-              {t('descriptions.requested')} {format(new Date(request.createdAt), 'MMM d, yyyy h:mm a')}
+              {t('descriptions.requested')} {formatDate(new Date(request.createdAt), 'MMM d, yyyy h:mm a')}
             </p>
 
             {request.status === 'pending' && (
@@ -333,14 +335,14 @@ export default function AdminSupplyRequestsPage() {
 
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-1">{t('descriptions.requested')}</p>
-                <p className="text-sm">{format(new Date(selectedRequest.createdAt), 'MMMM d, yyyy \'at\' h:mm a')}</p>
+                <p className="text-sm">{formatDate(new Date(selectedRequest.createdAt), 'MMMM d, yyyy \'at\' h:mm a')}</p>
               </div>
 
               {selectedRequest.reviewedAt && selectedRequest.reviewedByUser && (
                 <div>
                   <p className="text-sm font-medium text-muted-foreground mb-1">{t('descriptions.reviewed')}</p>
                   <p className="text-sm">
-                    {t('descriptions.reviewedBy', { name: selectedRequest.reviewedByUser.fullName, date: format(new Date(selectedRequest.reviewedAt), 'MMMM d, yyyy') })}
+                    {t('descriptions.reviewedBy', { name: selectedRequest.reviewedByUser.fullName, date: formatDate(new Date(selectedRequest.reviewedAt), 'MMMM d, yyyy') })}
                   </p>
                 </div>
               )}

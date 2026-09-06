@@ -1,7 +1,10 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
+
+import { useTranslations } from 'next-intl';
 
 import { useId, useMemo, useState } from 'react';
-import { format } from 'date-fns';
+
 import { Check, GitMerge, History, Loader2, RotateCcw, Search, X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +46,8 @@ export function FoodMergeReview({
   activeMerges,
   mergeHistory,
 }: FoodMergeReviewProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const [mergeTargets, setMergeTargets] = useState<Record<string, string>>({});
   const [manualSearchTerm, setManualSearchTerm] = useState('');
   const [selectedManualSourceNames, setSelectedManualSourceNames] = useState<string[]>([]);
@@ -164,10 +169,9 @@ export function FoodMergeReview({
         <div className="mb-4 flex items-start gap-3">
           <GitMerge className="mt-0.5 h-5 w-5 text-muted-foreground" />
           <div>
-            <h3 className="text-sm font-semibold">Manual Merge</h3>
+            <h3 className="text-sm font-semibold">{tUi('manualMerge')}</h3>
             <p className="text-sm text-muted-foreground">
-              Merge a rated dish into the exact name that should be used in ratings and request analytics.
-            </p>
+              {tUi('mergeARatedDishIntoTheExactNameThatShould')} </p>
           </div>
         </div>
 
@@ -175,14 +179,14 @@ export function FoodMergeReview({
           <div className="space-y-2">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
               <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="manual-merge-search">Search rated dishes</Label>
+                <Label htmlFor="manual-merge-search">{tUi('searchRatedDishes')}</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="manual-merge-search"
                     value={manualSearchTerm}
                     onChange={(event) => setManualSearchTerm(event.target.value)}
-                    placeholder="3 cup chicken"
+                    placeholder={tUi('3CupChicken')}
                     className="pl-10"
                   />
                 </div>
@@ -193,19 +197,16 @@ export function FoodMergeReview({
                 onClick={selectAllManualMatches}
                 disabled={manualSearchMatches.length === 0}
               >
-                Select matches
-              </Button>
+                {tUi('selectMatches')} </Button>
             </div>
 
             <div className="max-h-[320px] overflow-y-auto rounded-lg border">
               {manualSearchTerm.trim() && manualSearchMatches.length === 0 ? (
                 <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  No rated dishes match this search.
-                </p>
+                  {tUi('noRatedDishesMatchThisSearch')} </p>
               ) : !manualSearchTerm.trim() ? (
                 <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                  Type a keyword to find rated dishes.
-                </p>
+                  {tUi('typeAKeywordToFindRatedDishes')} </p>
               ) : (
                 <div className="divide-y">
                   {manualSearchMatches.map((item) => {
@@ -229,11 +230,11 @@ export function FoodMergeReview({
                         <div className="min-w-0 flex-1">
                           <p className="font-medium leading-tight">{item.name}</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''}
-                            {typeof item.averageRating === 'number' && ` - ${item.averageRating.toFixed(1)} avg`}
+                            {tUi('ratingCount', { count: item.totalRatings })}
+                            {typeof item.averageRating === 'number' && tUi('valueAvg', { value0: item.averageRating.toFixed(1) })}
                           </p>
                           {isAlreadyMerged && (
-                            <p className="mt-1 text-xs text-amber-600">Already merged</p>
+                            <p className="mt-1 text-xs text-amber-600">{tUi('alreadyMerged')}</p>
                           )}
                         </div>
                         <Button
@@ -247,8 +248,7 @@ export function FoodMergeReview({
                             if (!isSelected) toggleManualSource(item.name);
                           }}
                         >
-                          Canonical
-                        </Button>
+                          {tUi('canonical')} </Button>
                       </div>
                     );
                   })}
@@ -259,19 +259,19 @@ export function FoodMergeReview({
 
           <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
             <div className="space-y-2">
-              <Label htmlFor="manual-merge-canonical">Canonical dish name</Label>
+              <Label htmlFor="manual-merge-canonical">{tUi('canonicalDishName')}</Label>
               <Input
                 id="manual-merge-canonical"
                 list={canonicalDatalistId}
                 value={manualCanonicalName}
                 onChange={(event) => setManualCanonicalName(event.target.value)}
-                placeholder="3 cup chicken"
+                placeholder={tUi('3CupChicken')}
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <Label>Selected dishes</Label>
+                <Label>{tUi('selectedDishes')}</Label>
                 {selectedManualSourceNames.length > 0 && (
                   <Button
                     type="button"
@@ -279,15 +279,13 @@ export function FoodMergeReview({
                     size="sm"
                     onClick={() => setSelectedManualSourceNames([])}
                   >
-                    Clear
-                  </Button>
+                    {tUi('clear')} </Button>
                 )}
               </div>
 
               {selectedManualStats.length === 0 ? (
                 <p className="rounded-lg border bg-background px-3 py-4 text-sm text-muted-foreground">
-                  No dishes selected.
-                </p>
+                  {tUi('noDishesSelected')} </p>
               ) : (
                 <div className="flex max-h-[180px] flex-wrap gap-2 overflow-y-auto rounded-lg border bg-background p-3">
                   {selectedManualStats.map((item) => (
@@ -301,7 +299,7 @@ export function FoodMergeReview({
                         type="button"
                         className="rounded-full text-muted-foreground hover:text-foreground"
                         onClick={() => toggleManualSource(item.name)}
-                        aria-label={`Remove ${item.name}`}
+                        aria-label={tUi('removeValue', { value0: item.name })}
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -319,8 +317,7 @@ export function FoodMergeReview({
 
             {alreadyMergedManualSources.length > 0 && (
               <p className="text-sm text-amber-600">
-                Unmerge already-merged dishes in the history table before changing their canonical dish.
-              </p>
+                {tUi('unmergeAlreadyMergedDishesInTheHistoryTableBeforeChanging')} </p>
             )}
 
             <Button
@@ -334,7 +331,7 @@ export function FoodMergeReview({
               ) : (
                 <GitMerge className="h-4 w-4" />
               )}
-              Merge {manualSourceNames.length || ''}
+              {tUi('merge')} {manualSourceNames.length || ''}
             </Button>
           </div>
         </div>
@@ -344,17 +341,15 @@ export function FoodMergeReview({
         <div className="mb-4 flex items-start gap-3">
           <GitMerge className="mt-0.5 h-5 w-5 text-muted-foreground" />
           <div>
-            <h3 className="text-sm font-semibold">Potential Food Merges</h3>
+            <h3 className="text-sm font-semibold">{tUi('potentialFoodMerges')}</h3>
             <p className="text-sm text-muted-foreground">
-              Review very similar rated dishes before grouping them together in summaries and request analytics.
-            </p>
+              {tUi('reviewVerySimilarRatedDishesBeforeGroupingThemTogetherIn')} </p>
           </div>
         </div>
 
         {potentialMergeGroups.length === 0 ? (
           <p className="rounded-lg border bg-background px-4 py-6 text-center text-sm text-muted-foreground">
-            No likely duplicate dish names found right now.
-          </p>
+            {tUi('noLikelyDuplicateDishNamesFoundRightNow')} </p>
         ) : (
           <div className="space-y-4">
             {potentialMergeGroups.map((group) => {
@@ -368,14 +363,14 @@ export function FoodMergeReview({
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1 space-y-3">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">{Math.round(group.score * 100)}% match</Badge>
+                        <Badge variant="secondary">{Math.round(group.score * 100)}{tUi('match')}</Badge>
                         <span className="text-xs text-muted-foreground">{group.reason}</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {group.items.map((item) => (
                           <Badge key={item.name} variant="outline" className="max-w-full">
                             <span className="truncate">{item.name}</span>
-                            <span className="text-muted-foreground">{item.totalRatings} ratings</span>
+                            <span className="text-muted-foreground">{item.totalRatings}  {tUi('ratings_241')}</span>
                           </Badge>
                         ))}
                       </div>
@@ -409,8 +404,7 @@ export function FoodMergeReview({
                         ) : (
                           <Check className="h-4 w-4" />
                         )}
-                        Approve
-                      </Button>
+                        {tUi('approve')} </Button>
                     </div>
                   </div>
                 </div>
@@ -423,22 +417,21 @@ export function FoodMergeReview({
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <History className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-semibold">Merge History</h3>
+          <h3 className="text-sm font-semibold">{tUi('mergeHistory')}</h3>
         </div>
 
         {mergeHistory.length === 0 ? (
           <p className="rounded-lg border px-4 py-6 text-center text-sm text-muted-foreground">
-            No food item merges have been approved yet.
-          </p>
+            {tUi('noFoodItemMergesHaveBeenApprovedYet')} </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Source</TableHead>
-                <TableHead>Canonical Dish</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Merged By</TableHead>
-                <TableHead>Merged</TableHead>
+                <TableHead>{tUi('source')}</TableHead>
+                <TableHead>{tUi('canonicalDish')}</TableHead>
+                <TableHead>{tUi('status')}</TableHead>
+                <TableHead>{tUi('mergedBy')}</TableHead>
+                <TableHead>{tUi('merged')}</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -452,16 +445,16 @@ export function FoodMergeReview({
                     <TableCell className="max-w-[220px] truncate">{merge.canonicalName}</TableCell>
                     <TableCell>
                       {isActive ? (
-                        <Badge variant="success">Active</Badge>
+                        <Badge variant="success">{tUi('active')}</Badge>
                       ) : (
-                        <Badge variant="outline">Unmerged</Badge>
+                        <Badge variant="outline">{tUi('unmerged')}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {merge.mergedByUser?.fullName || 'Unknown'}
+                      {merge.mergedByUser?.fullName || tUi('unknown')}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(merge.mergedAt), 'MMM d, yyyy')}
+                      {formatDate(new Date(merge.mergedAt), 'MMM d, yyyy')}
                     </TableCell>
                     <TableCell>
                       {isActive && (
@@ -476,8 +469,7 @@ export function FoodMergeReview({
                           ) : (
                             <RotateCcw className="h-3 w-3" />
                           )}
-                          Unmerge
-                        </Button>
+                          {tUi('unmerge')} </Button>
                       )}
                     </TableCell>
                   </TableRow>

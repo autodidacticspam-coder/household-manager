@@ -1,6 +1,6 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
-import { format } from 'date-fns';
 import { parseLocalDate } from '@/lib/date-utils';
 import { formatTime12h } from '@/lib/format-time';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,7 @@ export const STATUS_BADGES: Record<string, string> = {
 // One booking request as a compact row: who, when, optional note,
 // plus an optional extra meta line (e.g. asked/replied timestamps)
 export function RequestSummary({ request, meta }: { request: BookingRequest; meta?: React.ReactNode }) {
+  const formatDate = useDateFormat();
   return (
     <div className="flex min-w-0 items-center gap-3">
       <Avatar className="h-8 w-8 shrink-0">
@@ -30,7 +31,7 @@ export function RequestSummary({ request, meta }: { request: BookingRequest; met
         <div className="text-sm font-medium">
           {request.babysitter?.fullName}
           <span className="font-normal text-muted-foreground">
-            {' '}&middot; {format(parseLocalDate(request.requestDate), 'EEE, MMM d')}{' '}
+            {' '}&middot; {formatDate(parseLocalDate(request.requestDate), 'EEE, MMM d')}{' '}
             &middot; {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
           </span>
         </div>

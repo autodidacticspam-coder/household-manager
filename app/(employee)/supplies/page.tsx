@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -39,7 +40,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useMySupplyRequests, useCreateSupplyRequest, useCancelSupplyRequest } from '@/hooks/use-supplies';
-import { format } from 'date-fns';
+
 import { Plus, Package, ExternalLink, X, Loader2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import type { SupplyRequest } from '@/types';
 
@@ -58,6 +59,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export default function SuppliesPage() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const { user } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -131,7 +133,7 @@ export default function SuppliesPage() {
             )}
 
             <p className="text-xs text-muted-foreground">
-              {t('descriptions.requested')} {format(new Date(request.createdAt), 'MMM d, yyyy h:mm a')}
+              {t('descriptions.requested')} {formatDate(new Date(request.createdAt), 'MMM d, yyyy h:mm a')}
             </p>
 
             {request.adminNotes && (

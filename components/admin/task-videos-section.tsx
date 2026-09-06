@@ -44,6 +44,7 @@ export function TaskVideosSection({
   onRemoveVideo,
   onRemoveExistingVideo,
 }: TaskVideosSectionProps) {
+  const tUi = useTranslations('interface');
   const t = useTranslations('tasks.videos');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,7 +124,7 @@ export function TaskVideosSection({
           {thumbnail ? (
             <img
               src={thumbnail}
-              alt={title || 'Video thumbnail'}
+              alt={title || tUi('videoThumbnail')}
               className="w-full h-full object-cover"
             />
           ) : videoType === 'upload' ? (
@@ -136,11 +137,11 @@ export function TaskVideosSection({
         {/* Title and platform */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">
-            {title || (videoType === 'upload' ? 'Uploaded video' : url)}
+            {title || (videoType === 'upload' ? tUi('uploadedVideo') : url)}
           </p>
           {platform && (
             <p className="text-xs text-muted-foreground capitalize">
-              {platform === 'youtube' ? 'YouTube' : platform === 'vimeo' ? 'Vimeo' : 'Link'}
+              {platform === 'youtube' ? 'YouTube' : platform === 'vimeo' ? 'Vimeo' : tUi('link')}
             </p>
           )}
         </div>
@@ -255,8 +256,7 @@ export function TaskVideosSection({
                     setLinkTitle('');
                   }}
                 >
-                  Cancel
-                </Button>
+                  {tUi('cancel')} </Button>
                 <Button
                   type="button"
                   size="sm"
@@ -264,8 +264,7 @@ export function TaskVideosSection({
                   disabled={!linkUrl.trim() || isAddingLink}
                 >
                   {isAddingLink && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Add
-                </Button>
+                  {tUi('add')} </Button>
               </div>
             </div>
           )}
@@ -319,14 +318,12 @@ export function TaskVideosSection({
           <AlertDialogHeader>
             <AlertDialogTitle>{t('deleteConfirmation')}</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone.
-            </AlertDialogDescription>
+              {tUi('thisActionCannotBeUndone')} </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tUi('cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete}>
-              Remove
-            </AlertDialogAction>
+              {tUi('remove')} </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

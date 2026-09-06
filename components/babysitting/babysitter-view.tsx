@@ -1,4 +1,5 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -41,11 +42,11 @@ import {
   type EditableWeek,
 } from './availability-editor';
 
-function formatDateLabel(dateStr: string): string {
+function formatDateLabel(dateStr: string, format: ReturnType<typeof useDateFormat>): string {
   return format(parseLocalDate(dateStr), 'EEE, MMM d');
 }
 
-function weekLabel(weekStart: string): string {
+function weekLabel(weekStart: string, format: ReturnType<typeof useDateFormat>): string {
   const start = parseLocalDate(weekStart);
   return `${format(start, 'MMM d')} - ${format(addDays(start, 6), 'MMM d')}`;
 }
@@ -69,12 +70,13 @@ function RequestCard({ request, onRespond, isPending }: {
   onRespond: (id: string, action: 'accept' | 'decline') => void;
   isPending: boolean;
 }) {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-accent/50 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div>
         <div className="font-medium text-sm">
-          {formatDateLabel(request.requestDate)}
+          {formatDateLabel(request.requestDate, formatDate)}
         </div>
         <div className="text-sm text-muted-foreground">
           {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
@@ -116,6 +118,7 @@ const STATUS_BADGES: Record<string, string> = {
 };
 
 export function BabysitterView() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
   const { user } = useAuth();
   const userId = user?.id;
@@ -140,8 +143,8 @@ export function BabysitterView() {
 
   const weekStarts = useMemo(() => {
     const current = getWeekStart(new Date());
-    return [0, 1, 2, 3].map((i) => format(addWeeks(parseLocalDate(current), i), 'yyyy-MM-dd'));
-  }, []);
+    return [0, 1, 2, 3].map((i) => formatDate(addWeeks(parseLocalDate(current), i), 'yyyy-MM-dd'));
+  }, [formatDate]);
   const { data: weekData, isLoading: weekDataLoading } = useMyWeekAvailability(userId, weekStarts);
   const saveWeek = useSaveWeekAvailability();
   const resetWeek = useResetWeekAvailability();
@@ -273,7 +276,7 @@ export function BabysitterView() {
               {respondedRequests.map((request) => (
                 <div key={request.id} className="flex items-center justify-between text-sm text-muted-foreground px-4">
                   <span>
-                    {formatDateLabel(request.requestDate)} &middot; {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
+                    {formatDateLabel(request.requestDate, formatDate)} &middot; {formatTime12h(request.startTime)} - {formatTime12h(request.endTime)}
                   </span>
                   <Badge variant="secondary" className={STATUS_BADGES[request.status]}>
                     {t(`babysitting.status_${request.status}`)}
@@ -310,7 +313,7 @@ export function BabysitterView() {
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2 font-medium text-sm">
-                    <span>{formatDateLabel(request.requestDate)}</span>
+                    <span>{formatDateLabel(request.requestDate, formatDate)}</span>
                     {request.requestDate === now.date && (
                       <Badge variant="secondary">{t('common.today')}</Badge>
                     )}
@@ -352,7 +355,7 @@ export function BabysitterView() {
             return (
               <div key={weekStart} className="space-y-2.5 rounded-lg bg-accent/50 px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-sm">{weekLabel(weekStart)}</span>
+                  <span className="font-medium text-sm">{weekLabel(weekStart, formatDate)}</span>
                   {i === 0 && <Badge variant="secondary">{t('common.thisWeek')}</Badge>}
                   <Badge
                     variant="secondary"
@@ -433,7 +436,7 @@ export function BabysitterView() {
         >
           <DialogHeader className="border-b px-4 py-3 text-left max-sm:pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:py-4">
             <DialogTitle>
-              {weekDialog && t('babysitting.adjustWeekTitle', { week: weekLabel(weekDialog.weekStart) })}
+              {weekDialog && t('babysitting.adjustWeekTitle', { week: weekLabel(weekDialog.weekStart, formatDate) })}
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
@@ -442,7 +445,7 @@ export function BabysitterView() {
                 value={weekDialog.edit}
                 onChange={(edit) => setWeekDialog({ ...weekDialog, edit })}
                 dayLabels={DAYS_OF_WEEK}
-                daySublabels={getWeekDates(weekDialog.weekStart).map((d) => format(parseLocalDate(d), 'MMM d'))}
+                daySublabels={getWeekDates(weekDialog.weekStart).map((d) => formatDate(parseLocalDate(d), 'MMM d'))}
               />
             )}
           </div>

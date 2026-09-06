@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -86,6 +89,8 @@ export function usePendingFoodRequestsCount() {
 
 // Create a food request
 export function useCreateFoodRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -120,18 +125,21 @@ export function useCreateFoodRequest() {
       return data;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests-count'] });
-      toast.success('Food request submitted');
+      toast.success(tUi('foodRequestSubmitted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Complete a food request
 export function useCompleteFoodRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -152,18 +160,21 @@ export function useCompleteFoodRequest() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests-count'] });
-      toast.success('Request marked as completed');
+      toast.success(tUi('requestMarkedAsCompleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Decline a food request
 export function useDeclineFoodRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -177,18 +188,21 @@ export function useDeclineFoodRequest() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests-count'] });
-      toast.success('Request declined');
+      toast.success(tUi('requestDeclined'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Delete a food request
 export function useDeleteFoodRequest() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
   const supabase = createClient();
 
@@ -202,12 +216,13 @@ export function useDeleteFoodRequest() {
       if (error) throw error;
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meal-suggestions'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests'] });
       queryClient.invalidateQueries({ queryKey: ['food-requests-count'] });
-      toast.success('Request deleted');
+      toast.success(tUi('requestDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

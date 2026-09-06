@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useState, useActionState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -16,6 +17,7 @@ import { createClient } from '@/lib/supabase/client';
 type LoginStep = 'email' | 'password';
 
 function LoginContent() {
+  const feedback = useFeedback();
   const t = useTranslations();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -167,7 +169,7 @@ function LoginContent() {
 
           {(error || state.error) && (
             <Alert variant="destructive" className="mb-4">
-              <AlertDescription>{error || state.error}</AlertDescription>
+              <AlertDescription>{feedback(error || state.error)}</AlertDescription>
             </Alert>
           )}
 

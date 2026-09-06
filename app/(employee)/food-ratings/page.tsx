@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -85,6 +86,9 @@ function getRatingColor(rating: number): string {
 type SummarySort = 'rating' | 'name' | 'count';
 
 export default function FoodRatingsPage() {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
+  const tMenu = useTranslations('menu');
   const tTags = useTranslations('foodTags');
   const tRequests = useTranslations('foodRequests');
   const [requestView, setRequestView] = useState<FoodRequestView>('pending');
@@ -245,10 +249,9 @@ export default function FoodRatingsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+        <h2 className="text-xl font-semibold mb-2">{tUi('accessRestricted')}</h2>
         <p className="text-muted-foreground max-w-md">
-          Food ratings are only accessible to Administrators and Chefs.
-        </p>
+          {tUi('foodRatingsAreOnlyAccessibleToAdministratorsAndChefs')} </p>
       </div>
     );
   }
@@ -260,11 +263,9 @@ export default function FoodRatingsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <ChefHat className="h-6 w-6" />
-            Food Ratings
-          </h1>
+            {tUi('foodRatings')} </h1>
           <p className="text-muted-foreground">
-            View how your dishes are being rated by the family
-          </p>
+            {tUi('viewHowYourDishesAreBeingRatedByTheFamily')} </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => { setRequestView('pending'); setActiveTab('requests'); }}>
@@ -279,8 +280,7 @@ export default function FoodRatingsPage() {
           <Button asChild>
             <Link href="/recipes">
               <BookOpen className="h-4 w-4 mr-2" />
-              Recipes
-            </Link>
+              {tUi('recipes')} </Link>
           </Button>
         </div>
       </div>
@@ -291,46 +291,42 @@ export default function FoodRatingsPage() {
           <Card>
             <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                Overall Avg
-              </CardTitle>
+                {tUi('overallAvg')} </CardTitle>
             </CardHeader>
             <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
               <div className={cn("text-2xl sm:text-3xl font-bold", getRatingColor(stats.overallAverage))}>
                 {stats.overallAverage.toFixed(1)}
               </div>
-              <p className="text-xs text-muted-foreground">out of 10</p>
+              <p className="text-xs text-muted-foreground">{tUi('outOf10')}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                Total Ratings
-              </CardTitle>
+                {tUi('totalRatings')} </CardTitle>
             </CardHeader>
             <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
               <div className="text-2xl sm:text-3xl font-bold">{stats.totalRatings}</div>
-              <p className="text-xs text-muted-foreground">from all dishes</p>
+              <p className="text-xs text-muted-foreground">{tUi('fromAllDishes')}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                Dishes Rated
-              </CardTitle>
+                {tUi('dishesRated')} </CardTitle>
             </CardHeader>
             <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
               <div className="text-2xl sm:text-3xl font-bold">{stats.totalItems}</div>
-              <p className="text-xs text-muted-foreground">unique items</p>
+              <p className="text-xs text-muted-foreground">{tUi('uniqueItems')}</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
-                Top Dish
-              </CardTitle>
+                {tUi('topDish')} </CardTitle>
             </CardHeader>
             <CardContent className="pb-3 px-3 sm:pb-4 sm:px-6">
               {stats.topRated[0] ? (
@@ -341,7 +337,7 @@ export default function FoodRatingsPage() {
                   <RatingBadge rating={stats.topRated[0].averageRating} />
                 </>
               ) : (
-                <p className="text-muted-foreground text-sm">No ratings yet</p>
+                <p className="text-muted-foreground text-sm">{tUi('noRatingsYet')}</p>
               )}
             </CardContent>
           </Card>
@@ -353,7 +349,7 @@ export default function FoodRatingsPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search dishes..."
+            placeholder={tUi('searchDishes')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -376,21 +372,21 @@ export default function FoodRatingsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex overflow-x-auto no-scrollbar">
-          <TabsTrigger value="summary" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+          <TabsTrigger aria-label={tUi('summary')} value="summary" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Award className="h-4 w-4" />
-            <span className="hidden sm:inline">Summary</span>
+            <span className="hidden sm:inline">{tUi('summary')}</span>
           </TabsTrigger>
-          <TabsTrigger value="top" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+          <TabsTrigger aria-label={tUi('top')} value="top" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <ThumbsUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Top</span>
+            <span className="hidden sm:inline">{tUi('top')}</span>
           </TabsTrigger>
-          <TabsTrigger value="bottom" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+          <TabsTrigger aria-label={tUi('improve')} value="bottom" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <ThumbsDown className="h-4 w-4" />
-            <span className="hidden sm:inline">Improve</span>
+            <span className="hidden sm:inline">{tUi('improve')}</span>
           </TabsTrigger>
-          <TabsTrigger value="all" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+          <TabsTrigger aria-label={tUi('all')} value="all" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Star className="h-4 w-4" />
-            <span className="hidden sm:inline">All</span>
+            <span className="hidden sm:inline">{tUi('all')}</span>
           </TabsTrigger>
           <TabsTrigger value="requests" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Send className="h-4 w-4" />
@@ -403,13 +399,13 @@ export default function FoodRatingsPage() {
           </TabsTrigger>
           {isAdmin && (
             <>
-              <TabsTrigger value="catalog" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+              <TabsTrigger aria-label={tUi('catalog')} value="catalog" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
                 <Tags className="h-4 w-4" />
-                <span className="hidden sm:inline">Catalog</span>
+                <span className="hidden sm:inline">{tUi('catalog')}</span>
               </TabsTrigger>
-              <TabsTrigger value="merges" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
+              <TabsTrigger aria-label={tUi('mergeReview')} value="merges" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
                 <GitMerge className="h-4 w-4" />
-                <span className="hidden sm:inline">Merge Review</span>
+                <span className="hidden sm:inline">{tUi('mergeReview')}</span>
               </TabsTrigger>
             </>
           )}
@@ -419,16 +415,14 @@ export default function FoodRatingsPage() {
         <TabsContent value="summary">
           <Card>
             <CardHeader>
-              <CardTitle>All Dishes</CardTitle>
+              <CardTitle>{tUi('allDishes')}</CardTitle>
               <CardDescription>
-                Average ratings for all menu items
-              </CardDescription>
+                {tUi('averageRatingsForAllMenuItems')} </CardDescription>
             </CardHeader>
             <CardContent>
               {filteredSummary.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  No ratings found. Ratings will appear here once the family rates your dishes.
-                </p>
+                  {tUi('noRatingsFoundRatingsWillAppearHereOnceTheFamily')} </p>
               ) : (
                 <>
                   {/* Mobile card layout */}
@@ -448,11 +442,11 @@ export default function FoodRatingsPage() {
                               )}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} • Range: {item.minRating}-{item.maxRating}
+                              {tUi('ratingCount', { count: item.totalRatings })}  {tUi('range')} {item.minRating}-{item.maxRating}
                             </p>
                             {item.rawMenuItems.length > 1 && (
                               <p className="text-xs text-muted-foreground truncate">
-                                Includes {item.rawMenuItems.join(', ')}
+                                {tUi('includes')} {item.rawMenuItems.join(', ')}
                               </p>
                             )}
                             <DishTagRow tags={getTagsForDish([item.menuItem, ...item.rawMenuItems])} />
@@ -486,12 +480,12 @@ export default function FoodRatingsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Dish</TableHead>
-                          {isAdmin && <TableHead className="text-center w-[100px]">Request</TableHead>}
-                          <TableHead className="text-center">Avg Rating</TableHead>
-                          <TableHead className="text-center">Total Ratings</TableHead>
-                          <TableHead className="text-center">Range</TableHead>
-                          <TableHead>Rated By</TableHead>
+                          <TableHead>{tUi('dish')}</TableHead>
+                          {isAdmin && <TableHead className="text-center w-[100px]">{tUi('request')}</TableHead>}
+                          <TableHead className="text-center">{tUi('avgRating')}</TableHead>
+                          <TableHead className="text-center">{tUi('totalRatings')}</TableHead>
+                          <TableHead className="text-center">{tUi('range_121')}</TableHead>
+                          <TableHead>{tUi('ratedBy')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -510,7 +504,7 @@ export default function FoodRatingsPage() {
                               </div>
                               {item.rawMenuItems.length > 1 && (
                                 <div className="mt-1 text-xs font-normal text-muted-foreground truncate">
-                                  Includes {item.rawMenuItems.join(', ')}
+                                  {tUi('includes')} {item.rawMenuItems.join(', ')}
                                 </div>
                               )}
                               <DishTagRow tags={getTagsForDish([item.menuItem, ...item.rawMenuItems])} />
@@ -527,8 +521,7 @@ export default function FoodRatingsPage() {
                                   }}
                                 >
                                   <Send className="h-3 w-3 mr-1.5" />
-                                  Request
-                                </Button>
+                                  {tUi('request')} </Button>
                               </TableCell>
                             )}
                             <TableCell className="text-center">
@@ -560,17 +553,14 @@ export default function FoodRatingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-green-500" />
-                Top Rated Dishes
-              </CardTitle>
+                {tUi('topRatedDishes')} </CardTitle>
               <CardDescription>
-                Your best performing menu items (rated 7+)
-              </CardDescription>
+                {tUi('yourBestPerformingMenuItemsRated7')} </CardDescription>
             </CardHeader>
             <CardContent>
               {!stats?.topRated.length ? (
                 <p className="text-center text-muted-foreground py-8">
-                  No top-rated dishes yet
-                </p>
+                  {tUi('noTopRatedDishesYet')} </p>
               ) : (
                 <div className="space-y-4">
                   {stats.topRated
@@ -593,7 +583,7 @@ export default function FoodRatingsPage() {
                               )}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} from {item.raters.join(', ')}
+                              {tUi('ratingCount', { count: item.totalRatings })}  {tUi('from')} {item.raters.join(', ')}
                             </p>
                           </div>
                         </div>
@@ -612,17 +602,14 @@ export default function FoodRatingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-orange-500" />
-                Needs Improvement
-              </CardTitle>
+                {tUi('needsImprovement')} </CardTitle>
               <CardDescription>
-                Dishes rated below 6 that might benefit from adjustments
-              </CardDescription>
+                {tUi('dishesRatedBelow6ThatMightBenefitFromAdjustments')} </CardDescription>
             </CardHeader>
             <CardContent>
               {!stats?.bottomRated.filter(item => item.averageRating < 6).length ? (
                 <p className="text-center text-muted-foreground py-8">
-                  Great job! No dishes need improvement right now.
-                </p>
+                  {tUi('greatJobNoDishesNeedImprovementRightNow')} </p>
               ) : (
                 <div className="space-y-4">
                   {stats.bottomRated
@@ -641,7 +628,7 @@ export default function FoodRatingsPage() {
                             )}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.totalRatings} rating{item.totalRatings !== 1 ? 's' : ''} from {item.raters.join(', ')}
+                            {tUi('ratingCount', { count: item.totalRatings })}  {tUi('from')} {item.raters.join(', ')}
                           </p>
                         </div>
                         <RatingBadge rating={item.averageRating} />
@@ -657,16 +644,14 @@ export default function FoodRatingsPage() {
         <TabsContent value="all">
           <Card>
             <CardHeader>
-              <CardTitle>All Individual Ratings</CardTitle>
+              <CardTitle>{tUi('allIndividualRatings')}</CardTitle>
               <CardDescription>
-                Complete history of all ratings
-              </CardDescription>
+                {tUi('completeHistoryOfAllRatings')} </CardDescription>
             </CardHeader>
             <CardContent>
               {filteredRatings.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
-                  No ratings found
-                </p>
+                  {tUi('noRatingsFound')} </p>
               ) : (
                 <>
                   {/* Mobile card layout */}
@@ -694,16 +679,16 @@ export default function FoodRatingsPage() {
                         </div>
                         {rating.menuItem !== rating.canonicalMenuItem && (
                           <p className="mb-2 text-xs text-muted-foreground">
-                            Grouped as {rating.canonicalMenuItem}
+                            {tUi('groupedAs')} {rating.canonicalMenuItem}
                           </p>
                         )}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span className="capitalize">{rating.dayOfWeek} {rating.mealType}</span>
-                          <span>{rating.ratedByUser?.fullName || 'Unknown'}</span>
+                          <span className="capitalize">{tMenu('days.' + rating.dayOfWeek.toLowerCase())} {tMenu('meals.' + rating.mealType.toLowerCase())}</span>
+                          <span>{rating.ratedByUser?.fullName || tUi('unknown')}</span>
                         </div>
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-xs text-muted-foreground">
-                            {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                            {formatDate(new Date(rating.createdAt), 'MMM d, yyyy')}
                           </p>
                           {user?.id === rating.ratedBy && (
                             <Button
@@ -721,8 +706,7 @@ export default function FoodRatingsPage() {
                           <div className="mt-3 rounded-md border bg-muted/40 px-3 py-2">
                             <div className="mb-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                               <MessageSquare className="h-3 w-3" />
-                              Note
-                            </div>
+                              {tUi('note')} </div>
                             <p className="text-sm whitespace-pre-wrap break-words">{rating.comment}</p>
                           </div>
                         )}
@@ -735,12 +719,12 @@ export default function FoodRatingsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Dish</TableHead>
-                          <TableHead>Meal</TableHead>
-                          <TableHead className="text-center">Rating</TableHead>
-                          <TableHead>Rated By</TableHead>
-                          <TableHead>Note</TableHead>
-                          <TableHead>Date</TableHead>
+                          <TableHead>{tUi('dish')}</TableHead>
+                          <TableHead>{tUi('meal')}</TableHead>
+                          <TableHead className="text-center">{tUi('rating_136')}</TableHead>
+                          <TableHead>{tUi('ratedBy')}</TableHead>
+                          <TableHead>{tUi('note')}</TableHead>
+                          <TableHead>{tUi('date')}</TableHead>
                           <TableHead className="w-[60px]"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -754,12 +738,12 @@ export default function FoodRatingsPage() {
                               )}
                               {rating.menuItem !== rating.canonicalMenuItem && (
                                 <div className="mt-1 text-xs font-normal text-muted-foreground">
-                                  Grouped as {rating.canonicalMenuItem}
+                                  {tUi('groupedAs')} {rating.canonicalMenuItem}
                                 </div>
                               )}
                             </TableCell>
                             <TableCell className="capitalize text-sm">
-                              {rating.dayOfWeek} - {rating.mealType}
+                              {tMenu('days.' + rating.dayOfWeek.toLowerCase())} - {tMenu('meals.' + rating.mealType.toLowerCase())}
                             </TableCell>
                             <TableCell className="text-center">
                               <Badge
@@ -775,7 +759,7 @@ export default function FoodRatingsPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-sm">
-                              {rating.ratedByUser?.fullName || 'Unknown'}
+                              {rating.ratedByUser?.fullName || tUi('unknown')}
                             </TableCell>
                             <TableCell className="max-w-[320px]">
                               {rating.comment ? (
@@ -784,11 +768,11 @@ export default function FoodRatingsPage() {
                                   <p className="whitespace-pre-wrap break-words">{rating.comment}</p>
                                 </div>
                               ) : (
-                                <span className="text-xs text-muted-foreground">No note</span>
+                                <span className="text-xs text-muted-foreground">{tUi('noNote')}</span>
                               )}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                              {formatDate(new Date(rating.createdAt), 'MMM d, yyyy')}
                             </TableCell>
                             <TableCell>
                               {user?.id === rating.ratedBy && (
@@ -838,11 +822,9 @@ export default function FoodRatingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <GitMerge className="h-5 w-5" />
-                  Food Merge Review
-                </CardTitle>
+                  {tUi('foodMergeReview')} </CardTitle>
                 <CardDescription>
-                  Approve likely duplicate dish names and undo previous merges when needed
-                </CardDescription>
+                  {tUi('approveLikelyDuplicateDishNamesAndUndoPreviousMergesWhen')} </CardDescription>
               </CardHeader>
               <CardContent>
                 <FoodMergeReview
@@ -875,7 +857,7 @@ export default function FoodRatingsPage() {
               <DialogDescription className="flex items-center gap-4 pt-2">
                 <RatingBadge rating={selectedDishSummary.averageRating} />
                 <span>
-                  {selectedDishSummary.totalRatings} rating{selectedDishSummary.totalRatings !== 1 ? 's' : ''}
+                  {tUi('ratingCount', { count: selectedDishSummary.totalRatings })}
                 </span>
               </DialogDescription>
             )}
@@ -911,8 +893,7 @@ export default function FoodRatingsPage() {
           <div className="space-y-4 mt-4">
             {selectedDishRatings.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">
-                No ratings found for this dish.
-              </p>
+                {tUi('noRatingsFoundForThisDish')} </p>
             ) : (
               selectedDishRatings.map((rating) => (
                 <div
@@ -923,7 +904,7 @@ export default function FoodRatingsPage() {
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium text-sm">
-                        {rating.ratedByUser?.fullName || 'Unknown'}
+                        {rating.ratedByUser?.fullName || tUi('unknown')}
                       </span>
                     </div>
                     <Badge
@@ -940,12 +921,12 @@ export default function FoodRatingsPage() {
                   </div>
 
                   <div className="text-xs text-muted-foreground mb-2">
-                    {rating.dayOfWeek} {rating.mealType} • {format(new Date(rating.createdAt), 'MMM d, yyyy')}
+                    {tMenu('days.' + rating.dayOfWeek.toLowerCase())} {tMenu('meals.' + rating.mealType.toLowerCase())} • {formatDate(new Date(rating.createdAt), 'MMM d, yyyy')}
                   </div>
 
                   {rating.menuItem !== rating.canonicalMenuItem && (
                     <p className="mb-2 text-xs text-muted-foreground">
-                      Original item: {rating.menuItem}
+                      {tUi('originalItem')} {rating.menuItem}
                     </p>
                   )}
 
@@ -953,8 +934,7 @@ export default function FoodRatingsPage() {
                     <div className="mt-3 p-3 bg-background rounded border">
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                         <MessageSquare className="h-3 w-3" />
-                        Comment
-                      </div>
+                        {tUi('comment')} </div>
                       <p className="text-sm">{rating.comment}</p>
                     </div>
                   )}
@@ -974,8 +954,7 @@ export default function FoodRatingsPage() {
                         ) : (
                           <Trash2 className="h-4 w-4 mr-2" />
                         )}
-                        Delete Rating
-                      </Button>
+                        {tUi('deleteRating')} </Button>
                     </div>
                   )}
                 </div>
@@ -992,29 +971,27 @@ export default function FoodRatingsPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Send className="h-5 w-5" />
-              Request Food
-            </DialogTitle>
+              {tUi('requestFood')} </DialogTitle>
             <DialogDescription>
-              Request this dish from the chef
-            </DialogDescription>
+              {tUi('requestThisDishFromTheChef')} </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="food-name">Dish</Label>
+              <Label htmlFor="food-name">{tUi('dish')}</Label>
               <Input
                 id="food-name"
                 value={requestFoodName}
                 onChange={(e) => setRequestFoodName(e.target.value)}
-                placeholder="e.g., Grilled salmon, Chocolate cake..."
+                placeholder={tUi('eGGrilledSalmonChocolateCake')}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="request-notes">Notes (optional)</Label>
+              <Label htmlFor="request-notes">{tUi('notesOptional')}</Label>
               <Textarea
                 id="request-notes"
                 value={requestNotes}
                 onChange={(e) => setRequestNotes(e.target.value)}
-                placeholder="Any special instructions or preferences..."
+                placeholder={tUi('anySpecialInstructionsOrPreferences')}
                 rows={3}
               />
             </div>
@@ -1025,8 +1002,7 @@ export default function FoodRatingsPage() {
               setRequestFoodName('');
               setRequestNotes('');
             }}>
-              Cancel
-            </Button>
+              {tUi('cancel')} </Button>
             <Button
               onClick={() => {
                 createFoodRequest.mutate({
@@ -1047,8 +1023,7 @@ export default function FoodRatingsPage() {
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Submit Request
-            </Button>
+              {tUi('submitRequest')} </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

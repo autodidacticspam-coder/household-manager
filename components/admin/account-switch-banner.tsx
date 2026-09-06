@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,6 +18,8 @@ import {
 import { Button } from '@/components/ui/button';
 
 export function AccountSwitchBanner() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, isLoading } = useAuth();
@@ -51,11 +56,11 @@ export function AccountSwitchBanner() {
       clearAdminSwitchSession();
       setSwitchSession(null);
       queryClient.clear();
-      toast.success(`Returned to ${switchSession.adminUser.fullName}`);
+      toast.success(feedback(`Returned to ${switchSession.adminUser.fullName}`));
       router.push('/dashboard');
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not return to admin account');
+      toast.error(feedback(error instanceof Error ? error.message : 'Could not return to admin account'));
     } finally {
       setIsReturning(false);
     }
@@ -70,7 +75,7 @@ export function AccountSwitchBanner() {
         <div className="flex min-w-0 items-center gap-2 text-sm text-amber-950">
           <UserRoundCog className="h-4 w-4 shrink-0" />
           <span className="truncate">
-            Viewing as <strong>{user.fullName}</strong>. Admin session: {switchSession.adminUser.fullName}.
+            {tUi('viewingAs')} <strong>{user.fullName}</strong>{tUi('adminSession')} {switchSession.adminUser.fullName}.
           </span>
         </div>
         <Button
@@ -85,8 +90,7 @@ export function AccountSwitchBanner() {
           ) : (
             <RotateCcw className="mr-2 h-4 w-4" />
           )}
-          Return to Admin
-        </Button>
+          {tUi('returnToAdmin')} </Button>
       </div>
     </div>
   );

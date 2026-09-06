@@ -19,6 +19,7 @@ interface RecipeFormProps {
 }
 
 export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const router = useRouter();
 
@@ -120,7 +121,7 @@ export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Grandma's Apple Pie"
+              placeholder={tUi('eGGrandmaSApplePie')}
               required
             />
           </div>
@@ -131,7 +132,7 @@ export function RecipeForm({ recipe, isEdit = false }: RecipeFormProps) {
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter the full recipe including ingredients, instructions, notes..."
+              placeholder={tUi('enterTheFullRecipeIncludingIngredientsInstructionsNotes')}
               rows={20}
               className="min-h-[400px] font-mono text-sm"
             />

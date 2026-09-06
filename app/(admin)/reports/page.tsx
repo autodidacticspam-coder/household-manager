@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { subDays, format } from 'date-fns';
+import { subDays } from 'date-fns';
 import { getTodayString, formatDateString, parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +46,8 @@ import {
 const COLORS = ['#6366f1', '#ec4899', '#3b82f6', '#f97316', '#10b981', '#8b5cf6', '#06b6d4', '#eab308'];
 
 export default function ReportsPage() {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const [dateRange, setDateRange] = useState<DateRange>(() => {
     const today = new Date();
@@ -191,11 +194,11 @@ export default function ReportsPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="date"
-                    tickFormatter={(value) => format(parseLocalDate(value), 'MMM d')}
+                    tickFormatter={(value) => formatDate(parseLocalDate(value), 'MMM d')}
                   />
                   <YAxis />
                   <Tooltip
-                    labelFormatter={(value) => format(parseLocalDate(value as string), 'MMM d, yyyy')}
+                    labelFormatter={(value) => formatDate(parseLocalDate(value as string), 'MMM d, yyyy')}
                   />
                   <Line
                     type="monotone"
@@ -277,7 +280,7 @@ export default function ReportsPage() {
                 <div className="p-4 bg-indigo-50 rounded-lg">
                   <p className="text-sm text-indigo-600 font-medium">{t('reports.stats.tasksCompleted')}</p>
                   <p className="text-2xl font-bold text-indigo-700">{employeeReport.taskStats.completed}</p>
-                  <p className="text-xs text-indigo-500">of {employeeReport.taskStats.total} total</p>
+                  <p className="text-xs text-indigo-500">{tUi('of')} {employeeReport.taskStats.total}  {tUi('total')}</p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
                   <p className="text-sm text-green-600 font-medium">{t('reports.stats.completionRate')}</p>

@@ -1,3 +1,4 @@
+import { localizedPushMessage } from './messages';
 import { createClient } from '@supabase/supabase-js';
 import http2 from 'http2';
 import * as jose from 'jose';
@@ -168,7 +169,7 @@ export async function getUserPushTokens(userIds: string[]): Promise<{ userId: st
 // Send push notification to multiple users
 export async function sendPushToUsers(
   userIds: string[],
-  notification: PushNotification
+  notification: PushNotification | ((locale: string) => PushNotification)
 ): Promise<{ sent: number; failed: number; errors: string[] }> {
   if (!APNS_KEY_ID || !APNS_TEAM_ID || !APNS_PRIVATE_KEY) {
     console.error('[PUSH] APNS not configured');
@@ -181,9 +182,11 @@ export async function sendPushToUsers(
     return { sent: 0, failed: 0, errors: ['No tokens found'] };
   }
 
-  const results = await Promise.all(
-    tokens.map((t) => sendPushToDevice(t.token, notification))
-  );
+  const { data: users } = await createClient(supabaseUrl, supabaseServiceKey).from('users').select('id, preferred_locale').in('id', [...new Set(userIds)]);
+  const locales = new Map((users || []).map(user => [user.id, user.preferred_locale || 'en']));
+  const results = await Promise.all(tokens.map(token => sendPushToDevice(token.token,
+    typeof notification === 'function' ? notification(locales.get(token.userId) || 'en') : notification
+  )));
 
   const sent = results.filter((r) => r.success).length;
   const failed = results.filter((r) => !r.success).length;
@@ -207,212 +210,37 @@ export async function sendPushToUsers(
   return { sent, failed, errors };
 }
 
-// Send task assignment push notification
-export async function sendTaskAssignedPush(
-  userIds: string[],
-  taskTitle: string,
-  taskId: string,
-  priority: string,
-  description?: string | null,
-  dueDate?: string | null,
-  dueTime?: string | null
-): Promise<{ sent: number; failed: number; errors: string[] }> {
-  const priorityLabels: Record<string, string> = {
-    low: 'Low Priority',
-    medium: 'Medium Priority',
-    high: 'High Priority',
-    urgent: 'URGENT',
-  };
+function optionalLine(value?: string | null, max = 100) { return value ? '\n' + (value.length > max ? value.slice(0, max) + '…' : value) : ''; }
 
-  const priorityEmoji: Record<string, string> = {
-    low: '📋',
-    medium: '📌',
-    high: '⚠️',
-    urgent: '🚨',
-  };
+export async function sendTaskAssignedPush(userIds: string[], taskTitle: string, taskId: string, priority: string, description?: string | null, dueDate?: string | null, dueTime?: string | null) {
+  return sendPushToUsers(userIds, locale => ({ ...localizedPushMessage(locale, 'assigned', { priority, title: taskTitle, description: optionalLine(description) }),
+    data: { taskId, type: 'task_assigned', title: taskTitle, description: description || '', priority, dueDate: dueDate || '', dueTime: dueTime || '' } }));
+}
 
-  const emoji = priorityEmoji[priority] || '📋';
-  const label = priorityLabels[priority] || priority;
-
-  let body = `[${label}] ${taskTitle}`;
-  if (description) {
-    const truncatedDesc = description.length > 100
-      ? description.slice(0, 100) + '...'
-      : description;
-    body += `\n${truncatedDesc}`;
-  }
-
-  return sendPushToUsers(userIds, {
-    title: `${emoji} New Task Assigned`,
-    body,
-    data: {
-      taskId,
-      type: 'task_assigned',
-      title: taskTitle,
-      description: description || '',
-      priority,
-      dueDate: dueDate || '',
-      dueTime: dueTime || '',
-    },
+export async function sendTaskReminderPush(userIds: string[], taskTitle: string, taskId: string, priority: string, description?: string | null, dueDate?: string | null, dueTime?: string | null) {
+  return sendPushToUsers(userIds, locale => {
+    const time = dueTime ? new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'UTC' }).format(new Date('2000-01-01T' + dueTime.slice(0,5) + ':00Z')) : '';
+    return { ...localizedPushMessage(locale, 'reminder', { priority, title: taskTitle, time, description: optionalLine(description, 60) }),
+      data: { taskId, type: 'task_reminder', title: taskTitle, description: description || '', priority, dueDate: dueDate || '', dueTime: dueTime || '' } };
   });
 }
 
-// Send task reminder push notification
-export async function sendTaskReminderPush(
-  userIds: string[],
-  taskTitle: string,
-  taskId: string,
-  priority: string,
-  description?: string | null,
-  dueDate?: string | null,
-  dueTime?: string | null
-): Promise<{ sent: number; failed: number; errors: string[] }> {
-  const priorityLabels: Record<string, string> = {
-    low: 'Low Priority',
-    medium: 'Medium Priority',
-    high: 'High Priority',
-    urgent: 'URGENT',
-  };
-
-  const label = priorityLabels[priority] || priority;
-
-  let formattedTime = '';
-  if (dueTime) {
-    const [hours, minutes] = dueTime.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    formattedTime = `${hour12}:${minutes} ${ampm}`;
-  }
-
-  let body = `⚠️ Only 15 minutes left!\n[${label}] ${taskTitle}`;
-  if (formattedTime) {
-    body += ` - Due at ${formattedTime}`;
-  }
-  if (description) {
-    const truncatedDesc = description.length > 60
-      ? description.slice(0, 60) + '...'
-      : description;
-    body += `\n${truncatedDesc}`;
-  }
-
-  return sendPushToUsers(userIds, {
-    title: '⏰ 15 Minutes Left!',
-    body,
-    data: {
-      taskId,
-      type: 'task_reminder',
-      title: taskTitle,
-      description: description || '',
-      priority,
-      dueDate: dueDate || '',
-      dueTime: dueTime || '',
-    },
-  });
+export async function sendTaskCompletedPush(adminUserIds: string[], taskTitle: string, taskId: string, completedBy: string): Promise<void> {
+  await sendPushToUsers(adminUserIds, locale => ({ ...localizedPushMessage(locale, 'completed', { title: taskTitle, name: completedBy }), data: { taskId, type: 'task_completed' } }));
 }
 
-// Send task completed notification (to admins)
-export async function sendTaskCompletedPush(
-  adminUserIds: string[],
-  taskTitle: string,
-  taskId: string,
-  completedBy: string
-): Promise<void> {
-  await sendPushToUsers(adminUserIds, {
-    title: '✅ Task Completed',
-    body: `"${taskTitle}" was completed by ${completedBy}`,
-    data: {
-      taskId,
-      type: 'task_completed',
-    },
-  });
+export async function sendBookingRequestPush(userIds: string[], date: string, time: string, note?: string | null) {
+  return sendPushToUsers(userIds, locale => ({ ...localizedPushMessage(locale, 'booking', { date, time, note: optionalLine(note) }), data: { type: 'booking_request' } }));
 }
 
-// Send babysitting booking request notification (to the babysitter)
-export async function sendBookingRequestPush(
-  userIds: string[],
-  dateLabel: string,
-  timeLabel: string,
-  note?: string | null
-): Promise<{ sent: number; failed: number; errors: string[] }> {
-  let body = `Can you work ${dateLabel}, ${timeLabel}?`;
-  if (note) {
-    const truncatedNote = note.length > 100 ? note.slice(0, 100) + '...' : note;
-    body += `\n${truncatedNote}`;
-  }
-  body += '\nOpen the app to accept or decline.';
-
-  return sendPushToUsers(userIds, {
-    title: '📅 New Babysitting Request',
-    body,
-    data: {
-      type: 'booking_request',
-    },
-  });
+export async function sendBookingResponsePush(adminUserIds: string[], sitterName: string, accepted: boolean, date: string, time: string): Promise<void> {
+  await sendPushToUsers(adminUserIds, locale => ({ ...localizedPushMessage(locale, accepted ? 'accepted' : 'declined', { name: sitterName, date, time }), data: { type: 'booking_response' } }));
 }
 
-// Send booking response notification (to admins)
-export async function sendBookingResponsePush(
-  adminUserIds: string[],
-  sitterName: string,
-  accepted: boolean,
-  dateLabel: string,
-  timeLabel: string
-): Promise<void> {
-  await sendPushToUsers(adminUserIds, {
-    title: accepted ? '✅ Babysitting Request Accepted' : '❌ Babysitting Request Declined',
-    body: accepted
-      ? `${sitterName} accepted ${dateLabel}, ${timeLabel}. The shift is on the calendar.`
-      : `${sitterName} can't make it ${dateLabel}, ${timeLabel}.`,
-    data: {
-      type: 'booking_response',
-    },
-  });
+export async function sendBookingCancellationPush(userIds: string[], date: string, time: string, removedAcceptedShift: boolean) {
+  return sendPushToUsers(userIds, locale => ({ ...localizedPushMessage(locale, removedAcceptedShift ? 'shiftCancelled' : 'requestCancelled', { date, time }), data: { type: 'booking_cancelled' } }));
 }
 
-// Send booking cancellation notification (to the babysitter)
-export async function sendBookingCancellationPush(
-  userIds: string[],
-  dateLabel: string,
-  timeLabel: string,
-  removedAcceptedShift: boolean
-): Promise<{ sent: number; failed: number; errors: string[] }> {
-  return sendPushToUsers(userIds, {
-    title: removedAcceptedShift ? '❌ Babysitting Shift Cancelled' : '❌ Babysitting Request Cancelled',
-    body: removedAcceptedShift
-      ? `${dateLabel}, ${timeLabel} was cancelled by the family and removed from your schedule.`
-      : `The family withdrew its request for ${dateLabel}, ${timeLabel}.`,
-    data: {
-      type: 'booking_cancelled',
-    },
-  });
-}
-
-// Send task expiration warning notification (to task creator)
-export async function sendTaskExpirationPush(
-  userIds: string[],
-  taskTitle: string,
-  taskId: string,
-  lastDueDate: string,
-  taskCount: number
-): Promise<{ sent: number; failed: number; errors: string[] }> {
-  // Format the date nicely
-  const [year, month, day] = lastDueDate.split('-').map(Number);
-  const dateObj = new Date(year, month - 1, day);
-  const formattedDate = dateObj.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  return sendPushToUsers(userIds, {
-    title: '⏳ Repeating Task Expiring Soon',
-    body: `"${taskTitle}" (${taskCount} instances) will end on ${formattedDate}. Consider extending it.`,
-    data: {
-      taskId,
-      type: 'task_expiring',
-      title: taskTitle,
-      lastDueDate,
-    },
-  });
+export async function sendTaskExpirationPush(userIds: string[], taskTitle: string, taskId: string, lastDueDate: string, taskCount: number) {
+  return sendPushToUsers(userIds, locale => ({ ...localizedPushMessage(locale, 'expiring', { title: taskTitle, date: lastDueDate, count: taskCount }), data: { taskId, type: 'task_expiring', title: taskTitle, lastDueDate } }));
 }

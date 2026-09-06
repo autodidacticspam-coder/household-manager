@@ -1,8 +1,11 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
+
+import { useTranslations } from 'next-intl';
 
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
-import { format } from 'date-fns';
+
 import { BarChart3, Check, Clock, Plus, Repeat2, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,6 +44,8 @@ export function FoodRequestInsights({
   canCreateRequests,
   onRequestFood,
 }: FoodRequestInsightsProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const requestGroups = useMemo(() => buildFoodRequestGroups(requests, userId), [requests, userId]);
   const myRequestGroups = useMemo(
     () => requestGroups.filter((group) => group.myRequests > 0),
@@ -63,31 +68,29 @@ export function FoodRequestInsights({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <RequestStat label="Total" value={stats.total} icon={<BarChart3 className="h-4 w-4" />} />
-        <RequestStat label="Mine" value={stats.mine} icon={<Send className="h-4 w-4" />} />
-        <RequestStat label="Pending" value={stats.pending} icon={<Clock className="h-4 w-4" />} />
-        <RequestStat label="Completed" value={stats.completed} icon={<Check className="h-4 w-4" />} />
-        <RequestStat label="Dishes" value={stats.uniqueDishes} icon={<Repeat2 className="h-4 w-4" />} />
+        <RequestStat label={tUi('total_253')} value={stats.total} icon={<BarChart3 className="h-4 w-4" />} />
+        <RequestStat label={tUi('mine')} value={stats.mine} icon={<Send className="h-4 w-4" />} />
+        <RequestStat label={tUi('pending')} value={stats.pending} icon={<Clock className="h-4 w-4" />} />
+        <RequestStat label={tUi('completed')} value={stats.completed} icon={<Check className="h-4 w-4" />} />
+        <RequestStat label={tUi('dishes')} value={stats.uniqueDishes} icon={<Repeat2 className="h-4 w-4" />} />
       </div>
 
       <div className="rounded-lg border bg-muted/30 p-4">
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-sm font-semibold">Request Favorites</h3>
+            <h3 className="text-sm font-semibold">{tUi('requestFavorites')}</h3>
             <p className="text-xs text-muted-foreground">
-              Most-requested dishes are grouped by approved merge names.
-            </p>
+              {tUi('mostRequestedDishesAreGroupedByApprovedMergeNames')} </p>
           </div>
           {canCreateRequests && (
             <Button size="sm" onClick={() => onRequestFood()}>
               <Plus className="h-4 w-4" />
-              New Request
-            </Button>
+              {tUi('newRequest')} </Button>
           )}
         </div>
 
         {favoriteGroups.length === 0 ? (
-          <p className="py-3 text-sm text-muted-foreground">No favorites yet.</p>
+          <p className="py-3 text-sm text-muted-foreground">{tUi('noFavoritesYet')}</p>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {favoriteGroups.map((group) => (
@@ -110,10 +113,9 @@ export function FoodRequestInsights({
 
       <div className="space-y-3">
         <div>
-          <h3 className="text-sm font-semibold">Request Analysis</h3>
+          <h3 className="text-sm font-semibold">{tUi('requestAnalysis')}</h3>
           <p className="text-xs text-muted-foreground">
-            Dishes are grouped by canonical food name so approved merges count together.
-          </p>
+            {tUi('dishesAreGroupedByCanonicalFoodNameSoApprovedMerges')} </p>
         </div>
 
         <div className="md:hidden space-y-3">
@@ -123,8 +125,7 @@ export function FoodRequestInsights({
                 <div className="min-w-0">
                   <p className="font-medium truncate">{group.foodName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {group.totalRequests} total, {group.myRequests} mine
-                  </p>
+                    {group.totalRequests}  {tUi('total_264')} {group.myRequests}  {tUi('mine_265')} </p>
                 </div>
                 {canCreateRequests && (
                   <Button
@@ -137,12 +138,12 @@ export function FoodRequestInsights({
                 )}
               </div>
               <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                <Badge variant="warning">{group.pendingRequests} pending</Badge>
-                <Badge variant="success">{group.completedRequests} done</Badge>
-                {group.declinedRequests > 0 && <Badge variant="outline">{group.declinedRequests} declined</Badge>}
+                <Badge variant="warning">{group.pendingRequests}  {tUi('pending_266')}</Badge>
+                <Badge variant="success">{group.completedRequests}  {tUi('done')}</Badge>
+                {group.declinedRequests > 0 && <Badge variant="outline">{group.declinedRequests}  {tUi('declined')}</Badge>}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Last requested {format(new Date(group.lastRequestedAt), 'MMM d, yyyy')}
+                {tUi('lastRequested')} {formatDate(new Date(group.lastRequestedAt), 'MMM d, yyyy')}
               </p>
             </div>
           ))}
@@ -152,13 +153,13 @@ export function FoodRequestInsights({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Dish</TableHead>
-                <TableHead className="text-center">Total</TableHead>
-                <TableHead className="text-center">Mine</TableHead>
-                <TableHead className="text-center">Pending</TableHead>
-                <TableHead className="text-center">Completed</TableHead>
-                <TableHead>Last Requested</TableHead>
-                <TableHead>Requested By</TableHead>
+                <TableHead>{tUi('dish')}</TableHead>
+                <TableHead className="text-center">{tUi('total_253')}</TableHead>
+                <TableHead className="text-center">{tUi('mine')}</TableHead>
+                <TableHead className="text-center">{tUi('pending')}</TableHead>
+                <TableHead className="text-center">{tUi('completed')}</TableHead>
+                <TableHead>{tUi('lastRequested_270')}</TableHead>
+                <TableHead>{tUi('requestedBy')}</TableHead>
                 <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -171,7 +172,7 @@ export function FoodRequestInsights({
                   <TableCell className="text-center">{group.pendingRequests}</TableCell>
                   <TableCell className="text-center">{group.completedRequests}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(group.lastRequestedAt), 'MMM d, yyyy')}
+                    {formatDate(new Date(group.lastRequestedAt), 'MMM d, yyyy')}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-[220px] truncate">
                     {group.requesters.join(', ')}

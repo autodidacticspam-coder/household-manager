@@ -1,11 +1,12 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { format, isSameDay } from 'date-fns';
+import { isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -59,6 +60,8 @@ type LeaveRequestFormProps = {
 };
 
 export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const router = useRouter();
 
@@ -118,9 +121,9 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
     setSelectedDates(sortedDates);
 
     if (sortedDates.length > 0) {
-      form.setValue('startDate', format(sortedDates[0], 'yyyy-MM-dd'));
-      form.setValue('endDate', format(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd'));
-      form.setValue('selectedDates', sortedDates.map(d => format(d, 'yyyy-MM-dd')));
+      form.setValue('startDate', formatDate(sortedDates[0], 'yyyy-MM-dd'));
+      form.setValue('endDate', formatDate(sortedDates[sortedDates.length - 1], 'yyyy-MM-dd'));
+      form.setValue('selectedDates', sortedDates.map(d => formatDate(d, 'yyyy-MM-dd')));
       form.setValue('selectedDaysCount', sortedDates.length);
     } else {
       form.setValue('startDate', '');
@@ -149,7 +152,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
 
   const onSubmit = async (data: CreateLeaveRequestInput) => {
     if (selectedDates.length === 0) {
-      form.setError('startDate', { message: 'Please select at least one day' });
+      form.setError('startDate', { message: 'leaveErrors.selectDates' });
       return;
     }
 
@@ -203,17 +206,16 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               name="startDate"
               render={() => (
                 <FormItem>
-                  <FormLabel>Select Days Off</FormLabel>
+                  <FormLabel>{tUi('selectDaysOff')}</FormLabel>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Click on the calendar to select the days you want off. Click again to deselect.
-                  </p>
+                    {tUi('clickOnTheCalendarToSelectTheDaysYouWant')} </p>
 
                   {/* Selected dates display */}
                   {selectedDates.length > 0 && (
                     <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">
-                          Selected: {selectedDates.length} day{selectedDates.length !== 1 ? 's' : ''}
+                          {tUi('selected')} {tUi('dayCount', { count: selectedDates.length })}
                         </span>
                         <Button
                           type="button"
@@ -222,8 +224,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                           onClick={() => handleDateSelect([])}
                           className="h-6 px-2 text-xs"
                         >
-                          Clear all
-                        </Button>
+                          {tUi('clearAll')} </Button>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {selectedDates.map((date) => (
@@ -232,7 +233,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                             variant="secondary"
                             className="flex items-center gap-1"
                           >
-                            {format(date, 'EEE, MMM d')}
+                            {formatDate(date, 'EEE, MMM d')}
                             <button
                               type="button"
                               onClick={() => removeDate(date)}
@@ -266,12 +267,11 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="full-day-toggle" className="text-base font-medium">
-                      Full Day
-                    </Label>
+                      {tUi('fullDay')} </Label>
                     <p className="text-sm text-muted-foreground">
                       {isFullDay
-                        ? 'Taking the entire day off'
-                        : 'Taking partial day off - select your hours'}
+                        ? tUi('takingTheEntireDayOff')
+                        : tUi('takingPartialDayOffSelectYourHours')}
                     </p>
                   </div>
                   <Switch
@@ -291,15 +291,14 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                         <FormItem>
                           <FormLabel className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Start Time
-                          </FormLabel>
+                            {tUi('startTime')} </FormLabel>
                           <Select
                             value={field.value || ''}
                             onValueChange={field.onChange}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select start time" />
+                                <SelectValue placeholder={tUi('selectStartTime')} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -322,15 +321,14 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                         <FormItem>
                           <FormLabel className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            End Time
-                          </FormLabel>
+                            {tUi('endTime')} </FormLabel>
                           <Select
                             value={field.value || ''}
                             onValueChange={field.onChange}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select end time" />
+                                <SelectValue placeholder={tUi('selectEndTime')} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
@@ -353,8 +351,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
                     {hoursOff && (
                       <div className="col-span-2 text-center">
                         <Badge variant="secondary" className="text-sm">
-                          {hoursOff} hour{hoursOff !== 1 ? 's' : ''} off
-                          ({(hoursOff / 8).toFixed(2)} day{(hoursOff / 8) !== 1 ? 's' : ''})
+                          {tUi('timeOffAmount', { hours: hoursOff, days: hoursOff / 8 })}
                         </Badge>
                       </div>
                     )}
@@ -366,8 +363,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
             {selectedDates.length > 1 && (
               <p className="text-sm text-muted-foreground">
                 <Clock className="h-4 w-4 inline mr-1" />
-                Partial day requests are only available when selecting a single day.
-              </p>
+                {tUi('partialDayRequestsAreOnlyAvailableWhenSelectingASingle')} </p>
             )}
 
             <FormField
@@ -375,12 +371,12 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               name="reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('leave.reason')} (optional)</FormLabel>
+                  <FormLabel>{t('leave.reason')}  {tUi('optional')}</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       value={field.value || ''}
-                      placeholder="Reason for leave request..."
+                      placeholder={tUi('reasonForLeaveRequest')}
                       rows={3}
                     />
                   </FormControl>
@@ -403,9 +399,9 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
             {createRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {t('common.submit')} {selectedDates.length > 0 && (
               isFullDay
-                ? `(${selectedDates.length} day${selectedDates.length !== 1 ? 's' : ''})`
+                ? tUi('dayCount', { count: selectedDates.length })
                 : hoursOff
-                  ? `(${hoursOff} hour${hoursOff !== 1 ? 's' : ''})`
+                  ? tUi('hourCount', { count: hoursOff })
                   : ''
             )}
           </Button>
@@ -418,21 +414,18 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-500" />
-              Before You Submit
-            </AlertDialogTitle>
+              {tUi('beforeYouSubmit')} </AlertDialogTitle>
             <AlertDialogDescription className="text-base">
-              Note: The system does not track if you have Vacation or Sick Leave remaining. If approved, your leave may be unpaid.
-            </AlertDialogDescription>
+              {tUi('noteTheSystemDoesNotTrackIfYouHaveVacation')} </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={createRequest.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={createRequest.isPending}>{tUi('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmSubmit}
               disabled={createRequest.isPending}
             >
               {createRequest.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              I Understand, Submit Request
-            </AlertDialogAction>
+              {tUi('iUnderstandSubmitRequest')} </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

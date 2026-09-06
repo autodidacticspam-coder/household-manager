@@ -1,4 +1,5 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
@@ -77,6 +78,7 @@ export function useRecentChildLogs(limit: number = 10) {
 }
 
 export function useCreateChildLog() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -119,12 +121,13 @@ export function useCreateChildLog() {
       toast.success(t('childLogs.logCreated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useUpdateChildLog() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -165,12 +168,13 @@ export function useUpdateChildLog() {
       toast.success(t('childLogs.logUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 export function useDeleteChildLog() {
+  const feedback = useFeedback();
   const queryClient = useQueryClient();
   const supabase = createClient();
   const t = useTranslations();
@@ -191,7 +195,7 @@ export function useDeleteChildLog() {
       toast.success(t('childLogs.logDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }

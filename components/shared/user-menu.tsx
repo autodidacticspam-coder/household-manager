@@ -20,6 +20,7 @@ import { AccountSwitcherDialog } from '@/components/admin/account-switcher';
 import { clearAdminSwitchSession } from '@/lib/account-switch';
 
 export function UserMenu() {
+  const tUi = useTranslations('interface');
   const t = useTranslations();
   const { user, isAdmin } = useAuth();
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -79,8 +80,7 @@ export function UserMenu() {
                 onClick={() => setSwitcherOpen(true)}
               >
                 <UserRoundCog className="mr-2 h-4 w-4" />
-                Switch account
-              </DropdownMenuItem>
+                {tUi('switchAccount_293')} </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}

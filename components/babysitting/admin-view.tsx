@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, addWeeks, getDay } from 'date-fns';
+import { addWeeks, getDay } from 'date-fns';
 import { toast } from 'sonner';
 import { parseLocalDate } from '@/lib/date-utils';
 import { formatTime12h, formatTimeCompact } from '@/lib/format-time';
@@ -73,13 +74,14 @@ type FinderResult = {
 const TIME_RE = /^\d{2}:\d{2}$/;
 
 export function AdminBabysittingView() {
+  const formatDate = useDateFormat();
   const t = useTranslations();
 
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   // Finder state (times are 24h "HH:mm", straight from native time inputs)
-  const [finderDate, setFinderDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [finderDate, setFinderDate] = useState(() => formatDate(new Date(), 'yyyy-MM-dd'));
   const [finderStart, setFinderStart] = useState('17:00');
   const [finderEnd, setFinderEnd] = useState('21:00');
 
@@ -92,7 +94,7 @@ export function AdminBabysittingView() {
 
   const { data: weekAvailability, isLoading: weekLoading } = useAdminBabysitterAvailability(weekStart);
   const { data: weekShifts, isLoading: weekShiftsLoading } = useBabysitterShifts(weekStart, sitterIds);
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayStr = formatDate(new Date(), 'yyyy-MM-dd');
 
   const finderWeekStart = useMemo(() => getWeekStart(parseLocalDate(finderDate)), [finderDate]);
   const { data: finderAvailability } = useAdminBabysitterAvailability(finderWeekStart);
@@ -312,7 +314,7 @@ export function AdminBabysittingView() {
                   <Button
                     variant="outline"
                     size="icon-sm"
-                    onClick={() => setWeekStart(format(addWeeks(parseLocalDate(weekStart), -1), 'yyyy-MM-dd'))}
+                    onClick={() => setWeekStart(formatDate(addWeeks(parseLocalDate(weekStart), -1), 'yyyy-MM-dd'))}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -322,7 +324,7 @@ export function AdminBabysittingView() {
                   <Button
                     variant="outline"
                     size="icon-sm"
-                    onClick={() => setWeekStart(format(addWeeks(parseLocalDate(weekStart), 1), 'yyyy-MM-dd'))}
+                    onClick={() => setWeekStart(formatDate(addWeeks(parseLocalDate(weekStart), 1), 'yyyy-MM-dd'))}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
@@ -398,7 +400,7 @@ export function AdminBabysittingView() {
                     />
                   </div>
                   <div className="pb-2 text-sm text-muted-foreground">
-                    {format(parseLocalDate(finderDate), 'EEEE, MMM d')}
+                    {formatDate(parseLocalDate(finderDate), 'EEEE, MMM d')}
                   </div>
                 </div>
 
@@ -550,7 +552,7 @@ export function AdminBabysittingView() {
               {requestDialog && t('babysitting.requestDialogTitle', { name: requestDialog.user.fullName })}
             </DialogTitle>
             <DialogDescription>
-              {format(parseLocalDate(finderDate), 'EEEE, MMM d')}
+              {formatDate(parseLocalDate(finderDate), 'EEEE, MMM d')}
               {queryValid && (
                 <> &middot; {formatTime12h(finderStart)} - {formatTime12h(finderEnd)}</>
               )}
@@ -593,7 +595,7 @@ export function AdminBabysittingView() {
             <DialogDescription>
               {cancelDialog && t('babysitting.cancelShiftDescription', {
                 name: cancelDialog.babysitter?.fullName || '',
-                date: format(parseLocalDate(cancelDialog.requestDate), 'EEEE, MMM d'),
+                date: formatDate(parseLocalDate(cancelDialog.requestDate), 'EEEE, MMM d'),
                 time: `${formatTime12h(cancelDialog.startTime)} - ${formatTime12h(cancelDialog.endTime)}`,
               })}
             </DialogDescription>

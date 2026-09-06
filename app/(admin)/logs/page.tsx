@@ -1,8 +1,9 @@
 'use client';
+import { useDateFormat } from '@/hooks/use-date-format';
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { format, subDays, startOfMonth } from 'date-fns';
+import { subDays, startOfMonth } from 'date-fns';
 import { formatTime12h } from '@/lib/format-time';
 import { parseLocalDate } from '@/lib/date-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,6 +66,7 @@ function DateFilterCard({
   setEndDate: (date: string) => void;
   t: (key: string) => string;
 }) {
+  const formatDate = useDateFormat();
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
@@ -94,8 +96,8 @@ function DateFilterCard({
               variant="outline"
               size="sm"
               onClick={() => {
-                setStartDate(format(new Date(), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+                setStartDate(formatDate(new Date(), 'yyyy-MM-dd'));
+                setEndDate(formatDate(new Date(), 'yyyy-MM-dd'));
               }}
             >
               {t('common.today')}
@@ -104,8 +106,8 @@ function DateFilterCard({
               variant="outline"
               size="sm"
               onClick={() => {
-                setStartDate(format(subDays(new Date(), 7), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+                setStartDate(formatDate(subDays(new Date(), 7), 'yyyy-MM-dd'));
+                setEndDate(formatDate(new Date(), 'yyyy-MM-dd'));
               }}
             >
               {t('common.thisWeek')}
@@ -114,8 +116,8 @@ function DateFilterCard({
               variant="outline"
               size="sm"
               onClick={() => {
-                setStartDate(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                setEndDate(format(new Date(), 'yyyy-MM-dd'));
+                setStartDate(formatDate(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                setEndDate(formatDate(new Date(), 'yyyy-MM-dd'));
               }}
             >
               {t('common.thisMonth')}
@@ -137,6 +139,8 @@ function parse24To12(time24: string | null): { time: string; ampm: 'AM' | 'PM' }
 }
 
 export default function UnifiedLogPage() {
+  const formatDate = useDateFormat();
+  const tUi = useTranslations('interface');
   const t = useTranslations();
 
   // Access control
@@ -149,11 +153,11 @@ export default function UnifiedLogPage() {
   // Use lazy initializers to avoid SSR timezone issues
   const [startDate, setStartDate] = useState(() => {
     if (typeof window === 'undefined') return '';
-    return format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    return formatDate(startOfMonth(new Date()), 'yyyy-MM-dd');
   });
   const [endDate, setEndDate] = useState(() => {
     if (typeof window === 'undefined') return '';
-    return format(new Date(), 'yyyy-MM-dd');
+    return formatDate(new Date(), 'yyyy-MM-dd');
   });
 
   // Redirect after log preference - use lazy initializer to avoid setState in effect
@@ -201,7 +205,7 @@ export default function UnifiedLogPage() {
   const [formCategory, setFormCategory] = useState<ChildLogCategory | ''>('');
   const [logDate, setLogDate] = useState(() => {
     if (typeof window === 'undefined') return '';
-    return format(new Date(), 'yyyy-MM-dd');
+    return formatDate(new Date(), 'yyyy-MM-dd');
   });
   const [startTime, setStartTime] = useState('');
   const [startAmPm, setStartAmPm] = useState<'AM' | 'PM'>('AM');
@@ -447,10 +451,9 @@ export default function UnifiedLogPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
         <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
+        <h2 className="text-xl font-semibold mb-2">{tUi('accessRestricted')}</h2>
         <p className="text-muted-foreground max-w-md">
-          Child logs are only accessible to Administrators, Nannies, and Teachers.
-        </p>
+          {tUi('childLogsAreOnlyAccessibleToAdministratorsNanniesAndTeachers')} </p>
       </div>
     );
   }
@@ -621,20 +624,17 @@ export default function UnifiedLogPage() {
         <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
           <TabsTrigger value="create" className="gap-2">
             <Plus className="h-4 w-4" />
-            New Log
-          </TabsTrigger>
+            {tUi('newLog')} </TabsTrigger>
           <TabsTrigger value="all" className="gap-2">
             <Calendar className="h-4 w-4" />
             {t('common.all')}
           </TabsTrigger>
           <TabsTrigger value="by-child" className="gap-2">
             <User className="h-4 w-4" />
-            By Child
-          </TabsTrigger>
+            {tUi('byChild')} </TabsTrigger>
           <TabsTrigger value="by-category" className="gap-2">
             <ClipboardList className="h-4 w-4" />
-            By Type
-          </TabsTrigger>
+            {tUi('byType')} </TabsTrigger>
         </TabsList>
 
         {/* Create Log Tab */}
@@ -924,8 +924,8 @@ export default function UnifiedLogPage() {
                   <div key={date}>
                     <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {format(parseLocalDate(date), 'EEEE, MMMM d, yyyy')}
-                      <Badge variant="secondary">{dateLogs.length} logs</Badge>
+                      {formatDate(parseLocalDate(date), 'EEEE, MMMM d, yyyy')}
+                      <Badge variant="secondary">{dateLogs.length}  {tUi('logs')}</Badge>
                     </h3>
                     <div className="space-y-2">
                       {dateLogs.map((log) => (
@@ -951,7 +951,7 @@ export default function UnifiedLogPage() {
             {/* Child Selection Sidebar */}
             <Card className="lg:col-span-1 h-fit">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Select Child</CardTitle>
+                <CardTitle className="text-lg">{tUi('selectChild')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {CHILDREN.map((child) => {
@@ -977,8 +977,7 @@ export default function UnifiedLogPage() {
               {!selectedChild ? (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    Select a child to view their logs
-                  </CardContent>
+                    {tUi('selectAChildToViewTheirLogs')} </CardContent>
                 </Card>
               ) : logsLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -990,14 +989,14 @@ export default function UnifiedLogPage() {
                     <Badge className={`${CHILD_COLORS[selectedChild].bg} ${CHILD_COLORS[selectedChild].text} text-lg px-4 py-2`}>
                       {selectedChild}
                     </Badge>
-                    <span className="text-muted-foreground">{logs.length} logs</span>
+                    <span className="text-muted-foreground">{logs.length}  {tUi('logs')}</span>
                   </div>
                   {Object.entries(groupedLogs)
                     .sort(([a], [b]) => b.localeCompare(a))
                     .map(([date, dateLogs]) => (
                       <div key={date}>
                         <h3 className="font-medium text-sm text-muted-foreground mb-2">
-                          {format(parseLocalDate(date), 'EEEE, MMMM d')}
+                          {formatDate(parseLocalDate(date), 'EEEE, MMMM d')}
                         </h3>
                         <div className="space-y-2">
                           {dateLogs.map((log) => (
@@ -1010,7 +1009,7 @@ export default function UnifiedLogPage() {
               ) : (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    No logs found for {selectedChild}
+                    {tUi('noLogsFoundFor')} {selectedChild}
                   </CardContent>
                 </Card>
               )}
@@ -1025,7 +1024,7 @@ export default function UnifiedLogPage() {
             {/* Category Selection Sidebar */}
             <Card className="lg:col-span-1 h-fit">
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Select Type</CardTitle>
+                <CardTitle className="text-lg">{tUi('selectType')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {CATEGORIES.map((cat) => {
@@ -1051,8 +1050,7 @@ export default function UnifiedLogPage() {
               {!selectedCategory ? (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    Select a category to view logs
-                  </CardContent>
+                    {tUi('selectACategoryToViewLogs')} </CardContent>
                 </Card>
               ) : logsLoading ? (
                 <div className="flex items-center justify-center py-12">
@@ -1071,14 +1069,14 @@ export default function UnifiedLogPage() {
                         </Badge>
                       );
                     })()}
-                    <span className="text-muted-foreground">{logs.length} logs</span>
+                    <span className="text-muted-foreground">{logs.length}  {tUi('logs')}</span>
                   </div>
                   {Object.entries(groupedLogs)
                     .sort(([a], [b]) => b.localeCompare(a))
                     .map(([date, dateLogs]) => (
                       <div key={date}>
                         <h3 className="font-medium text-sm text-muted-foreground mb-2">
-                          {format(parseLocalDate(date), 'EEEE, MMMM d')}
+                          {formatDate(parseLocalDate(date), 'EEEE, MMMM d')}
                         </h3>
                         <div className="space-y-2">
                           {dateLogs.map((log) => (
@@ -1091,8 +1089,7 @@ export default function UnifiedLogPage() {
               ) : (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    No {t(`childLogs.categories.${selectedCategory}`).toLowerCase()} logs found
-                  </CardContent>
+                    {tUi('no')} {t(`childLogs.categories.${selectedCategory}`).toLowerCase()}  {tUi('logsFound')} </CardContent>
                 </Card>
               )}
             </div>

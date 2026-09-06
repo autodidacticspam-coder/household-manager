@@ -1,4 +1,7 @@
 'use client';
+import { useFeedback } from '@/hooks/use-feedback';
+
+import { useTranslations } from 'next-intl';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -38,6 +41,8 @@ export function useRecipe(id: string | null) {
 
 // Create a recipe
 export function useCreateRecipe() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -57,16 +62,18 @@ export function useCreateRecipe() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
-      toast.success('Recipe created');
+      toast.success(tUi('recipeCreated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Update a recipe
 export function useUpdateRecipe() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -85,16 +92,18 @@ export function useUpdateRecipe() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
       queryClient.invalidateQueries({ queryKey: ['recipe', variables.id] });
-      toast.success('Recipe updated');
+      toast.success(tUi('recipeUpdated'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
 
 // Delete a recipe
 export function useDeleteRecipe() {
+  const feedback = useFeedback();
+  const tUi = useTranslations('interface');
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -110,10 +119,10 @@ export function useDeleteRecipe() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
-      toast.success('Recipe deleted');
+      toast.success(tUi('recipeDeleted'));
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      toast.error(feedback(error.message));
     },
   });
 }
