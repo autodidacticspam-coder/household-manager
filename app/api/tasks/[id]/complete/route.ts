@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireTaskPermission } from '@/lib/task-permissions';
+import { getApiAdminClient, handleApiError } from '@/lib/supabase/api-helpers';
 import { sendTaskCompletedPush } from '@/lib/notifications/push-service';
 
 // POST handler for completing a task
@@ -10,13 +10,8 @@ export async function POST(
 ) {
   try {
     const { id: taskId } = await params;
-    const supabase = await createClient();
+    const { user, supabase } = await requireTaskPermission(taskId, 'complete');
     const supabaseAdmin = getApiAdminClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
 
     // Get task title and user info before completing
     const { data: task } = await supabaseAdmin
@@ -31,14 +26,16 @@ export async function POST(
       .eq('id', user.id)
       .single();
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('tasks')
       .update({
         status: 'completed',
         completed_by: user.id,
         completed_at: new Date().toISOString(),
       })
-      .eq('id', taskId);
+      .eq('id', taskId)
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Task completion error:', error);
@@ -68,6 +65,7 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Task completion error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }

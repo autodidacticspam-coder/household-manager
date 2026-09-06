@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireTaskPermission } from '@/lib/task-permissions';
+import { handleApiError } from '@/lib/supabase/api-helpers';
 
 // POST handler for completing a recurring task instance
 export async function POST(
@@ -15,16 +15,10 @@ export async function POST(
       return NextResponse.json({ error: 'completionDate is required' }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const supabaseAdmin = getApiAdminClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const { user, supabase } = await requireTaskPermission(taskId, 'complete');
 
     // Insert completion record (upsert in case of re-completion)
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('task_completions')
       .upsert({
         task_id: taskId,
@@ -43,7 +37,8 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Task instance completion error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }
 
@@ -61,15 +56,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'completionDate is required' }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const supabaseAdmin = getApiAdminClient();
+    const { supabase } = await requireTaskPermission(taskId, 'complete');
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('task_completions')
       .delete()
       .eq('task_id', taskId)
@@ -83,6 +72,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Task instance uncomplete error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }

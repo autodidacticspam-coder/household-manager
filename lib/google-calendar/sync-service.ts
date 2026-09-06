@@ -1,3 +1,4 @@
+import { loadCalendarVisibility, canExportCalendarSource } from './visibility';
 import { createHash } from 'crypto';
 import { getApiAdminClient } from '@/lib/supabase/api-helpers';
 import { chunkForInFilter } from '@/lib/supabase/pagination';
@@ -131,6 +132,7 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
 
   try {
     // 1. Build the desired event set from the database
+    const visibility = await loadCalendarVisibility(userId);
     const desired = new Map<string, DesiredEvent>();
 
     if (filters.tasks || filters.activities) {
@@ -151,6 +153,14 @@ export async function syncAllEventsForUser(userId: string): Promise<SyncResult> 
       'child_log',
       await buildChildLogEvents(startDate, endDate, filters.childLogs)
     );
+    for (const [key, item] of desired) {
+      if (!canExportCalendarSource(visibility, item.eventType, item.sourceId)) desired.delete(key);
+    }
+    debug.tasksCount = [...desired.values()].filter(item => item.eventType === 'task').length;
+    debug.leaveCount = [...desired.values()].filter(item => item.eventType === 'leave').length;
+    debug.schedulesCount = [...desired.values()].filter(item => item.eventType === 'schedule').length;
+    debug.importantDatesCount = [...desired.values()].filter(item => item.eventType === 'important_date').length;
+    debug.childLogsCount = [...desired.values()].filter(item => item.eventType === 'child_log').length;
     debug.desiredCount = desired.size;
 
     // 2. List what our sync currently owns in Google Calendar
@@ -803,6 +813,11 @@ export async function syncEventToConnectedUsers(
     if (action === 'delete') {
       await deleteEventForUser(token.user_id, accessToken, token.calendar_id, eventType, sourceId);
     } else if (eventData) {
+      const visibility = await loadCalendarVisibility(token.user_id);
+      if (!canExportCalendarSource(visibility, eventType, sourceId)) {
+        await deleteEventForUser(token.user_id, accessToken, token.calendar_id, eventType, sourceId);
+        continue;
+      }
       // create and update share the same upsert path, so an "update" for an
       // event that was never synced (e.g. after a failed full sync) still
       // lands in the calendar instead of being silently dropped.
@@ -880,7 +895,8 @@ export async function syncBaseScheduleChange(
         .eq('source_id', existing.source_id);
     }
 
-    if (action === 'delete' || !scheduleData) {
+    const visibility = await loadCalendarVisibility(token.user_id);
+    if (action === 'delete' || !scheduleData || !canExportCalendarSource(visibility, 'schedule', scheduleId)) {
       continue;
     }
 
@@ -1005,7 +1021,8 @@ export async function syncScheduleOverrideChange(
     const accessToken = await getValidAccessToken(token.user_id);
     if (!accessToken) continue;
 
-    if (overrideData?.isCancelled && action !== 'delete') {
+    const visibility = await loadCalendarVisibility(token.user_id);
+    if (!canExportCalendarSource(visibility, 'schedule', localId) || (overrideData?.isCancelled && action !== 'delete')) {
       await deleteEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId);
       continue;
     }
@@ -1051,7 +1068,8 @@ export async function syncOneOffScheduleChange(
     const accessToken = await getValidAccessToken(token.user_id);
     if (!accessToken) continue;
 
-    if (action === 'delete') {
+    const visibility = await loadCalendarVisibility(token.user_id);
+    if (action === 'delete' || !canExportCalendarSource(visibility, 'schedule', localId)) {
       await deleteEventForUser(token.user_id, accessToken, token.calendar_id, 'schedule', localId);
       continue;
     }

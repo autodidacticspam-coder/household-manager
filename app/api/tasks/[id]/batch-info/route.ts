@@ -1,5 +1,6 @@
+import { requireTaskPermission } from '@/lib/task-permissions';
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiAdminClient, getApiAuthUser, handleApiError } from '@/lib/supabase/api-helpers';
+import { handleApiError } from '@/lib/supabase/api-helpers';
 import { inferRepeatSettings } from '@/lib/task-generator';
 import { fetchAllRows } from '@/lib/supabase/pagination';
 
@@ -10,13 +11,7 @@ export async function GET(
   try {
     const { id: taskId } = await params;
 
-    // Just check if user is authenticated (not necessarily admin)
-    const user = await getApiAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
-
-    const supabaseAdmin = getApiAdminClient();
+    const { supabase: supabaseAdmin } = await requireTaskPermission(taskId, 'view');
 
     const today = new Date().toISOString().split('T')[0];
 

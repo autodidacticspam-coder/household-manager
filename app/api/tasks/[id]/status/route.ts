@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
-import { getApiAdminClient } from '@/lib/supabase/api-helpers';
+import { requireTaskPermission } from '@/lib/task-permissions';
+import { handleApiError } from '@/lib/supabase/api-helpers';
 
 // PUT handler for updating task status
 export async function PUT(
@@ -15,13 +15,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Valid status is required' }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const supabaseAdmin = getApiAdminClient();
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const { user, supabase } = await requireTaskPermission(taskId, 'complete');
 
     const updateData: Record<string, unknown> = { status };
 
@@ -33,10 +27,12 @@ export async function PUT(
       updateData.completed_at = null;
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabase
       .from('tasks')
       .update(updateData)
-      .eq('id', taskId);
+      .eq('id', taskId)
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Task status update error:', error);
@@ -46,6 +42,7 @@ export async function PUT(
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('Task status update error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const { error, status } = handleApiError(err);
+    return NextResponse.json({ error }, { status });
   }
 }
