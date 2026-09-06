@@ -25,3 +25,31 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+# Household Manager project guidance
+
+Complete the requested work using the authorization already provided. Resolve routine choices autonomously; use the user's durable web form for material choices that remain unresolved. A request to investigate or review is not acceptance of unchosen product options.
+
+## Tech Stack
+- Next.js 16 with Turbopack
+- Supabase (PostgreSQL + Auth)
+- TanStack Query for data fetching
+- Tailwind CSS + shadcn/ui components
+- next-intl for i18n (en, es, zh)
+
+## Deployment
+- Push to GitHub triggers Vercel deployment
+- Run `npx vercel --prod` for immediate production deployment
+- Database migrations are in `supabase/migrations/` (apply manually via Supabase dashboard)
+
+## Conventions
+- Use 12-hour time format with AM/PM toggle buttons; on mobile-first views (e.g. babysitter availability) prefer native `<input type="time">` pickers, which show 12-hour AM/PM per device locale
+- Always add translations to all three language files (en.json, es.json, zh.json)
+- Use server actions in `app/(admin)/*/actions.ts` for mutations
+- Use hooks in `hooks/use-*.ts` for data fetching and mutations
+
+## Testing
+
+- Run the project's required checks. `npm test` runs the existing Vitest suite; tests are colocated as `*.test.ts` or `*.test.tsx`. See [TESTING.md](TESTING.md) for the framework and conventions.
+- Add regression coverage for behavior changes when it can detect a meaningful failure, including affected data boundaries and error paths. Coverage percentages do not replace correctness checks or require tests that merely mirror the implementation.
+- Investigate failures introduced by a change. Distinguish pre-existing failures from new regressions and report any checks that could not be completed.

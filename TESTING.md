@@ -1,6 +1,6 @@
 # Testing
 
-100% test coverage is the goal for safe, fast iteration. Tests turn quick changes into reliable changes by catching regressions before they reach the household.
+Tests should detect meaningful regressions before they reach the household. Run required checks and choose additional coverage for the affected behavior and risk; a coverage percentage alone does not establish correctness.
 
 ## Framework
 
@@ -23,6 +23,6 @@ npm test
 
 - Use Vitest's `describe`, `it`, and `expect` APIs.
 - Assert meaningful behavior and exact outcomes, not merely that a value exists.
-- Add both branches when introducing a conditional.
-- Add a focused regression test whenever a bug is fixed.
+- Cover changed conditions and error paths when they can affect user-visible behavior, data integrity, or access controls.
+- Add a focused regression test when it can reproduce the bug and distinguish the corrected behavior.
 - Mock Supabase, network, filesystem, and other external dependencies in unit tests.
