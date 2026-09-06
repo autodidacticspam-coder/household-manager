@@ -903,5 +903,25 @@
       "custom": "Personalizadas",
       "other": "Otros"
     }
+  },
+  "leaveErrors": {
+    "invalidDates": "Introduce una fecha válida.",
+    "selectDates": "Selecciona al menos un día.",
+    "dateOrder": "La fecha final debe ser igual o posterior a la fecha inicial.",
+    "outsideRange": "Los días seleccionados deben estar dentro del intervalo de fechas.",
+    "rangeMismatch": "El intervalo debe coincidir con el primer y último día seleccionados.",
+    "partialSingleDay": "El permiso de jornada parcial debe ser de un solo día.",
+    "timesRequired": "Elige horas de inicio y fin válidas.",
+    "timeOrder": "La hora de fin debe ser posterior a la hora de inicio.",
+    "cancelBeforeEditing": "Cancela el permiso aprobado antes de cambiar las fechas u horas.",
+    "signIn": "Inicia sesión para gestionar tus permisos.",
+    "notFound": "No se encontró esta solicitud de permiso.",
+    "cancelPermission": "Solo puedes cancelar tus propias solicitudes pendientes. Un administrador puede cancelar permisos aprobados.",
+    "adminRequired": "Un administrador debe revisar esta solicitud.",
+    "notPending": "Esta solicitud ya ha sido revisada.",
+    "notesTooLong": "Las notas deben tener un máximo de 1.000 caracteres.",
+    "invalidAction": "Esta acción no está disponible.",
+    "invalidRequest": "Comprueba los datos de la solicitud e inténtalo de nuevo.",
+    "saveFailed": "No se pudo guardar la solicitud de permiso. Inténtalo de nuevo."
   }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { leaveDates, leaveDateRanges, storedLeaveDates } from '@/lib/leave-dates';
 import { useQuery } from '@tanstack/react-query';
 import { parseLocalDate } from '@/lib/date-utils';
 import { createClient } from '@/lib/supabase/client';
@@ -424,53 +425,9 @@ export function useCalendarEvents(filters: CalendarFilters) {
             continue;
           }
 
-          // Use selected_dates if available for accurate display of non-contiguous dates
-          if (l.selected_dates && Array.isArray(l.selected_dates) && l.selected_dates.length > 0) {
-            // Group consecutive dates into ranges for cleaner display
-            const sortedDates = [...l.selected_dates].sort();
-            let rangeStart = sortedDates[0];
-            let rangeEnd = sortedDates[0];
-
-            for (let i = 1; i <= sortedDates.length; i++) {
-              const currentDate = sortedDates[i];
-              const prevDate = sortedDates[i - 1];
-
-              // Check if current date is consecutive (next day after previous)
-              const isConsecutive = currentDate &&
-                format(addDays(parseLocalDate(prevDate), 1), 'yyyy-MM-dd') === currentDate;
-
-              if (isConsecutive) {
-                rangeEnd = currentDate;
-              } else {
-                // End of a range, create event
-                // FullCalendar treats end date as exclusive, so add 1 day
-                const endDatePlusOne = format(addDays(parseLocalDate(rangeEnd), 1), 'yyyy-MM-dd');
-                events.push({
-                  id: `leave-${l.id}-${rangeStart}`,
-                  ...baseEventProps,
-                  start: rangeStart,
-                  end: endDatePlusOne,
-                });
-
-                // Start new range if there are more dates
-                if (currentDate) {
-                  rangeStart = currentDate;
-                  rangeEnd = currentDate;
-                }
-              }
-            }
-          } else {
-            // Fallback to start_date/end_date range
-            // FullCalendar treats end date as exclusive for all-day events
-            // So we need to add 1 day to include the actual end date
-            const endDatePlusOne = format(addDays(parseLocalDate(l.end_date), 1), 'yyyy-MM-dd');
-
-            events.push({
-              id: 'leave-' + l.id,
-              ...baseEventProps,
-              start: l.start_date,
-              end: endDatePlusOne,
-            });
+          for (const range of leaveDateRanges(storedLeaveDates(l), filters.startDate, filters.endDate)) {
+            events.push({ id: 'leave-' + l.id + '-' + range.start, ...baseEventProps,
+              start: range.start, end: format(addDays(parseLocalDate(range.end), 1), 'yyyy-MM-dd') });
           }
         }
       }
@@ -664,19 +621,8 @@ export function useCalendarEvents(filters: CalendarFilters) {
         for (const leave of approvedLeaves || []) {
           // Partial-day leave doesn't hide the shift - the employee still works
           if (leave.is_full_day === false) continue;
-          // Use selected_dates if available, otherwise generate from range
-          if (leave.selected_dates && Array.isArray(leave.selected_dates) && leave.selected_dates.length > 0) {
-            for (const dateStr of leave.selected_dates) {
-              leaveDaysSet.add(`${leave.user_id}-${dateStr}`);
-            }
-          } else {
-            // Generate dates from start_date to end_date
-            let leaveDate = parseLocalDate(leave.start_date);
-            const leaveEnd = parseLocalDate(leave.end_date);
-            while (isBefore(leaveDate, leaveEnd) || isEqual(leaveDate, leaveEnd)) {
-              leaveDaysSet.add(`${leave.user_id}-${format(leaveDate, 'yyyy-MM-dd')}`);
-              leaveDate = addDays(leaveDate, 1);
-            }
+          for (const date of leaveDates(storedLeaveDates(leave), filters.startDate, filters.endDate)) {
+            leaveDaysSet.add(leave.user_id + '-' + date);
           }
         }
 

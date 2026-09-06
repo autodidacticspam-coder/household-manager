@@ -903,5 +903,25 @@
       "custom": "Custom",
       "other": "Other"
     }
+  },
+  "leaveErrors": {
+    "invalidDates": "Enter a valid date.",
+    "selectDates": "Select at least one day.",
+    "dateOrder": "The end date must be on or after the start date.",
+    "outsideRange": "Selected days must be inside the date range.",
+    "rangeMismatch": "The date range must match the first and last selected days.",
+    "partialSingleDay": "Partial-day leave must be on one day.",
+    "timesRequired": "Choose valid start and end times.",
+    "timeOrder": "The end time must be later than the start time.",
+    "cancelBeforeEditing": "Cancel approved leave before changing its dates or hours.",
+    "signIn": "Sign in to manage time off.",
+    "notFound": "This leave request was not found.",
+    "cancelPermission": "You can cancel only your own pending requests. An administrator can cancel approved leave.",
+    "adminRequired": "An administrator must review this request.",
+    "notPending": "This request has already been reviewed.",
+    "notesTooLong": "Notes must be 1,000 characters or fewer.",
+    "invalidAction": "This leave action is not available.",
+    "invalidRequest": "Check the request details and try again.",
+    "saveFailed": "The leave request could not be saved. Please try again."
   }
 }

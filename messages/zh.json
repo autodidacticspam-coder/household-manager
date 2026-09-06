@@ -903,5 +903,25 @@
       "custom": "自定义",
       "other": "其他"
     }
+  },
+  "leaveErrors": {
+    "invalidDates": "请输入有效日期。",
+    "selectDates": "请至少选择一天。",
+    "dateOrder": "结束日期不得早于开始日期。",
+    "outsideRange": "所选日期必须在日期范围内。",
+    "rangeMismatch": "日期范围必须与所选的第一天和最后一天一致。",
+    "partialSingleDay": "部分时间请假必须在同一天内。",
+    "timesRequired": "请选择有效的开始和结束时间。",
+    "timeOrder": "结束时间必须晚于开始时间。",
+    "cancelBeforeEditing": "更改已批准请假的日期或时间前，请先取消该请假。",
+    "signIn": "请登录后管理请假。",
+    "notFound": "未找到该请假申请。",
+    "cancelPermission": "你只能取消自己待审批的申请。已批准的请假需由管理员取消。",
+    "adminRequired": "该申请需要管理员审批。",
+    "notPending": "该申请已完成审批。",
+    "notesTooLong": "备注不得超过1,000个字符。",
+    "invalidAction": "此操作不可用。",
+    "invalidRequest": "请检查申请信息后重试。",
+    "saveFailed": "无法保存请假申请，请重试。"
   }
 }

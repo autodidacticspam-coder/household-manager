@@ -36,6 +36,9 @@ interface LeaveData {
   endDate: string;
   leaveType: string;
   status: string;
+  isFullDay?: boolean;
+  startTime?: string | null;
+  endTime?: string | null;
 }
 
 interface ScheduleData {
@@ -117,8 +120,9 @@ export function leaveToCalendarEvent(leave: LeaveData): GoogleCalendarEvent {
     summary: `${leave.employeeName} - ${typeLabel}`,
     description: `Leave request (${leave.status})`,
     colorId: COLORS.leave,
-    start: { date: leave.startDate },
-    end: { date: addDays(leave.endDate, 1) }, // Google Calendar end date is exclusive
+    ...(leave.isFullDay === false && leave.startTime && leave.endTime
+      ? timedRange(leave.startDate, leave.startTime, leave.endTime)
+      : { start: { date: leave.startDate }, end: { date: addDays(leave.endDate, 1) } }),
     extendedProperties: {
       private: {
         sourceType: 'leave',

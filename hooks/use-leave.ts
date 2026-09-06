@@ -12,11 +12,12 @@ import {
 import type { CreateLeaveRequestInput } from '@/lib/validators/leave';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { getTodayString } from '@/lib/date-utils';
+import { getZonedParts, getZonedDateString } from '@/lib/timezone';
+import { isOnLeaveAt, storedLeaveDates } from '@/lib/leave-dates';
 
 type LeaveFilters = {
   status?: 'pending' | 'approved' | 'denied';
-  leaveType?: 'pto' | 'sick' | 'holiday';
+  leaveType?: LeaveRequest['leaveType'];
 };
 
 export function useLeaveRequests(filters?: LeaveFilters) {
@@ -136,8 +137,8 @@ export function useLeaveBalance(userId?: string, year?: number) {
         id: data.id,
         userId: data.user_id,
         year: data.year,
-        ptoTotal: parseFloat(data.pto_total),
-        ptoUsed: parseFloat(data.pto_used),
+        ptoTotal: Number(data.vacation_total),
+        ptoUsed: Number(data.vacation_used),
         sickTotal: parseFloat(data.sick_total),
         sickUsed: parseFloat(data.sick_used),
         createdAt: data.created_at,
@@ -154,7 +155,7 @@ export function useUpcomingLeave() {
   return useQuery({
     queryKey: ['upcoming-leave'],
     queryFn: async () => {
-      const today = getTodayString();
+      const today = getZonedDateString(new Date());
 
       const { data, error } = await supabase
         .from('leave_requests')
@@ -176,43 +177,17 @@ export function useUpcomingLeave() {
 
 export function useCurrentlyOnLeave() {
   const supabase = createClient();
-
   return useQuery({
     queryKey: ['currently-on-leave'],
+    refetchInterval: 60_000,
     queryFn: async () => {
-      const today = getTodayString();
-
-      // First, find users who are currently on leave (today falls within their date range)
-      const { data: currentLeave, error: currentError } = await supabase
-        .from('leave_requests')
-        .select('user_id')
-        .eq('status', 'approved')
-        .lte('start_date', today)
-        .gte('end_date', today);
-
-      if (currentError) throw currentError;
-
-      // Get unique user IDs who are currently on leave
-      const userIds = [...new Set((currentLeave || []).map(l => l.user_id))];
-
-      if (userIds.length === 0) {
-        return [];
-      }
-
-      // Fetch ALL approved leave entries for these users (to show holidays too)
-      const { data, error } = await supabase
-        .from('leave_requests')
-        .select(`
-          *,
-          user:users!leave_requests_user_id_fkey(id, full_name, avatar_url, email)
-        `)
-        .eq('status', 'approved')
-        .in('user_id', userIds)
-        .order('start_date', { ascending: true });
-
+      const now = getZonedParts(new Date());
+      const { data, error } = await supabase.from('leave_requests')
+        .select('*, user:users!leave_requests_user_id_fkey(id, full_name, avatar_url, email)')
+        .eq('status', 'approved').lte('start_date', now.date).gte('end_date', now.date)
+        .order('start_date');
       if (error) throw error;
-
-      return (data || []).map(transformLeaveRequest);
+      return (data || []).filter(row => isOnLeaveAt(storedLeaveDates(row), now.date, now.time)).map(transformLeaveRequest);
     },
   });
 }
@@ -231,6 +206,9 @@ export function useCreateLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ['my-leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['currently-on-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('leave.requestSubmitted'));
     },
@@ -253,6 +231,9 @@ export function useApproveLeaveRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['currently-on-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       toast.success(t('leave.requestApproved'));
@@ -276,6 +257,9 @@ export function useDenyLeaveRequest() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['currently-on-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success(t('leave.requestDenied'));
     },
@@ -298,6 +282,9 @@ export function useCancelLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ['my-leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
       queryClient.invalidateQueries({ queryKey: ['pending-leave-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['currently-on-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-leave'] });
+      queryClient.invalidateQueries({ queryKey: ['leave-balance'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
       toast.success('Leave request cancelled');
     },
@@ -315,7 +302,7 @@ function transformLeaveRequest(row: Record<string, unknown>): LeaveRequest {
   return {
     id: row.id as string,
     userId: row.user_id as string,
-    leaveType: row.leave_type as 'pto' | 'sick' | 'holiday',
+    leaveType: row.leave_type as LeaveRequest['leaveType'],
     status: row.status as 'pending' | 'approved' | 'denied',
     startDate: row.start_date as string,
     endDate: row.end_date as string,

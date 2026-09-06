@@ -20,7 +20,7 @@ export async function loadCalendarVisibility(userId: string): Promise<CalendarVi
 export function canExportCalendarSource(visibility: CalendarVisibility, eventType: string, sourceId: string): boolean {
   switch (eventType) {
     case 'task': return visibility.tasks.has(sourceId);
-    case 'leave': return visibility.leave.has(sourceId);
+    case 'leave': return visibility.leave.has(sourceId.slice(0, 36));
     case 'child_log': return visibility.childLogs.has(sourceId);
     case 'important_date': return visibility.profiles.has(sourceId.slice(0, 36));
     case 'schedule': return sourceId.startsWith('one-off-')

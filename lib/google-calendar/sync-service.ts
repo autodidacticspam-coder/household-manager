@@ -1,3 +1,4 @@
+import { leaveDates, leaveDateRanges, storedLeaveDates } from '@/lib/leave-dates';
 import { loadCalendarVisibility, canExportCalendarSource } from './visibility';
 import { createHash } from 'crypto';
 import { getApiAdminClient } from '@/lib/supabase/api-helpers';
@@ -397,6 +398,10 @@ async function buildLeaveEvents(
       id,
       start_date,
       end_date,
+      selected_dates,
+      is_full_day,
+      start_time,
+      end_time,
       leave_type,
       status,
       user:users!leave_requests_user_id_fkey(full_name)
@@ -405,19 +410,18 @@ async function buildLeaveEvents(
     .lte('start_date', endDate)
     .gte('end_date', startDate);
 
-  return (leaveRequests || []).map((leave) => {
+  return (leaveRequests || []).flatMap((leave) => {
     const user = leave.user as unknown as { full_name: string } | null;
-    return {
-      sourceId: leave.id,
-      event: leaveToCalendarEvent({
-        id: leave.id,
-        employeeName: user?.full_name || 'Employee',
-        startDate: leave.start_date,
-        endDate: leave.end_date,
-        leaveType: leave.leave_type,
-        status: leave.status,
-      }),
-    };
+    const ranges = leaveDateRanges(storedLeaveDates(leave), startDate, endDate);
+    return ranges.map(range => {
+      const sourceId = ranges.length > 1 || (leave.selected_dates?.length && leave.selected_dates.length < leaveDates({ startDate: leave.start_date, endDate: leave.end_date }).length)
+        ? leave.id + '-' + range.start : leave.id;
+      return { sourceId, event: leaveToCalendarEvent({
+        id: sourceId, employeeName: user?.full_name || 'Employee', startDate: range.start, endDate: range.end,
+        leaveType: leave.leave_type, status: leave.status, isFullDay: leave.is_full_day,
+        startTime: leave.start_time, endTime: leave.end_time,
+      }) };
+    });
   });
 }
 
@@ -524,25 +528,15 @@ async function getLeaveDaysSet(startDate: string, endDate: string): Promise<Set<
 
   const { data: approvedLeaves } = await supabase
     .from('leave_requests')
-    .select('user_id, start_date, end_date, selected_dates')
+    .select('user_id, start_date, end_date, selected_dates, is_full_day')
     .eq('status', 'approved')
     .lte('start_date', endDate)
     .gte('end_date', startDate);
 
   const leaveDaysSet = new Set<string>();
   for (const leave of approvedLeaves || []) {
-    if (leave.selected_dates && Array.isArray(leave.selected_dates)) {
-      for (const dateStr of leave.selected_dates) {
-        leaveDaysSet.add(`${leave.user_id}-${dateStr}`);
-      }
-    } else {
-      let leaveDate = new Date(leave.start_date + 'T00:00:00');
-      const leaveEnd = new Date(leave.end_date + 'T00:00:00');
-      while (leaveDate <= leaveEnd) {
-        leaveDaysSet.add(`${leave.user_id}-${format(leaveDate, 'yyyy-MM-dd')}`);
-        leaveDate = addDays(leaveDate, 1);
-      }
-    }
+    if (leave.is_full_day === false) continue;
+    for (const date of leaveDates(storedLeaveDates(leave), startDate, endDate)) leaveDaysSet.add(leave.user_id + '-' + date);
   }
   return leaveDaysSet;
 }
@@ -926,7 +920,7 @@ export async function syncBaseScheduleChange(
 
     const { data: approvedLeaves } = await supabase
       .from('leave_requests')
-      .select('start_date, end_date, selected_dates')
+      .select('start_date, end_date, selected_dates, is_full_day')
       .eq('user_id', scheduleData.userId)
       .eq('status', 'approved')
       .lte('start_date', endDate)
@@ -934,18 +928,8 @@ export async function syncBaseScheduleChange(
 
     const leaveDaysSet = new Set<string>();
     for (const leave of approvedLeaves || []) {
-      if (leave.selected_dates && Array.isArray(leave.selected_dates)) {
-        for (const dateStr of leave.selected_dates) {
-          leaveDaysSet.add(dateStr);
-        }
-      } else {
-        let leaveDate = new Date(leave.start_date + 'T00:00:00');
-        const leaveEnd = new Date(leave.end_date + 'T00:00:00');
-        while (leaveDate <= leaveEnd) {
-          leaveDaysSet.add(format(leaveDate, 'yyyy-MM-dd'));
-          leaveDate = addDays(leaveDate, 1);
-        }
-      }
+      if (leave.is_full_day === false) continue;
+      for (const date of leaveDates(storedLeaveDates(leave), startDate, endDate)) leaveDaysSet.add(date);
     }
 
     const start = new Date(startDate + 'T00:00:00');

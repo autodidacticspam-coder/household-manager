@@ -1,33 +1,33 @@
 import { z } from 'zod';
+import { isDateOnly, leaveTotalDays, timeMinutes } from '@/lib/leave-dates';
 
 export const leaveTypeSchema = z.enum(['vacation', 'pto', 'sick']);
 export const leaveStatusSchema = z.enum(['pending', 'approved', 'denied']);
 
 export const createLeaveRequestSchema = z.object({
   leaveType: leaveTypeSchema,
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().min(1, 'End date is required'),
-  selectedDates: z.array(z.string()).optional(), // Individual selected dates
+  startDate: z.string().refine(isDateOnly, 'leaveErrors.invalidDates'),
+  endDate: z.string().refine(isDateOnly, 'leaveErrors.invalidDates'),
+  selectedDates: z.array(z.string().refine(isDateOnly, 'leaveErrors.invalidDates')).min(1, 'leaveErrors.selectDates').optional(), // Individual selected dates
   isFullDay: z.boolean().optional(),
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
   reason: z.string().max(1000).nullable().optional(),
   selectedDaysCount: z.number().int().positive().optional(), // For calendar multi-select
-}).refine((data) => {
-  const start = new Date(data.startDate);
-  const end = new Date(data.endDate);
-  return start <= end;
-}, {
-  message: 'End date must be after or equal to start date',
-  path: ['endDate'],
-}).refine((data) => {
-  if (!data.isFullDay) {
-    return !!data.startTime && !!data.endTime;
+}).superRefine((data, ctx) => {
+  const issue = (message: string, path: string) => ctx.addIssue({ code: 'custom', message, path: [path] });
+  if (data.endDate < data.startDate) issue('leaveErrors.dateOrder', 'endDate');
+  if (data.selectedDates?.some(date => date < data.startDate || date > data.endDate)) issue('leaveErrors.outsideRange', 'selectedDates');
+  if (data.selectedDates?.length) {
+    const dates = [...new Set(data.selectedDates)].sort();
+    if (dates[0] !== data.startDate || dates.at(-1) !== data.endDate) issue('leaveErrors.rangeMismatch', 'selectedDates');
   }
-  return true;
-}, {
-  message: 'Start and end times are required for partial day requests',
-  path: ['startTime'],
+  if (data.isFullDay === false) {
+    if (data.startDate !== data.endDate) issue('leaveErrors.partialSingleDay', 'endDate');
+    const start = timeMinutes(data.startTime), end = timeMinutes(data.endTime);
+    if (start === null || end === null) issue('leaveErrors.timesRequired', 'startTime');
+    else if (end <= start) issue('leaveErrors.timeOrder', 'endTime');
+  }
 });
 
 export const approveLeaveRequestSchema = z.object({
@@ -52,39 +52,7 @@ export type ApproveLeaveRequestInput = z.infer<typeof approveLeaveRequestSchema>
 export type DenyLeaveRequestInput = z.infer<typeof denyLeaveRequestSchema>;
 export type UpdateLeaveBalanceInput = z.infer<typeof updateLeaveBalanceSchema>;
 
-// Helper function to calculate total days
-export function calculateTotalDays(
-  startDate: string,
-  endDate: string,
-  isFullDay: boolean,
-  startTime?: string | null,
-  endTime?: string | null
-): number {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  if (isFullDay) {
-    // Count inclusive days
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays;
-  }
-
-  // Partial day - calculate based on hours (assuming 8-hour workday)
-  if (startTime && endTime) {
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
-    const diffMinutes = endMinutes - startMinutes;
-
-    if (diffMinutes > 0) {
-      const hours = diffMinutes / 60;
-      // Convert hours to days (8-hour workday)
-      return Math.round((hours / 8) * 100) / 100;
-    }
-  }
-
-  // Default partial day to 0.5 if no times specified
-  return 0.5;
+/** Kept for form previews; all callers use the same arithmetic. */
+export function calculateTotalDays(startDate: string, endDate: string, isFullDay: boolean, startTime?: string | null, endTime?: string | null): number {
+  return leaveTotalDays({ startDate, endDate, isFullDay, startTime, endTime });
 }
