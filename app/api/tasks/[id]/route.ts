@@ -3,8 +3,8 @@ import { updateTaskSchema, type UpdateTaskInput } from '@/lib/validators/task';
 import { translateTaskContent, type SupportedLocale } from '@/lib/translation/gemini';
 import { getApiAdminClient, requireApiAdminRole, handleApiError } from '@/lib/supabase/api-helpers';
 import { syncEventToConnectedUsers } from '@/lib/google-calendar/sync-service';
-import { generateTaskDates, type RepeatInterval } from '@/lib/task-generator';
-import { fetchAllRows } from '@/lib/supabase/pagination';
+import { futureSeriesDates } from '@/lib/task-series';
+import { syncTaskSeriesChanges } from '@/lib/task-series-server';
 
 // DELETE handler for deleting a task
 export async function DELETE(
@@ -85,7 +85,8 @@ export async function PUT(
         category_id,
         sync_to_calendar,
         created_by,
-        created_at
+        created_at,
+        series_id
       `)
       .eq('id', taskId)
       .single();
@@ -270,7 +271,8 @@ export async function PUT(
         category_id,
         sync_to_calendar,
         created_by,
-        created_at
+        created_at,
+        series_id
       `)
       .eq('id', taskId)
       .single();
@@ -298,151 +300,25 @@ export async function PUT(
 
     let createdCount = 0;
 
-    if (repeatFieldsProvided) {
-      if (shouldCreateRecurringTasks && updatedTask.due_date) {
-        // Skip dates that already exist in this batch: without this, a
-        // double-submit (or a batch member edited while batch-info errored)
-        // inserted a full duplicate set of future tasks.
-        // Paged: a long-running daily batch exceeds PostgREST's 1000-row
-        // cap, and a truncated fetch would let duplicates back in.
-        const existingSiblings = await fetchAllRows<{ due_date: string | null }>((from, to) => {
-          let siblingQuery = supabaseAdmin
-            .from('tasks')
-            .select('due_date')
-            .eq('title', updatedTask.title)
-            .eq('created_at', updatedTask.created_at);
-          // created_by is NULL when the creator's account was deleted, and
-          // eq.null never matches a NULL column - it errors on uuid columns
-          siblingQuery = updatedTask.created_by
-            ? siblingQuery.eq('created_by', updatedTask.created_by)
-            : siblingQuery.is('created_by', null);
-          return siblingQuery.order('id').range(from, to);
-        });
-        const existingDates = new Set((existingSiblings || []).map((s) => s.due_date));
-
-        const futureDates = generateTaskDates({
-          selectedDays: normalizedRepeatDays,
-          repeatInterval: repeatInterval as RepeatInterval,
-          startDate: updatedTask.due_date,
-          endDate: repeatEndDate as string,
-        }).filter((date) => date > updatedTask.due_date && !existingDates.has(date));
-
-        if (futureDates.length > 0) {
-          const taskInserts = futureDates.map((date) => ({
-            title: updatedTask.title,
-            title_es: updatedTask.title_es,
-            title_zh: updatedTask.title_zh,
-            description: updatedTask.description || null,
-            description_es: updatedTask.description_es || null,
-            description_zh: updatedTask.description_zh || null,
-            source_locale: updatedTask.source_locale || sourceLocale,
-            category_id: updatedTask.category_id || null,
-            priority: updatedTask.priority,
-            due_date: date,
-            due_time: updatedTask.due_time || null,
-            is_all_day: updatedTask.is_all_day,
-            is_activity: updatedTask.is_activity || false,
-            start_time: updatedTask.start_time || null,
-            end_time: updatedTask.end_time || null,
-            sync_to_calendar: updatedTask.sync_to_calendar,
-            created_by: updatedTask.created_by,
-            created_at: updatedTask.created_at,
-          }));
-
-          const { data: createdTasks, error: createTasksError } = await supabaseAdmin
-            .from('tasks')
-            .insert(taskInserts)
-            .select('id, title, description, due_date, due_time, is_all_day, is_activity, start_time, end_time, status, priority');
-
-          if (createTasksError) {
-            console.error('Recurring task creation error:', createTasksError);
-            return NextResponse.json(
-              { error: 'Failed to create recurring tasks' },
-              { status: 500 }
-            );
-          }
-
-          const createdTaskIds = (createdTasks || []).map((task) => task.id);
-          createdCount = createdTaskIds.length;
-
-          if (assignments !== undefined && createdTaskIds.length > 0 && assignments.length > 0) {
-            const assignmentRows = createdTaskIds.flatMap((createdTaskId) =>
-              assignments.map((assignment) => ({
-                task_id: createdTaskId,
-                target_type: assignment.targetType,
-                target_user_id: assignment.targetType === 'user' ? assignment.targetUserId : null,
-                target_group_id: assignment.targetType === 'group' ? assignment.targetGroupId : null,
-              }))
-            );
-
-            const { error: assignmentError } = await supabaseAdmin
-              .from('task_assignments')
-              .insert(assignmentRows);
-
-            if (assignmentError) {
-              console.error('Recurring assignment creation error:', assignmentError);
-            }
-          }
-
-          if (viewers !== undefined && createdTaskIds.length > 0 && viewers.length > 0) {
-            const viewerRows = createdTaskIds.flatMap((createdTaskId) =>
-              viewers.map((viewer) => ({
-                task_id: createdTaskId,
-                target_type: viewer.targetType,
-                target_user_id: viewer.targetType === 'user' ? viewer.targetUserId : null,
-                target_group_id: viewer.targetType === 'group' ? viewer.targetGroupId : null,
-              }))
-            );
-
-            const { error: viewerError } = await supabaseAdmin
-              .from('task_viewers')
-              .insert(viewerRows);
-
-            if (viewerError) {
-              console.error('Recurring viewer creation error:', viewerError);
-            }
-          }
-
-          if (videos !== undefined && createdTaskIds.length > 0 && videos.length > 0) {
-            const videoRows = createdTaskIds.flatMap((createdTaskId) =>
-              videos.map((video) => ({
-                task_id: createdTaskId,
-                video_type: video.videoType,
-                url: video.url,
-                title: video.title || null,
-                file_name: video.fileName || null,
-                file_size: video.fileSize || null,
-                mime_type: video.mimeType || null,
-                created_by: user.id,
-              }))
-            );
-
-            const { error: videoError } = await supabaseAdmin
-              .from('task_videos')
-              .insert(videoRows);
-
-            if (videoError) {
-              console.error('Recurring video creation error:', videoError);
-            }
-          }
-
-          for (const createdTask of createdTasks || []) {
-            after(syncEventToConnectedUsers('task', createdTask.id, 'create', {
-              id: createdTask.id,
-              title: createdTask.title,
-              description: createdTask.description,
-              dueDate: createdTask.due_date,
-              dueTime: createdTask.due_time,
-              isAllDay: createdTask.is_all_day,
-              isActivity: createdTask.is_activity,
-              startTime: createdTask.start_time,
-              endTime: createdTask.end_time,
-              status: createdTask.status,
-              priority: createdTask.priority,
-            }).catch(err => console.error('Calendar sync create failed:', err)));
-          }
-        }
+    if (repeatFieldsProvided && shouldCreateRecurringTasks && updatedTask.due_date) {
+      let dates: string[];
+      try {
+        dates = futureSeriesDates({ repeatDays: normalizedRepeatDays, repeatInterval: repeatInterval!, startDate: updatedTask.due_date, afterDate: updatedTask.due_date, endDate: repeatEndDate! });
+      } catch (err) {
+        return NextResponse.json({ error: (err as Error).message }, { status: 400 });
       }
+      const { error: seriesError } = await supabaseAdmin.rpc('ensure_task_series', {
+        p_task_id: taskId, p_days: normalizedRepeatDays, p_interval: repeatInterval,
+        p_start: updatedTask.due_date, p_end: repeatEndDate,
+      });
+      if (seriesError) throw seriesError;
+      const { data: changes, error: changeError } = await supabaseAdmin.rpc('apply_task_series_change', {
+        p_task_id: taskId, p_changes: {}, p_dates: dates, p_extend_only: true, p_actor: user.id,
+        p_metadata: { repeatDays: normalizedRepeatDays, repeatInterval, repeatEndDate },
+      });
+      if (changeError) throw changeError;
+      createdCount = changes.createdIds.length;
+      after(() => syncTaskSeriesChanges(changes));
     }
 
     return NextResponse.json({ success: true, createdCount });

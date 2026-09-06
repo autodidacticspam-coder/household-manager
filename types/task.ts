@@ -75,6 +75,7 @@ export interface TemplateVideo {
 
 export interface Task {
   id: string;
+  seriesId?: string | null;
   title: string;
   titleEs: string | null;
   titleZh: string | null;

@@ -1,5 +1,6 @@
 'use client';
 
+import { taskSeriesKey } from '@/lib/task-series';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import type { TaskWithRelations } from '@/types';
@@ -76,13 +77,12 @@ export function useTasks(filters?: TaskFilters) {
       const shouldFilterRepeats = !(filters?.status?.length === 1 && filters.status[0] === 'completed');
 
       if (shouldFilterRepeats && data) {
-        // Group tasks by title + created_by + date to identify repeat batches
+        // Group only by an explicit series identity
         // Use date only (10 chars: YYYY-MM-DD) and created_by to handle timestamp variations
         const taskBatches = new Map<string, typeof data>();
 
         for (const task of data) {
-          const createdDate = task.created_at?.slice(0, 10) || '';
-          const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+          const batchKey = taskSeriesKey(task);
 
           if (!taskBatches.has(batchKey)) {
             taskBatches.set(batchKey, []);
@@ -241,12 +241,11 @@ export function useMyTasks(userId?: string) {
       });
 
       // Filter to show only next occurrence of repeating tasks (for pending/in_progress)
-      // Group tasks by title + created_at to identify repeat batches
+      // Group only by an explicit series identity
       const taskBatches = new Map<string, typeof assignedTasks>();
 
       for (const task of assignedTasks) {
-        const createdDate = task.created_at?.slice(0, 10) || '';
-        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+        const batchKey = taskSeriesKey(task);
 
         if (!taskBatches.has(batchKey)) {
           taskBatches.set(batchKey, []);
@@ -515,7 +514,7 @@ export function useUpdateFutureTasks() {
   });
 }
 
-// Check if a task is part of a repeating batch (uses API to bypass RLS)
+// Read series information within the current user's task permissions
 export function useTaskBatchInfo(taskId: string | null) {
   const { data, isLoading, isFetching, isPending } = useQuery({
     queryKey: ['task-batch-info', taskId],
@@ -622,23 +621,20 @@ export function usePendingTasks() {
   return useQuery({
     queryKey: ['pending-tasks'],
     queryFn: async () => {
-      const data = await fetchAllRows<{ id: string; title: string; status: string; priority: string; due_date: string | null; created_at: string | null; created_by: string | null }>((from, to) =>
+      const data = await fetchAllRows<{ id: string; title: string; status: string; priority: string; due_date: string | null; created_at: string | null; created_by: string | null; series_id: string | null }>((from, to) =>
         supabase
           .from('tasks')
-          .select('id, title, status, priority, due_date, created_at, created_by')
+          .select('id, title, status, priority, due_date, created_at, created_by, series_id')
           .in('status', ['pending', 'in_progress'])
           .order('due_date', { ascending: true, nullsFirst: false })
           .range(from, to)
       );
 
-      // Group tasks by title + created_at to identify repeat batches
-      // (tasks created from the same repeat batch have identical title and created_at)
+      // Group only by an explicit series identity
       const taskBatches = new Map<string, typeof data>();
 
       for (const task of data || []) {
-        // Create a batch key using title and created_at (truncated to second for safety)
-        const createdDate = task.created_at?.slice(0, 10) || '';
-        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+        const batchKey = taskSeriesKey(task);
 
         if (!taskBatches.has(batchKey)) {
           taskBatches.set(batchKey, []);
@@ -736,27 +732,26 @@ export function useExpiringTasks() {
       // Fetch ALL tasks to properly count batch sizes (including completed).
       // Paged: the table exceeds PostgREST's per-response cap, and an
       // undercount here would break the batch "last occurrence" detection.
-      const allTasksForCounting = await fetchAllRows<{ title: string; created_at: string | null; created_by: string | null }>((from, to) =>
+      const allTasksForCounting = await fetchAllRows<{ id: string; title: string; created_at: string | null; created_by: string | null; series_id: string | null }>((from, to) =>
         supabase
           .from('tasks')
-          .select('title, created_at, created_by')
+          .select('id, title, created_at, created_by, series_id')
           .range(from, to)
       );
 
       // Build a map of batch sizes (including completed tasks)
       const batchSizes = new Map<string, number>();
       for (const task of allTasksForCounting || []) {
-        const createdDate = task.created_at?.slice(0, 10) || '';
-        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+        const batchKey = taskSeriesKey(task);
         batchSizes.set(batchKey, (batchSizes.get(batchKey) || 0) + 1);
       }
 
       // Fetch pending/in_progress tasks with full details (paged)
-      const data = await fetchAllRows<{ id: string; title: string; due_date: string | null; created_at: string | null; created_by: string | null; category: unknown; created_by_user: unknown }>((from, to) =>
+      const data = await fetchAllRows<{ id: string; title: string; due_date: string | null; created_at: string | null; created_by: string | null; series_id: string | null; category: unknown; created_by_user: unknown }>((from, to) =>
         supabase
           .from('tasks')
           .select(`
-            id, title, due_date, created_at, created_by,
+            id, title, due_date, created_at, created_by, series_id,
             category:task_categories(id, name, color, icon),
             created_by_user:users!tasks_created_by_fkey(id, full_name, avatar_url)
           `)
@@ -771,8 +766,7 @@ export function useExpiringTasks() {
       const taskBatches = new Map<string, typeof data>();
 
       for (const task of data) {
-        const createdDate = task.created_at?.slice(0, 10) || '';
-        const batchKey = `${task.title}|${task.created_by || ''}|${createdDate}`;
+        const batchKey = taskSeriesKey(task);
 
         if (!taskBatches.has(batchKey)) {
           taskBatches.set(batchKey, []);
@@ -786,7 +780,7 @@ export function useExpiringTasks() {
       for (const [batchKey, batchTasks] of taskBatches) {
         // Check total batch size (including completed) - only show repeating tasks
         const totalBatchSize = batchSizes.get(batchKey) || 0;
-        if (totalBatchSize <= 1) continue;
+        if (!batchTasks[0].series_id) continue;
 
         // Find the max due_date (last instance)
         const lastTask = batchTasks.reduce((latest, task) => {
@@ -855,6 +849,7 @@ function getTranslatedDescription(row: Record<string, unknown>, locale: Supporte
 function transformTask(row: Record<string, unknown>, locale: SupportedLocale = 'en'): TaskWithRelations {
   return {
     id: row.id as string,
+    seriesId: row.series_id as string | null,
     title: getTranslatedTitle(row, locale),
     titleEs: row.title_es as string | null,
     titleZh: row.title_zh as string | null,
@@ -1098,4 +1093,3 @@ export function useOverrideTaskInstanceTime() {
     },
   });
 }
-

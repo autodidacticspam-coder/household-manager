@@ -92,11 +92,22 @@ export async function POST(request: NextRequest) {
       taskDates = [taskData.dueDate || null];
     }
 
+    let seriesId: string | null = null;
+    if (repeatComplete) {
+      const { data: series, error: seriesError } = await supabaseAdmin.from('task_series').insert({
+        created_by: user.id, repeat_days: repeatDays, repeat_interval: repeatInterval,
+        start_date: taskData.dueDate, end_date: repeatEndDate,
+      }).select('id').single();
+      if (seriesError) throw seriesError;
+      seriesId = series.id;
+    }
+
     // Create tasks for each date
-    // Use a single timestamp for all tasks in this batch to ensure they're grouped together
+    // Keep a common creation timestamp for audit history; series_id owns grouping
     const batchCreatedAt = new Date().toISOString();
 
     const taskInserts = taskDates.map((date) => ({
+      series_id: seriesId,
       title: taskData.title,
       title_es: titleEs,
       title_zh: titleZh,
@@ -124,6 +135,7 @@ export async function POST(request: NextRequest) {
 
     if (taskError || !tasks || tasks.length === 0) {
       console.error('Task creation error:', taskError);
+      if (seriesId) await supabaseAdmin.from('task_series').delete().eq('id', seriesId);
       return NextResponse.json(
         { error: 'Failed to create task(s)' },
         { status: 500 }

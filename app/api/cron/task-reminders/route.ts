@@ -1,3 +1,4 @@
+import { taskSeriesKey } from '@/lib/task-series';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTaskReminderPush, sendTaskExpirationPush } from '@/lib/notifications/push-service';
@@ -137,18 +138,17 @@ export async function GET(request: NextRequest) {
       // Fetch all pending tasks to find repeating batches expiring in 7 days
       const { data: allTasks, error: allTasksError } = await supabase
         .from('tasks')
-        .select('id, title, due_date, created_at, created_by')
+        .select('id, title, due_date, created_at, created_by, series_id')
         .in('status', ['pending', 'in_progress'])
         .order('due_date', { ascending: true })
         .limit(10000);
 
       if (!allTasksError && allTasks) {
-        // Group tasks by batch (title + created_at)
+        // Group tasks by stable series identity
         const taskBatches = new Map<string, typeof allTasks>();
 
         for (const task of allTasks) {
-          const createdAtTruncated = task.created_at?.slice(0, 19) || '';
-          const batchKey = `${task.title}|${createdAtTruncated}`;
+          const batchKey = taskSeriesKey(task);
 
           if (!taskBatches.has(batchKey)) {
             taskBatches.set(batchKey, []);
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
         // Find batches that are repeating and have their last occurrence exactly 7 days away
         for (const [, batchTasks] of taskBatches) {
           // Only consider repeating tasks (batches with more than 1 task)
-          if (batchTasks.length <= 1) continue;
+          if (!batchTasks[0].series_id) continue;
 
           // Find the max due_date (last instance)
           const lastTask = batchTasks.reduce((latest, task) => {

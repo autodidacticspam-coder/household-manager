@@ -306,6 +306,8 @@ export function useCalendarEvents(filters: CalendarFilters) {
           if (task.is_recurring && task.recurrence_rule) {
             for (const o of expandRecurringTask(task, rangeStart, rangeEnd)) {
               const instanceKey = `${task.id}-${o.date}`;
+              // Retired legacy masters retain recorded history, without phantom future tasks.
+              if (task.status === 'completed' && !completedInstancesSet.has(instanceKey) && o.date !== task.due_date) continue;
 
               // Skip this instance if it was skipped
               if (skippedInstancesSet.has(instanceKey)) {
@@ -329,7 +331,7 @@ export function useCalendarEvents(filters: CalendarFilters) {
               }
 
               // Check if this specific instance has been completed
-              const instanceStatus = completedInstancesSet.has(instanceKey) ? 'completed' : 'pending';
+              const instanceStatus = task.status === 'completed' || completedInstancesSet.has(instanceKey) ? 'completed' : 'pending';
               events.push({
                 id: 'task-' + o.instanceId,
                 type: 'task',
