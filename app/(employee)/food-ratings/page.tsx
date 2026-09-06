@@ -22,15 +22,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Check, X, Clock, Trash2, BookOpen, GitMerge, Tags } from 'lucide-react';
+import { Loader2, Star, TrendingUp, TrendingDown, Search, ChefHat, Award, ThumbsUp, ThumbsDown, ShieldX, MessageSquare, User, Send, Trash2, BookOpen, GitMerge, Tags } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMenuRatingsSummary, useAllMenuRatings, useCanAccessFoodRatings, useDeleteMenuRating } from '@/hooks/use-menu-ratings';
 import { useFoodRequests, useCompleteFoodRequest, useCreateFoodRequest, usePendingFoodRequestsCount, useDeleteFoodRequest } from '@/hooks/use-food-requests';
 import { useMenuItemMerges } from '@/hooks/use-menu-item-merges';
 import { AdminMenuCatalog } from '@/components/food/admin-menu-catalog';
 import { FoodMergeReview } from '@/components/food/food-merge-review';
-import { FoodRequestInsights } from '@/components/food/food-request-insights';
+import { FoodRequestsPanel, type FoodRequestView } from '@/components/food/food-requests-panel';
 import { MenuTagBadge } from '@/components/food/menu-tag-badge';
 import { MenuTagFilter } from '@/components/food/menu-tag-filter';
 import { MenuTagPicker } from '@/components/food/menu-tag-picker';
@@ -57,7 +56,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import type { FoodRequest } from '@/hooks/use-food-requests';
 
 function RatingBadge({ rating }: { rating: number }) {
   const rounded = Math.round(rating * 10) / 10;
@@ -88,6 +86,8 @@ type SummarySort = 'rating' | 'name' | 'count';
 
 export default function FoodRatingsPage() {
   const tTags = useTranslations('foodTags');
+  const tRequests = useTranslations('foodRequests');
+  const [requestView, setRequestView] = useState<FoodRequestView>('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [summarySort, setSummarySort] = useState<SummarySort>('rating');
@@ -99,7 +99,7 @@ export default function FoodRatingsPage() {
   const { data: canAccess, isLoading: accessLoading } = useCanAccessFoodRatings();
   const { data: summary, isLoading: summaryLoading } = useMenuRatingsSummary();
   const { data: allRatings, isLoading: ratingsLoading } = useAllMenuRatings();
-  const { data: foodRequests, isLoading: requestsLoading } = useFoodRequests();
+  const { data: foodRequests, isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests } = useFoodRequests();
   const { data: pendingCount } = usePendingFoodRequestsCount();
   const { user, isAdmin } = useAuth();
   const { data: activeMerges = [] } = useMenuItemMerges({ activeOnly: true });
@@ -109,7 +109,6 @@ export default function FoodRatingsPage() {
   const deleteFoodRequest = useDeleteFoodRequest();
   const deleteMenuRating = useDeleteMenuRating();
   const canCreateRequests = isAdmin;
-  const showRequestAnalysis = isAdmin;
 
   // Tag data: catalog dishes mapped by normalized name so ratings rows (plain
   // text dish names) can display and filter by tags.
@@ -268,9 +267,9 @@ export default function FoodRatingsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => setActiveTab('requests')}>
+          <Button variant="outline" onClick={() => { setRequestView('pending'); setActiveTab('requests'); }}>
             <Send className="h-4 w-4 mr-2" />
-            Requests
+            {tRequests('title')}
             {pendingCount && pendingCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1 text-xs">
                 {pendingCount}
@@ -287,7 +286,7 @@ export default function FoodRatingsPage() {
       </div>
 
       {/* Stats Cards */}
-      {stats && (
+      {stats && activeTab !== 'requests' && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           <Card>
             <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
@@ -350,7 +349,7 @@ export default function FoodRatingsPage() {
       )}
 
       {/* Search + tag filter + sort */}
-      <div className="space-y-3">
+      {activeTab !== 'requests' && <div className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -373,7 +372,7 @@ export default function FoodRatingsPage() {
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </div>}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full flex overflow-x-auto no-scrollbar">
@@ -395,7 +394,7 @@ export default function FoodRatingsPage() {
           </TabsTrigger>
           <TabsTrigger value="requests" className="gap-1 flex-shrink-0 text-xs sm:text-sm">
             <Send className="h-4 w-4" />
-            <span className="hidden sm:inline">Requests</span>
+            <span>{tRequests('title')}</span>
             {pendingCount && pendingCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
                 {pendingCount}
@@ -815,120 +814,22 @@ export default function FoodRatingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Food Requests Tab */}
+        {/* Current requests come first; history and analysis have their own views. */}
         <TabsContent value="requests">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Send className="h-5 w-5" />
-                    Food Requests
-                  </CardTitle>
-                  <CardDescription>
-                    Food requests from the family
-                  </CardDescription>
-                </div>
-                {canCreateRequests && (
-                  <Button onClick={() => openRequestDialog()}>
-                    <Send className="h-4 w-4 mr-2" />
-                    New Request
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {!foodRequests || foodRequests.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    No food requests yet
-                  </p>
-                  {canCreateRequests && (
-                    <Button className="mt-4" onClick={() => openRequestDialog()}>
-                      <Send className="h-4 w-4 mr-2" />
-                      Make First Request
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {showRequestAnalysis && (
-                    <FoodRequestInsights
-                      requests={foodRequests}
-                      userId={user?.id}
-                      canCreateRequests={canCreateRequests}
-                      onRequestFood={openRequestDialog}
-                    />
-                  )}
-
-                  {/* Pending Requests */}
-                  {foodRequests.filter(r => r.status === 'pending').length > 0 && (
-                    <div className={cn("space-y-3", showRequestAnalysis ? "border-t pt-6" : "")}>
-                      <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Pending Requests
-                      </h3>
-                      {foodRequests
-                        .filter(r => r.status === 'pending')
-                        .map((request) => (
-                          <FoodRequestCard
-                            key={request.id}
-                            request={request}
-                            tone="pending"
-                            currentUserId={user?.id}
-                            canCancel={user?.id === request.requestedBy}
-                            onCancel={() => deleteFoodRequest.mutate(request.id)}
-                            isCancelling={deleteFoodRequest.isPending}
-                            onComplete={() => completeFoodRequest.mutate(request.id)}
-                            isCompleting={completeFoodRequest.isPending}
-                          />
-                        ))}
-                    </div>
-                  )}
-
-                  {/* Completed Requests */}
-                  {foodRequests.filter(r => r.status === 'completed').length > 0 && (
-                    <div className="space-y-3 pt-4 border-t">
-                      <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-500" />
-                        Completed Requests
-                      </h3>
-                      {foodRequests
-                        .filter(r => r.status === 'completed')
-                        .map((request) => (
-                          <FoodRequestCard
-                            key={request.id}
-                            request={request}
-                            tone="completed"
-                            currentUserId={user?.id}
-                          />
-                        ))}
-                    </div>
-                  )}
-
-                  {/* Declined Requests */}
-                  {foodRequests.filter(r => r.status === 'declined').length > 0 && (
-                    <div className="space-y-3 pt-4 border-t">
-                      <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                        <X className="h-4 w-4 text-red-500" />
-                        Declined Requests
-                      </h3>
-                      {foodRequests
-                        .filter(r => r.status === 'declined')
-                        .map((request) => (
-                          <FoodRequestCard
-                            key={request.id}
-                            request={request}
-                            tone="declined"
-                            currentUserId={user?.id}
-                          />
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <FoodRequestsPanel
+            requests={foodRequests || []}
+            userId={user?.id}
+            isAdmin={isAdmin}
+            view={requestView}
+            onViewChange={setRequestView}
+            onNewRequest={openRequestDialog}
+            onComplete={id => completeFoodRequest.mutate(id)}
+            onCancel={id => deleteFoodRequest.mutate(id)}
+            completingId={completeFoodRequest.isPending ? completeFoodRequest.variables : undefined}
+            cancellingId={deleteFoodRequest.isPending ? deleteFoodRequest.variables : undefined}
+            error={requestsError}
+            onRetry={() => { void refetchRequests(); }}
+          />
         </TabsContent>
 
         {isAdmin && (
@@ -1129,12 +1030,15 @@ export default function FoodRatingsPage() {
             <Button
               onClick={() => {
                 createFoodRequest.mutate({
-                  foodName: requestFoodName,
+                  foodName: requestFoodName.trim(),
                   notes: requestNotes || null,
-                });
-                setShowRequestDialog(false);
-                setRequestFoodName('');
-                setRequestNotes('');
+                }, { onSuccess: () => {
+                  setShowRequestDialog(false);
+                  setRequestFoodName('');
+                  setRequestNotes('');
+                  setRequestView('pending');
+                  setActiveTab('requests');
+                } });
               }}
               disabled={!requestFoodName.trim() || createFoodRequest.isPending}
             >
@@ -1161,136 +1065,6 @@ function DishTagRow({ tags }: { tags: MenuTag[] }) {
       {tags.map((tag) => (
         <MenuTagBadge key={tag.id} tag={tag} size="sm" />
       ))}
-    </div>
-  );
-}
-
-function FoodRequestCard({
-  request,
-  tone,
-  currentUserId,
-  canCancel = false,
-  onCancel,
-  isCancelling = false,
-  onComplete,
-  isCompleting = false,
-}: {
-  request: FoodRequest;
-  tone: 'pending' | 'completed' | 'declined';
-  currentUserId?: string;
-  canCancel?: boolean;
-  onCancel?: () => void;
-  isCancelling?: boolean;
-  onComplete?: () => void;
-  isCompleting?: boolean;
-}) {
-  const isPending = tone === 'pending';
-  const isCompleted = tone === 'completed';
-  const isDeclined = tone === 'declined';
-
-  return (
-    <div
-      className={cn(
-        "p-3 sm:p-4 rounded-lg border",
-        isPending && "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800",
-        isCompleted && "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
-        isDeclined && "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800"
-      )}
-    >
-      <div className="flex items-start gap-3">
-        <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-          <AvatarImage src={request.requestedByUser?.avatarUrl || undefined} />
-          <AvatarFallback>
-            {request.requestedByUser?.fullName?.[0] || 'U'}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <p
-              className={cn(
-                "font-semibold text-sm sm:text-base break-words",
-                isCompleted && "line-through text-muted-foreground",
-                isDeclined && "text-muted-foreground"
-              )}
-            >
-              {request.foodName}
-            </p>
-            {isCompleted && (
-              <Badge variant="secondary" className="bg-green-100 text-green-700 flex-shrink-0 text-xs">
-                <Check className="h-3 w-3 sm:mr-1" />
-                <span className="hidden sm:inline">Done</span>
-              </Badge>
-            )}
-            {isDeclined && (
-              <Badge variant="outline" className="flex-shrink-0 text-xs">
-                <X className="h-3 w-3 sm:mr-1" />
-                <span className="hidden sm:inline">Declined</span>
-              </Badge>
-            )}
-          </div>
-          {request.foodName !== request.canonicalFoodName && (
-            <p className="text-xs text-muted-foreground">
-              Grouped as {request.canonicalFoodName}
-            </p>
-          )}
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            by {request.requestedByUser?.fullName || 'Unknown'}
-          </p>
-          {request.notes && (
-            <div className="mt-2 rounded-md border bg-background/70 p-3 text-xs sm:text-sm text-foreground">
-              <p className="mb-1 font-medium text-muted-foreground">Notes</p>
-              <p className="whitespace-pre-wrap break-words italic">&quot;{request.notes}&quot;</p>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground mt-2">
-            Requested {format(new Date(request.createdAt), 'MMM d, h:mm a')}
-          </p>
-          {request.completedAt && (
-            <p className="text-xs text-green-600 mt-1">
-              Completed {format(new Date(request.completedAt), 'MMM d, yyyy')}
-            </p>
-          )}
-        </div>
-      </div>
-      {isPending && (
-        <div className="flex gap-2 mt-3 justify-end">
-          {canCancel && currentUserId === request.requestedBy && onCancel && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onCancel}
-              disabled={isCancelling}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 h-8 text-xs sm:text-sm"
-            >
-              {isCancelling ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <X className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Cancel</span>
-                </>
-              )}
-            </Button>
-          )}
-          {onComplete && (
-            <Button
-              size="sm"
-              onClick={onComplete}
-              disabled={isCompleting}
-              className="bg-green-600 hover:bg-green-700 h-8 text-xs sm:text-sm"
-            >
-              {isCompleting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Check className="h-4 w-4 sm:mr-1" />
-                  <span className="hidden sm:inline">Complete</span>
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-      )}
     </div>
   );
 }
