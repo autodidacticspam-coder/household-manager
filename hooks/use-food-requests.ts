@@ -7,6 +7,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { canonicalizeFoodName, type FoodNameMergeLike } from '@/lib/food-names';
 import { toast } from 'sonner';
+import { updateFoodRequestNotes } from '@/app/(admin)/menu/actions';
+import type { UpdateFoodRequestNotesInput } from '@/lib/validators/food-request-notes';
 
 export type FoodRequest = {
   id: string;
@@ -132,6 +134,28 @@ export function useCreateFoodRequest() {
     },
     onError: (error: Error) => {
       toast.error(feedback(error.message));
+    },
+  });
+}
+
+export function useUpdateFoodRequestNotes() {
+  const t = useTranslations('foodRequests');
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: UpdateFoodRequestNotesInput) => {
+      try {
+        const result = await updateFoodRequestNotes(input);
+        if ('error' in result) return { error: t(result.error) };
+        return result;
+      } catch {
+        return { error: t('saveNotesFailed') };
+      }
+    },
+    onSuccess: async result => {
+      // Refresh after conflicts too, so reopening the editor loads the latest version.
+      await queryClient.invalidateQueries({ queryKey: ['food-requests'] });
+      if ('success' in result) toast.success(t('notesSaved'));
     },
   });
 }

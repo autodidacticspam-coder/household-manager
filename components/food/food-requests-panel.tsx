@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { Check, Loader2, Search, Send, X } from 'lucide-react';
+import { Check, Loader2, Pencil, Search, Send, X } from 'lucide-react';
 import { FoodRequestInsights } from '@/components/food/food-request-insights';
 import { MealSuggestions } from '@/components/food/meal-suggestions';
+import { FoodRequestNotesDialog } from '@/components/food/food-request-notes-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,7 @@ export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChang
   const t = useTranslations('foodRequests');
   const [mineOnly, setMineOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [editingRequest, setEditingRequest] = useState<FoodRequest | null>(null);
   const scopedRequests = useMemo(() => requests.filter(request => {
     if (mineOnly && request.requestedBy !== userId) return false;
     const term = search.trim().toLocaleLowerCase();
@@ -88,7 +90,8 @@ export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChang
                     {(search || mineOnly) && <Button variant="link" onClick={() => { setSearch(''); setMineOnly(false); }}>{t('clearFilters')}</Button>}
                   </div>
                 ) : current.map(request => (
-                  <FoodRequestCard key={request.id} request={request} canCancel={request.requestedBy === userId} onCancel={() => onCancel(request.id)} onComplete={() => onComplete(request.id)} isCancelling={cancellingId === request.id} isCompleting={completingId === request.id} />
+                  <FoodRequestCard key={request.id} request={request} canCancel={request.requestedBy === userId} onCancel={() => onCancel(request.id)} onComplete={() => onComplete(request.id)} isCancelling={cancellingId === request.id} isCompleting={completingId === request.id}
+                    onEditNotes={isAdmin && (request.requestedBy === userId || request.status === 'pending') ? () => setEditingRequest(request) : undefined} />
                 ))}
               </TabsContent>
             ))}
@@ -99,12 +102,14 @@ export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChang
           </Tabs>
         )}
       </CardContent>
+      {editingRequest && <FoodRequestNotesDialog request={editingRequest} onClose={() => setEditingRequest(null)} />}
     </Card>
   );
 }
 
-function FoodRequestCard({ request, canCancel, onCancel, onComplete, isCancelling, isCompleting }: {
+function FoodRequestCard({ request, canCancel, onCancel, onComplete, isCancelling, isCompleting, onEditNotes }: {
   request: FoodRequest; canCancel: boolean; onCancel: () => void; onComplete: () => void; isCancelling: boolean; isCompleting: boolean;
+  onEditNotes?: () => void;
 }) {
   const t = useTranslations('foodRequests');
   const format = useFormatter();
@@ -118,9 +123,10 @@ function FoodRequestCard({ request, canCancel, onCancel, onComplete, isCancellin
       <p className="mt-1 text-xs text-muted-foreground">{t('requestedBy', { name: request.requestedByUser?.fullName || t('unknown') })} · {format.dateTime(new Date(request.createdAt), { month: 'short', day: 'numeric', year: 'numeric' })}</p>
       {request.notes && <p className="mt-3 whitespace-pre-wrap break-words rounded-md bg-background/80 p-3 text-sm">{request.notes}</p>}
       {request.completedAt && <p className="mt-2 text-xs text-muted-foreground">{t('completedOn', { date: format.dateTime(new Date(request.completedAt), { month: 'short', day: 'numeric', year: 'numeric' }) })}</p>}
-      {pending && <div className="mt-3 flex flex-wrap justify-end gap-2">
-        {canCancel && <Button variant="outline" size="sm" onClick={onCancel} disabled={isCancelling || isCompleting}>{isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}{t('cancel')}</Button>}
-        <Button variant="outline" size="sm" onClick={onComplete} disabled={isCancelling || isCompleting}>{isCompleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{t('complete')}</Button>
+      {(pending || onEditNotes) && <div className="mt-3 flex flex-wrap justify-end gap-2">
+        {onEditNotes && <Button variant="outline" size="sm" onClick={onEditNotes} disabled={isCancelling || isCompleting}><Pencil className="h-4 w-4" />{t(request.notes ? 'editNotes' : 'addNotes')}</Button>}
+        {pending && canCancel && <Button variant="outline" size="sm" onClick={onCancel} disabled={isCancelling || isCompleting}>{isCancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}{t('cancel')}</Button>}
+        {pending && <Button variant="outline" size="sm" onClick={onComplete} disabled={isCancelling || isCompleting}>{isCompleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}{t('complete')}</Button>}
       </div>}
     </article>
   );

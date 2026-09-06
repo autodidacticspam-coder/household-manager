@@ -16,6 +16,8 @@ Repeating tasks have individual dated occurrences. Editing or deleting future oc
 
 On Food Ratings, choose Requests or the Requests count near the top. Pending requests appear first. Choose My requests to see only yours, or search by dish, notes, or requester. History contains completed and declined requests; it no longer takes space above pending requests. Your own pending requests have a Cancel action. Mark completed only when a request is fulfilled.
 
+Administrators can use Add notes or Edit notes on pending requests and their own request history. Choose Save notes to keep changes, Cancel to discard them, or clear the text and save to remove notes.
+
 Administrators can create requests and view Insights. Administrators and chefs can open Meal ideas on the menu page. Suggestions show rating counts, how many people provided feedback, requests, and dated request completions. Filter by saved dish tags, copy a dish into the menu, or create a request where that action is available. Suggestions do not automatically change a menu or treat a draft plan as proof that a meal was served.
 
 ## Time off
