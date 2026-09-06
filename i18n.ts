@@ -1,6 +1,7 @@
 import { getRequestConfig } from 'next-intl/server';
 import { cookies } from 'next/headers';
 import { defaultLocale, type Locale, locales } from './i18n.config';
+import { HOUSEHOLD_TIMEZONE } from '@/lib/timezone';
 
 export default getRequestConfig(async () => {
   let locale: Locale = defaultLocale;
@@ -18,6 +19,7 @@ export default getRequestConfig(async () => {
     const messages = (await import(`./messages/${locale}.json`)).default;
     return {
       locale,
+      timeZone: HOUSEHOLD_TIMEZONE,
       messages,
     };
   } catch (error) {
@@ -26,6 +28,7 @@ export default getRequestConfig(async () => {
     const fallbackMessages = (await import('./messages/en.json')).default;
     return {
       locale: 'en',
+      timeZone: HOUSEHOLD_TIMEZONE,
       messages: fallbackMessages,
     };
   }

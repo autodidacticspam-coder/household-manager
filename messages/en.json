@@ -1454,10 +1454,11 @@
     "copy": "Copy dish",
     "copyNamed": "Copy {name}",
     "copied": "Dish name copied. Paste it into your menu.",
-    "copyFailed": "Could not copy. Select and copy the dish name.",
     "request": "Request dish",
     "viewRequests": "View requests",
     "how": "How these ideas are chosen",
-    "explanation": "Pending requests come first, followed by well-rated dishes and repeat requests. Each person has equal weight in the rating score. Dishes completed in the last 7 days are held back unless requested again. A completed request does not confirm the meal was served; planned menus are not treated as serving history. Tag filters use saved dish tags only. You choose and edit the menu."
+    "explanation": "Pending requests come first, followed by well-rated dishes and repeat requests. Each person has equal weight in the rating score. Dishes completed in the last 7 days are held back unless requested again. A completed request does not confirm the meal was served; planned menus are not treated as serving history. Tag filters use saved dish tags only. You choose and edit the menu.",
+    "manualCopy": "Copy the dish name",
+    "copyInstructions": "Your browser did not allow automatic copying. Copy the selected name, then paste it into your menu."
   }
 }

@@ -1454,10 +1454,11 @@
     "copy": "Copiar plato",
     "copyNamed": "Copiar {name}",
     "copied": "Nombre copiado. Pégalo en el menú.",
-    "copyFailed": "No se pudo copiar. Selecciona y copia el nombre del plato.",
     "request": "Solicitar plato",
     "viewRequests": "Ver solicitudes",
     "how": "Cómo se eligen las ideas",
-    "explanation": "Primero se muestran las solicitudes pendientes, seguidas de los platos bien valorados y las solicitudes repetidas. Cada persona tiene el mismo peso en la puntuación. Los platos completados en los últimos 7 días se omiten salvo que se vuelvan a solicitar. Completar una solicitud no confirma que se haya servido el plato; los menús planificados no cuentan como historial de comidas servidas. Los filtros usan solo las etiquetas guardadas. Tú eliges y editas el menú."
+    "explanation": "Primero se muestran las solicitudes pendientes, seguidas de los platos bien valorados y las solicitudes repetidas. Cada persona tiene el mismo peso en la puntuación. Los platos completados en los últimos 7 días se omiten salvo que se vuelvan a solicitar. Completar una solicitud no confirma que se haya servido el plato; los menús planificados no cuentan como historial de comidas servidas. Los filtros usan solo las etiquetas guardadas. Tú eliges y editas el menú.",
+    "manualCopy": "Copiar el nombre del plato",
+    "copyInstructions": "El navegador no permitió copiar automáticamente. Copia el nombre seleccionado y pégalo en el menú."
   }
 }

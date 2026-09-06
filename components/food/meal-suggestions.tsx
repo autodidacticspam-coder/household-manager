@@ -6,6 +6,8 @@ import { Copy, Lightbulb, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MenuTagFilter } from '@/components/food/menu-tag-filter';
 import { useTaggableMenuItems } from '@/hooks/use-menu-tags';
 import { useMealSuggestionHistory } from '@/hooks/use-meal-suggestions';
@@ -19,6 +21,7 @@ export function MealSuggestions({ onRequestFood, onViewRequests }: {
   const format = useFormatter();
   const history = useMealSuggestionHistory();
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const catalog = useTaggableMenuItems();
   const suggestions = useMemo(() => {
     if (!history.data) return [];
@@ -29,7 +32,7 @@ export function MealSuggestions({ onRequestFood, onViewRequests }: {
 
   const copyDish = async (name: string) => {
     try { await navigator.clipboard.writeText(name); toast.success(t('copied')); }
-    catch { toast.error(t('copyFailed')); }
+    catch { setCopyFallback(name); }
   };
   const loading = history.isPending || (selectedTags.length > 0 && catalog.isPending);
   const failed = history.isError || (selectedTags.length > 0 && catalog.isError);
@@ -72,6 +75,15 @@ export function MealSuggestions({ onRequestFood, onViewRequests }: {
         <summary className="cursor-pointer">{t('how')}</summary>
         <p className="mt-2 max-w-3xl">{t('explanation')}</p>
       </details>
+      <Dialog open={copyFallback !== null} onOpenChange={open => { if (!open) setCopyFallback(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('manualCopy')}</DialogTitle>
+            <DialogDescription>{t('copyInstructions')}</DialogDescription>
+          </DialogHeader>
+          <Input value={copyFallback || ''} readOnly aria-label={t('copy')} onFocus={event => event.target.select()} />
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
