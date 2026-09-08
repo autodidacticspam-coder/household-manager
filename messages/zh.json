@@ -1471,5 +1471,25 @@
     "explanation": "优先显示待处理请求，然后参考高评分菜品和重复请求。排名时每位评分者的权重相同。过去7天内完成请求的菜品会暂时排除，除非有人再次提出请求。请求已完成并不代表菜品已实际供应；计划菜单不会被当作供餐记录。标签筛选只使用已保存的菜品标签。菜单由您选择和编辑。",
     "manualCopy": "复制菜名",
     "copyInstructions": "浏览器未允许自动复制。请复制已选中的菜名，然后粘贴到菜单中。"
+  },
+  "foodNoteResponses": {
+    "awaitingChef": "等待厨师回复",
+    "reply": "回复",
+    "markReceived": "标记为已收到",
+    "yourReply": "你的回复",
+    "replyPlaceholder": "回复这条备注…",
+    "cancel": "取消",
+    "sendReply": "发送回复",
+    "sending": "发送中…",
+    "chef": "厨师",
+    "receivedBy": "{name}已收到",
+    "repliedBy": "{name}的回复",
+    "markedReceived": "备注已标记为已收到",
+    "replySent": "回复已发送",
+    "invalidResponse": "请输入1至10,000个字符的回复，或将备注标记为已收到。",
+    "responseNotAllowed": "只有厨师可以回复食物备注。请使用厨师账号登录。",
+    "noteChanged": "这条备注已被修改或删除。请查看最新备注后再回复。",
+    "responseChanged": "已有一条回复保存成功。请刷新页面查看。",
+    "saveResponseFailed": "无法保存回复，请重试。"
   }
 }

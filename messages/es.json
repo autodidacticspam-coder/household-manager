@@ -1471,5 +1471,25 @@
     "explanation": "Primero se muestran las solicitudes pendientes, seguidas de los platos bien valorados y las solicitudes repetidas. Cada persona tiene el mismo peso en la puntuación. Los platos completados en los últimos 7 días se omiten salvo que se vuelvan a solicitar. Completar una solicitud no confirma que se haya servido el plato; los menús planificados no cuentan como historial de comidas servidas. Los filtros usan solo las etiquetas guardadas. Tú eliges y editas el menú.",
     "manualCopy": "Copiar el nombre del plato",
     "copyInstructions": "El navegador no permitió copiar automáticamente. Copia el nombre seleccionado y pégalo en el menú."
+  },
+  "foodNoteResponses": {
+    "awaitingChef": "Esperando respuesta del chef",
+    "reply": "Responder",
+    "markReceived": "Marcar como recibida",
+    "yourReply": "Tu respuesta",
+    "replyPlaceholder": "Escribe una respuesta a esta nota…",
+    "cancel": "Cancelar",
+    "sendReply": "Enviar respuesta",
+    "sending": "Enviando…",
+    "chef": "Chef",
+    "receivedBy": "Recibida por {name}",
+    "repliedBy": "Respuesta de {name}",
+    "markedReceived": "Nota marcada como recibida",
+    "replySent": "Respuesta enviada",
+    "invalidResponse": "Escribe una respuesta de entre 1 y 10.000 caracteres o marca la nota como recibida.",
+    "responseNotAllowed": "Solo los chefs pueden responder a las notas sobre la comida. Inicia sesión con tu cuenta de chef.",
+    "noteChanged": "Esta nota se cambió o eliminó. Revisa la nota actual antes de responder.",
+    "responseChanged": "Ya se guardó una respuesta. Actualiza la página para verla.",
+    "saveResponseFailed": "No se pudo guardar tu respuesta. Inténtalo de nuevo."
   }
 }

@@ -18,6 +18,8 @@ On Food Ratings, choose Requests or the Requests count near the top. Pending req
 
 Administrators can use Add notes or Edit notes on pending requests and their own request history. Choose Save notes to keep changes, Cancel to discard them, or clear the text and save to remove notes.
 
+Chefs can choose Reply or Mark received beneath food request notes and rating comments, on Food Ratings and the weekly menu. The note's author sees the chef's name, response, and time in the same place. A chef can add a reply after marking a note received. Receiving a note does not complete the food request. If the note is edited, it awaits a new response; previous responses do not acknowledge the new wording.
+
 Administrators can create requests and view Insights. Administrators and chefs can open Meal ideas on the menu page. Suggestions show rating counts, how many people provided feedback, requests, and dated request completions. Filter by saved dish tags, copy a dish into the menu, or create a request where that action is available. Suggestions do not automatically change a menu or treat a draft plan as proof that a meal was served.
 
 ## Time off

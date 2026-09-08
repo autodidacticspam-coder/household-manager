@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createClient } from '@/lib/supabase/client';
 import { canonicalizeFoodName, type FoodNameMergeLike } from '@/lib/food-names';
 import { toast } from 'sonner';
+import { currentFoodNoteResponses, type FoodNoteResponse } from '@/lib/food-note-responses';
 
 // Check if user can access food ratings (admin or chef only)
 export function useCanAccessFoodRatings() {
@@ -60,6 +61,8 @@ export type MenuRating = {
   rating: number;
   ratedBy: string;
   comment: string | null;
+  noteRevision: string;
+  noteResponses: FoodNoteResponse[];
   createdAt: string;
   updatedAt: string;
   ratedByUser?: {
@@ -102,7 +105,8 @@ export function useMenuRatings(weekStart: string) {
         .from('menu_ratings')
         .select(`
           *,
-          rated_by_user:users!menu_ratings_rated_by_fkey(id, full_name, avatar_url)
+          rated_by_user:users!menu_ratings_rated_by_fkey(id, full_name, avatar_url),
+          note_responses:food_note_responses!food_note_responses_menu_rating_id_fkey(*, chef:users!food_note_responses_responded_by_fkey(full_name))
         `)
         .eq('week_start', weekStart)
         .eq('rated_by', user.id);
@@ -133,7 +137,8 @@ export function useAllMenuRatings(
         .from('menu_ratings')
         .select(`
           *,
-          rated_by_user:users!menu_ratings_rated_by_fkey(id, full_name, avatar_url)
+          rated_by_user:users!menu_ratings_rated_by_fkey(id, full_name, avatar_url),
+          note_responses:food_note_responses!food_note_responses_menu_rating_id_fkey(*, chef:users!food_note_responses_responded_by_fkey(full_name))
         `)
         .order('created_at', { ascending: false });
 
@@ -361,6 +366,8 @@ function transformRating(row: Record<string, unknown>, activeMerges: FoodNameMer
     rating: row.rating as number,
     ratedBy: row.rated_by as string,
     comment: row.comment as string | null,
+    noteRevision: row.note_revision as string,
+    noteResponses: currentFoodNoteResponses(row.note_responses as Parameters<typeof currentFoodNoteResponses>[0], row.note_revision as string),
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
     ratedByUser: ratedByUser ? {

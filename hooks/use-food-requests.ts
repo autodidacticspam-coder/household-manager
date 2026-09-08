@@ -9,6 +9,7 @@ import { canonicalizeFoodName, type FoodNameMergeLike } from '@/lib/food-names';
 import { toast } from 'sonner';
 import { updateFoodRequestNotes } from '@/app/(admin)/menu/actions';
 import type { UpdateFoodRequestNotesInput } from '@/lib/validators/food-request-notes';
+import { currentFoodNoteResponses, type FoodNoteResponse } from '@/lib/food-note-responses';
 
 export type FoodRequest = {
   id: string;
@@ -16,6 +17,8 @@ export type FoodRequest = {
   canonicalFoodName: string;
   requestedBy: string;
   notes: string | null;
+  noteRevision: string;
+  noteResponses: FoodNoteResponse[];
   recipeId: string | null;
   status: 'pending' | 'completed' | 'declined';
   completedAt: string | null;
@@ -51,7 +54,8 @@ export function useFoodRequests(filters?: { status?: 'pending' | 'completed' | '
         .select(`
           *,
           requested_by_user:users!food_requests_requested_by_fkey(id, full_name, avatar_url),
-          completed_by_user:users!food_requests_completed_by_fkey(id, full_name)
+          completed_by_user:users!food_requests_completed_by_fkey(id, full_name),
+          note_responses:food_note_responses!food_note_responses_food_request_id_fkey(*, chef:users!food_note_responses_responded_by_fkey(full_name))
         `)
         .order('created_at', { ascending: false });
 
@@ -308,6 +312,8 @@ function transformFoodRequest(row: Record<string, unknown>, activeMerges: FoodNa
     canonicalFoodName: canonicalizeFoodName(row.food_name as string, activeMerges),
     requestedBy: row.requested_by as string,
     notes: row.notes as string | null,
+    noteRevision: row.note_revision as string,
+    noteResponses: currentFoodNoteResponses(row.note_responses as Parameters<typeof currentFoodNoteResponses>[0], row.note_revision as string),
     recipeId: row.recipe_id as string | null,
     status: row.status as 'pending' | 'completed' | 'declined',
     completedAt: row.completed_at as string | null,

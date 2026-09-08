@@ -12,6 +12,7 @@ const request: FoodRequest = {
   id: '00000000-0000-4000-8000-000000000001', foodName: 'Noodles', canonicalFoodName: 'Noodles',
   requestedBy: 'admin', notes: 'No peanuts', recipeId: null, status: 'pending', completedAt: null,
   completedBy: null, createdAt: '2026-09-06T20:00:00Z', updatedAt: '2026-09-06T20:00:00.123456+00:00',
+  noteRevision: '00000000-0000-4000-8000-000000000003', noteResponses: [],
 };
 
 function openEditor(value = request) {

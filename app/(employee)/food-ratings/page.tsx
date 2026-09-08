@@ -31,6 +31,8 @@ import { useMenuItemMerges } from '@/hooks/use-menu-item-merges';
 import { AdminMenuCatalog } from '@/components/food/admin-menu-catalog';
 import { FoodMergeReview } from '@/components/food/food-merge-review';
 import { FoodRequestsPanel, type FoodRequestView } from '@/components/food/food-requests-panel';
+import { FoodNoteResponse } from '@/components/food/food-note-response';
+import { useCanRespondToFoodNotes } from '@/hooks/use-food-note-responses';
 import { MenuTagBadge } from '@/components/food/menu-tag-badge';
 import { MenuTagFilter } from '@/components/food/menu-tag-filter';
 import { MenuTagPicker } from '@/components/food/menu-tag-picker';
@@ -106,6 +108,7 @@ export default function FoodRatingsPage() {
   const { data: foodRequests, isLoading: requestsLoading, isError: requestsError, refetch: refetchRequests } = useFoodRequests();
   const { data: pendingCount } = usePendingFoodRequestsCount();
   const { user, isAdmin } = useAuth();
+  const { data: canRespondToNotes = false } = useCanRespondToFoodNotes();
   const { data: activeMerges = [] } = useMenuItemMerges({ activeOnly: true });
   const { data: mergeHistory = [] } = useMenuItemMerges();
   const completeFoodRequest = useCompleteFoodRequest();
@@ -708,6 +711,8 @@ export default function FoodRatingsPage() {
                               <MessageSquare className="h-3 w-3" />
                               {tUi('note')} </div>
                             <p className="text-sm whitespace-pre-wrap break-words">{rating.comment}</p>
+                            <FoodNoteResponse source="rating" id={rating.id} noteRevision={rating.noteRevision}
+                              responses={rating.noteResponses} canRespond={canRespondToNotes} userId={user?.id} />
                           </div>
                         )}
                       </div>
@@ -770,6 +775,8 @@ export default function FoodRatingsPage() {
                               ) : (
                                 <span className="text-xs text-muted-foreground">{tUi('noNote')}</span>
                               )}
+                              {rating.comment?.trim() && <FoodNoteResponse source="rating" id={rating.id} noteRevision={rating.noteRevision}
+                                responses={rating.noteResponses} canRespond={canRespondToNotes} userId={user?.id} />}
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {formatDate(new Date(rating.createdAt), 'MMM d, yyyy')}
@@ -804,6 +811,7 @@ export default function FoodRatingsPage() {
             requests={foodRequests || []}
             userId={user?.id}
             isAdmin={isAdmin}
+            canRespondToNotes={canRespondToNotes}
             view={requestView}
             onViewChange={setRequestView}
             onNewRequest={openRequestDialog}
@@ -935,7 +943,9 @@ export default function FoodRatingsPage() {
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
                         <MessageSquare className="h-3 w-3" />
                         {tUi('comment')} </div>
-                      <p className="text-sm">{rating.comment}</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">{rating.comment}</p>
+                      <FoodNoteResponse source="rating" id={rating.id} noteRevision={rating.noteRevision}
+                        responses={rating.noteResponses} canRespond={canRespondToNotes} userId={user?.id} />
                     </div>
                   )}
 

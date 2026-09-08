@@ -33,7 +33,7 @@ try {
     ('00000000-0000-4000-8000-000000000001','schema-admin@example.invalid','{"full_name":"Schema administrator"}'),
     ('00000000-0000-4000-8000-000000000002','schema-employee@example.invalid','{"full_name":"Schema employee"}');
     UPDATE public.users SET role='admin' WHERE id='00000000-0000-4000-8000-000000000001';`;
-  for (const file of ['task_series', 'leave_arithmetic', 'task_permissions']) {
+  for (const file of ['task_series', 'leave_arithmetic', 'task_permissions', 'food_note_responses']) {
     await execute('BEGIN;\n'+fixtures+'\n'+fs.readFileSync(`supabase/tests/${file}.sql`,'utf8')+'\nROLLBACK;');
     console.log(`${file}: passed (fixtures rolled back).`);
   }

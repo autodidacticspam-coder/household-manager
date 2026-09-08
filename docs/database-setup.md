@@ -1,6 +1,6 @@
 # Database setup and maintenance
 
-The application baseline in `supabase/baseline/schema.sql` represents the household schema through migration `20260906190000_leave_arithmetic.sql`. It contains tables, functions, indexes, policies, the Auth profile trigger, Storage bucket configuration, and the migration journal. It contains no household accounts, requests, task history, files, or credentials. Objects belonging to other applications in the shared hosted project are excluded.
+The application baseline in `supabase/baseline/schema.sql` represents the household schema through migration `20260908160000_food_note_responses.sql`. It contains tables, functions, indexes, policies, the Auth profile trigger, Storage bucket configuration, and the migration journal. It contains no household accounts, requests, task history, files, or credentials. Objects belonging to other applications in the shared hosted project are excluded.
 
 ## A fresh installation
 
@@ -10,13 +10,15 @@ The application baseline in `supabase/baseline/schema.sql` represents the househ
 4. Copy `.env.example` to `.env.local` and fill in the project's URL, public key, server-only service role key, and application URL. Install with `npm ci`, then run `npm run dev` on port 3501. Add the application URL to Supabase's allowed Auth redirects.
 5. Sign in as the administrator. Create employees and their group memberships from Employees. See [the employee guide](employee-guide.md).
 
-The baseline records the historical migrations it covers, so they will not run again through the CLI. New incremental migration versions must be later than `20260906190000`. Do not use the historical SQL files as a fresh-install sequence: migration `023` removed legacy recurring-task objects that live installations continued to use. The current baseline retains compatibility history and adds stable task series.
+The baseline records the historical migrations it covers, so they will not run again through the CLI. New incremental migration versions must be later than `20260908160000`. Do not use the historical SQL files as a fresh-install sequence: migration `023` removed legacy recurring-task objects that live installations continued to use. The current baseline retains compatibility history and adds stable task series.
 
 ## Existing installations
 
 Never apply the baseline to an existing household. Back up affected records and apply only missing incremental migrations, in order. The September 2026 release uses four additive migrations: legacy task history compatibility, task permissions, stable task series, and leave arithmetic. Those migrations preserve recorded completions. The series backfill groups only unambiguous tasks created at the exact same instant; similar names alone do not establish identity.
 
 Leave approvals and cancellation refunds are recorded per request and year in `leave_balance_effects`. New requests spanning years charge their actual dates to each year. Legacy approved balances retain their original allocation; the migration does not reinterpret historical balances. A full accounting day remains eight hours.
+
+Food note replies and acknowledgements use `food_note_responses`, added by `20260908160000_food_note_responses.sql`. Apply it before deploying the response UI. Only Chef group members can write through the authenticated `respond_to_food_note` function; administrators and chefs can read responses. Database triggers change `note_revision` only when the note text changes. Responses to earlier revisions stay stored but are excluded from the current note's status. Request completion and rating score changes preserve the revision.
 
 ## Generated types and shared rules
 

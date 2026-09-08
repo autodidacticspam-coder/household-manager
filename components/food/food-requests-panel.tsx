@@ -6,6 +6,7 @@ import { Check, Loader2, Pencil, Search, Send, X } from 'lucide-react';
 import { FoodRequestInsights } from '@/components/food/food-request-insights';
 import { MealSuggestions } from '@/components/food/meal-suggestions';
 import { FoodRequestNotesDialog } from '@/components/food/food-request-notes-dialog';
+import { FoodNoteResponse } from '@/components/food/food-note-response';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,7 @@ type Props = {
   requests: FoodRequest[];
   userId?: string;
   isAdmin: boolean;
+  canRespondToNotes: boolean;
   view: FoodRequestView;
   onViewChange: (view: FoodRequestView) => void;
   onNewRequest: (foodName?: string) => void;
@@ -31,7 +33,7 @@ type Props = {
   onRetry: () => void;
 };
 
-export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChange, onNewRequest, onComplete, onCancel, completingId, cancellingId, error, onRetry }: Props) {
+export function FoodRequestsPanel({ requests, userId, isAdmin, canRespondToNotes, view, onViewChange, onNewRequest, onComplete, onCancel, completingId, cancellingId, error, onRetry }: Props) {
   const t = useTranslations('foodRequests');
   const [mineOnly, setMineOnly] = useState(false);
   const [search, setSearch] = useState('');
@@ -91,6 +93,7 @@ export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChang
                   </div>
                 ) : current.map(request => (
                   <FoodRequestCard key={request.id} request={request} canCancel={request.requestedBy === userId} onCancel={() => onCancel(request.id)} onComplete={() => onComplete(request.id)} isCancelling={cancellingId === request.id} isCompleting={completingId === request.id}
+                    canRespondToNotes={canRespondToNotes} userId={userId}
                     onEditNotes={isAdmin && (request.requestedBy === userId || request.status === 'pending') ? () => setEditingRequest(request) : undefined} />
                 ))}
               </TabsContent>
@@ -107,9 +110,10 @@ export function FoodRequestsPanel({ requests, userId, isAdmin, view, onViewChang
   );
 }
 
-function FoodRequestCard({ request, canCancel, onCancel, onComplete, isCancelling, isCompleting, onEditNotes }: {
+function FoodRequestCard({ request, canCancel, onCancel, onComplete, isCancelling, isCompleting, onEditNotes, canRespondToNotes, userId }: {
   request: FoodRequest; canCancel: boolean; onCancel: () => void; onComplete: () => void; isCancelling: boolean; isCompleting: boolean;
   onEditNotes?: () => void;
+  canRespondToNotes: boolean; userId?: string;
 }) {
   const t = useTranslations('foodRequests');
   const format = useFormatter();
@@ -122,6 +126,8 @@ function FoodRequestCard({ request, canCancel, onCancel, onComplete, isCancellin
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{t('requestedBy', { name: request.requestedByUser?.fullName || t('unknown') })} · {format.dateTime(new Date(request.createdAt), { month: 'short', day: 'numeric', year: 'numeric' })}</p>
       {request.notes && <p className="mt-3 whitespace-pre-wrap break-words rounded-md bg-background/80 p-3 text-sm">{request.notes}</p>}
+      {request.notes?.trim() && <FoodNoteResponse source="request" id={request.id} noteRevision={request.noteRevision}
+        responses={request.noteResponses} canRespond={canRespondToNotes} userId={userId} />}
       {request.completedAt && <p className="mt-2 text-xs text-muted-foreground">{t('completedOn', { date: format.dateTime(new Date(request.completedAt), { month: 'short', day: 'numeric', year: 'numeric' }) })}</p>}
       {(pending || onEditNotes) && <div className="mt-3 flex flex-wrap justify-end gap-2">
         {onEditNotes && <Button variant="outline" size="sm" onClick={onEditNotes} disabled={isCancelling || isCompleting}><Pencil className="h-4 w-4" />{t(request.notes ? 'editNotes' : 'addNotes')}</Button>}

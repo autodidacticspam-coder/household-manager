@@ -1471,5 +1471,25 @@
     "explanation": "Pending requests come first, followed by well-rated dishes and repeat requests. Each person has equal weight in the rating score. Dishes completed in the last 7 days are held back unless requested again. A completed request does not confirm the meal was served; planned menus are not treated as serving history. Tag filters use saved dish tags only. You choose and edit the menu.",
     "manualCopy": "Copy the dish name",
     "copyInstructions": "Your browser did not allow automatic copying. Copy the selected name, then paste it into your menu."
+  },
+  "foodNoteResponses": {
+    "awaitingChef": "Awaiting chef response",
+    "reply": "Reply",
+    "markReceived": "Mark received",
+    "yourReply": "Your reply",
+    "replyPlaceholder": "Write a reply to this note…",
+    "cancel": "Cancel",
+    "sendReply": "Send reply",
+    "sending": "Sending…",
+    "chef": "Chef",
+    "receivedBy": "Received by {name}",
+    "repliedBy": "Reply from {name}",
+    "markedReceived": "Note marked as received",
+    "replySent": "Reply sent",
+    "invalidResponse": "Enter a reply of 1–10,000 characters, or mark the note as received.",
+    "responseNotAllowed": "Only chefs can respond to food notes. Please sign in with your chef account.",
+    "noteChanged": "This note was changed or removed. Review the latest note before responding.",
+    "responseChanged": "A reply has already been saved. Refresh to see it.",
+    "saveResponseFailed": "Your response could not be saved. Please try again."
   }
 }

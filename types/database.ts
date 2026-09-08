@@ -427,6 +427,61 @@ export type Database = {
           },
         ]
       }
+      food_note_responses: {
+        Row: {
+          food_request_id: string | null
+          id: string
+          menu_rating_id: string | null
+          note_revision: string
+          received_at: string
+          replied_at: string | null
+          reply: string | null
+          responded_by: string
+        }
+        Insert: {
+          food_request_id?: string | null
+          id?: string
+          menu_rating_id?: string | null
+          note_revision: string
+          received_at?: string
+          replied_at?: string | null
+          reply?: string | null
+          responded_by: string
+        }
+        Update: {
+          food_request_id?: string | null
+          id?: string
+          menu_rating_id?: string | null
+          note_revision?: string
+          received_at?: string
+          replied_at?: string | null
+          reply?: string | null
+          responded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_note_responses_food_request_id_fkey"
+            columns: ["food_request_id"]
+            isOneToOne: false
+            referencedRelation: "food_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "food_note_responses_menu_rating_id_fkey"
+            columns: ["menu_rating_id"]
+            isOneToOne: false
+            referencedRelation: "menu_ratings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "food_note_responses_responded_by_fkey"
+            columns: ["responded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       food_requests: {
         Row: {
           completed_at: string | null
@@ -435,6 +490,7 @@ export type Database = {
           food_name: string
           id: string
           menu_item_id: string | null
+          note_revision: string
           notes: string | null
           recipe_id: string | null
           requested_by: string
@@ -448,6 +504,7 @@ export type Database = {
           food_name: string
           id?: string
           menu_item_id?: string | null
+          note_revision?: string
           notes?: string | null
           recipe_id?: string | null
           requested_by: string
@@ -461,6 +518,7 @@ export type Database = {
           food_name?: string
           id?: string
           menu_item_id?: string | null
+          note_revision?: string
           notes?: string | null
           recipe_id?: string | null
           requested_by?: string
@@ -1017,6 +1075,7 @@ export type Database = {
           meal_type: string
           menu_item: string
           menu_item_id: string | null
+          note_revision: string
           rated_by: string
           rating: number
           updated_at: string | null
@@ -1030,6 +1089,7 @@ export type Database = {
           meal_type: string
           menu_item: string
           menu_item_id?: string | null
+          note_revision?: string
           rated_by: string
           rating: number
           updated_at?: string | null
@@ -1043,6 +1103,7 @@ export type Database = {
           meal_type?: string
           menu_item?: string
           menu_item_id?: string | null
+          note_revision?: string
           rated_by?: string
           rating?: number
           updated_at?: string | null
@@ -2289,6 +2350,7 @@ export type Database = {
         Args: { p_action?: string; p_task_id: string }
         Returns: boolean
       }
+      can_respond_to_food_notes: { Args: never; Returns: boolean }
       child_log_in_my_shift: {
         Args: {
           p_end: string
@@ -2337,6 +2399,15 @@ export type Database = {
       normalize_menu_item_name: { Args: { input: string }; Returns: string }
       refresh_menu_item_rating_stats: {
         Args: { target_menu_item_id: string }
+        Returns: undefined
+      }
+      respond_to_food_note: {
+        Args: {
+          p_id: string
+          p_note_revision: string
+          p_reply?: string
+          p_source: string
+        }
         Returns: undefined
       }
       review_leave_request: {

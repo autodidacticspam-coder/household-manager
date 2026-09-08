@@ -27,6 +27,8 @@ import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
 import { useAllMenuRatings, useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
+import { FoodNoteResponse } from '@/components/food/food-note-response';
+import { useCanRespondToFoodNotes } from '@/hooks/use-food-note-responses';
 import { MenuTagBadge } from '@/components/food/menu-tag-badge';
 import { MenuTagPicker } from '@/components/food/menu-tag-picker';
 import { buildDishTagLookup, useMenuTags, useSetDishTag, useTaggableMenuItems } from '@/hooks/use-menu-tags';
@@ -326,7 +328,8 @@ export default function MenuPage() {
     { startDate: weekStartStr, endDate: weekStartStr },
     { enabled: canAccessRatings === true }
   );
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { data: canRespondToNotes = false } = useCanRespondToFoodNotes();
 
   // Auto-scroll to today when menu loads (only once per page load)
   useEffect(() => {
@@ -724,11 +727,13 @@ export default function MenuPage() {
                                             className="flex items-start gap-2 rounded-md border border-amber-200/70 bg-white/60 px-2 py-1.5 text-amber-900 dark:border-amber-800/70 dark:bg-stone-900/50 dark:text-amber-100"
                                           >
                                             <MessageSquare className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                               <p className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
                                                 {rating.ratedByUser?.fullName || tUi('unknown')}
                                               </p>
                                               <p className="whitespace-pre-wrap break-words text-sm">{rating.comment}</p>
+                                              <FoodNoteResponse source="rating" id={rating.id} noteRevision={rating.noteRevision}
+                                                responses={rating.noteResponses} canRespond={canRespondToNotes} userId={user?.id} />
                                             </div>
                                           </div>
                                         ))}
