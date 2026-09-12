@@ -1491,5 +1491,25 @@
     "noteChanged": "This note was changed or removed. Review the latest note before responding.",
     "responseChanged": "A reply has already been saved. Refresh to see it.",
     "saveResponseFailed": "Your response could not be saved. Please try again."
+  },
+  "menuSwap": {
+    "swap": "Swap",
+    "swapMeal": "Swap this meal with another meal",
+    "title": "Swap {slot}",
+    "description": "Choose the meal to swap it with. Ratings and notes move with the dishes.",
+    "slot": "{day} {meal}",
+    "day": "Day",
+    "thisMeal": "This meal",
+    "empty": "Empty",
+    "moreLines": "+{count} more",
+    "cancel": "Cancel",
+    "swapping": "Swapping…",
+    "swapped": "Swapped {from} with {to}",
+    "undo": "Undo",
+    "undone": "Swap undone",
+    "invalidSwap": "Choose a different meal to swap with.",
+    "swapNotAllowed": "Only administrators and chefs can change the menu.",
+    "menuChanged": "The menu changed since you opened it. Check the latest menu and try again.",
+    "swapFailed": "The meals could not be swapped. Please try again."
   }
 }

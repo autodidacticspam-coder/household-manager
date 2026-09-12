@@ -1491,5 +1491,25 @@
     "noteChanged": "Esta nota se cambió o eliminó. Revisa la nota actual antes de responder.",
     "responseChanged": "Ya se guardó una respuesta. Actualiza la página para verla.",
     "saveResponseFailed": "No se pudo guardar tu respuesta. Inténtalo de nuevo."
+  },
+  "menuSwap": {
+    "swap": "Intercambiar",
+    "swapMeal": "Intercambiar esta comida con otra",
+    "title": "Intercambiar {slot}",
+    "description": "Elige la comida con la que quieres intercambiarla. Las calificaciones y notas se mueven con los platos.",
+    "slot": "{meal} del {day}",
+    "day": "Día",
+    "thisMeal": "Esta comida",
+    "empty": "Vacío",
+    "moreLines": "+{count} más",
+    "cancel": "Cancelar",
+    "swapping": "Intercambiando…",
+    "swapped": "Se intercambió {from} con {to}",
+    "undo": "Deshacer",
+    "undone": "Intercambio deshecho",
+    "invalidSwap": "Elige una comida diferente para intercambiar.",
+    "swapNotAllowed": "Solo los administradores y chefs pueden cambiar el menú.",
+    "menuChanged": "El menú cambió desde que lo abriste. Revisa el menú más reciente e inténtalo de nuevo.",
+    "swapFailed": "No se pudieron intercambiar las comidas. Inténtalo de nuevo."
   }
 }

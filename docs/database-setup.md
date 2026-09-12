@@ -1,6 +1,6 @@
 # Database setup and maintenance
 
-The application baseline in `supabase/baseline/schema.sql` represents the household schema through migration `20260908160000_food_note_responses.sql`. It contains tables, functions, indexes, policies, the Auth profile trigger, Storage bucket configuration, and the migration journal. It contains no household accounts, requests, task history, files, or credentials. Objects belonging to other applications in the shared hosted project are excluded.
+The application baseline in `supabase/baseline/schema.sql` represents the household schema through migration `20260911170000_swap_menu_meals.sql`. It contains tables, functions, indexes, policies, the Auth profile trigger, Storage bucket configuration, and the migration journal. It contains no household accounts, requests, task history, files, or credentials. Objects belonging to other applications in the shared hosted project are excluded.
 
 ## A fresh installation
 
@@ -10,7 +10,7 @@ The application baseline in `supabase/baseline/schema.sql` represents the househ
 4. Copy `.env.example` to `.env.local` and fill in the project's URL, public key, server-only service role key, and application URL. Install with `npm ci`, then run `npm run dev` on port 3501. Add the application URL to Supabase's allowed Auth redirects.
 5. Sign in as the administrator. Create employees and their group memberships from Employees. See [the employee guide](employee-guide.md).
 
-The baseline records the historical migrations it covers, so they will not run again through the CLI. New incremental migration versions must be later than `20260908160000`. Do not use the historical SQL files as a fresh-install sequence: migration `023` removed legacy recurring-task objects that live installations continued to use. The current baseline retains compatibility history and adds stable task series.
+The baseline records the historical migrations it covers, so they will not run again through the CLI. New incremental migration versions must be later than `20260911170000`. Do not use the historical SQL files as a fresh-install sequence: migration `023` removed legacy recurring-task objects that live installations continued to use. The current baseline retains compatibility history and adds stable task series.
 
 ## Existing installations
 
@@ -19,6 +19,8 @@ Never apply the baseline to an existing household. Back up affected records and 
 Leave approvals and cancellation refunds are recorded per request and year in `leave_balance_effects`. New requests spanning years charge their actual dates to each year. Legacy approved balances retain their original allocation; the migration does not reinterpret historical balances. A full accounting day remains eight hours.
 
 Food note replies and acknowledgements use `food_note_responses`, added by `20260908160000_food_note_responses.sql`. Apply it before deploying the response UI. Only Chef group members can write through the authenticated `respond_to_food_note` function; administrators and chefs can read responses. Database triggers change `note_revision` only when the note text changes. Responses to earlier revisions stay stored but are excluded from the current note's status. Request completion and rating score changes preserve the revision.
+
+Meal swaps use the authenticated `swap_menu_meals` function, added by `20260911170000_swap_menu_meals.sql`. Apply it before deploying the Swap control on the weekly menu. Administrators and Chef group members may call it. The function locks the week's menu row, exchanges two meal texts, records the caller as the editor, and moves the ratings of both meals (with their chef responses) to the new day and meal in the same transaction. Passing the menu's `updated_at` rejects a swap when someone else has changed the menu in the meantime. The function returns the new `updated_at`, which the Undo action passes back.
 
 ## Generated types and shared rules
 
@@ -36,7 +38,7 @@ Set `TEST_DATABASE_URL` to a disposable local Supabase PostgreSQL URL, then run:
 npm run db:check -- --baseline
 ```
 
-This installs the baseline on an empty local database and runs task-series, leave-accounting, and task-permission checks with fabricated accounts. Each test rolls back its fixtures. Omit `--baseline` when the schema is already installed. The runner rejects remote database hosts.
+This installs the baseline on an empty local database and runs task-series, leave-accounting, task-permission, food-note-response, and meal-swap checks with fabricated accounts. Each test rolls back its fixtures. Omit `--baseline` when the schema is already installed. The runner rejects remote database hosts.
 
 An isolated Supabase PostgreSQL test container with Auth and Storage initialized can also be checked with `npm run db:check -- --container household-manager-schema-check-<name>`. It must have networking disabled. The container path is for schema and SQL tests; it does not test Auth HTTP, Storage uploads, email delivery, or push delivery.
 

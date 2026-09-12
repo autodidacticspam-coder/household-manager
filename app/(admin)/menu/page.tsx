@@ -22,9 +22,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Tag, Trash2 } from 'lucide-react';
+import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, ChevronRight, Star, MessageSquare, Send, Tag, Trash2, ArrowLeftRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
+import { MealSwapDialog } from '@/components/food/meal-swap-dialog';
+import { useMenuSlotLabel } from '@/hooks/use-menu-swap';
+import type { MenuSlot } from '@/lib/validators/menu-swap';
 import { useAllMenuRatings, useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
 import { useCreateFoodRequest } from '@/hooks/use-food-requests';
 import { FoodNoteResponse } from '@/components/food/food-note-response';
@@ -388,6 +391,10 @@ export default function MenuPage() {
   const [requestFoodName, setRequestFoodName] = useState('');
   const [requestNotes, setRequestNotes] = useState('');
   const createFoodRequest = useCreateFoodRequest();
+  // Swapping two meals is a two-tap flow in view mode; the database moves ratings with the dishes.
+  const tSwap = useTranslations('menuSwap');
+  const slotLabel = useMenuSlotLabel();
+  const [swapSource, setSwapSource] = useState<MenuSlot | null>(null);
 
   const goToPreviousWeek = () => {
     setSelectedWeek(prev => subWeeks(prev, 1));
@@ -634,6 +641,19 @@ export default function MenuPage() {
                                 {t(`menu.meals.${key}`)}
                               </span>
                               <div className="flex-1 h-px bg-amber-300/50 dark:bg-amber-700/50" />
+                              {canEdit && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs gap-1 text-amber-600/80 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400/80 dark:hover:text-amber-300 dark:hover:bg-amber-900/30 touch-manipulation"
+                                  title={tSwap('swapMeal')}
+                                  aria-label={tSwap('title', { slot: slotLabel({ day: dayMeal.day, mealType: key }) })}
+                                  onClick={() => setSwapSource({ day: dayMeal.day, mealType: key })}
+                                >
+                                  <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <span className="hidden sm:inline">{tSwap('swap')}</span>
+                                </Button>
+                              )}
                             </div>
                             <div className="pl-2 space-y-1">
                               {lines.map((line, i) => {
@@ -767,6 +787,18 @@ export default function MenuPage() {
         <p className="text-sm text-muted-foreground text-center">
           {t('menu.lastUpdated')}: {formatDate(new Date(menu.updatedAt), 'MMM d, yyyy h:mm a')} {t('menu.by')} {menu.updatedByUser.fullName}
         </p>
+      )}
+
+      {/* Swap Meals Dialog */}
+      {swapSource && menu && (
+        <MealSwapDialog
+          source={swapSource}
+          meals={menu.meals}
+          weekStart={weekStartStr}
+          weekStartDate={selectedWeek}
+          menuUpdatedAt={menu.updatedAt || null}
+          onClose={() => setSwapSource(null)}
+        />
       )}
 
       {/* Paste Menu Dialog */}

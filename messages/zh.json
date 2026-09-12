@@ -1491,5 +1491,25 @@
     "noteChanged": "这条备注已被修改或删除。请查看最新备注后再回复。",
     "responseChanged": "已有一条回复保存成功。请刷新页面查看。",
     "saveResponseFailed": "无法保存回复，请重试。"
+  },
+  "menuSwap": {
+    "swap": "交换",
+    "swapMeal": "与另一餐交换",
+    "title": "交换{slot}",
+    "description": "选择要与之交换的餐食。评分和备注会随菜品一起移动。",
+    "slot": "{day}{meal}",
+    "day": "日期",
+    "thisMeal": "当前餐食",
+    "empty": "空",
+    "moreLines": "还有 {count} 项",
+    "cancel": "取消",
+    "swapping": "交换中…",
+    "swapped": "已将{from}与{to}交换",
+    "undo": "撤销",
+    "undone": "已撤销交换",
+    "invalidSwap": "请选择另一餐进行交换。",
+    "swapNotAllowed": "只有管理员和厨师可以更改菜单。",
+    "menuChanged": "菜单在您打开后已更改。请查看最新菜单后重试。",
+    "swapFailed": "无法交换餐食，请重试。"
   }
 }

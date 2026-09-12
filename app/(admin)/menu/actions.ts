@@ -4,12 +4,47 @@ import { createClient } from '@/lib/supabase/server';
 import { databaseClient } from '@/lib/supabase/database-client';
 import { updateFoodRequestNotesSchema } from '@/lib/validators/food-request-notes';
 import { foodNoteResponseSchema } from '@/lib/validators/food-note-response';
+import { menuSwapSchema } from '@/lib/validators/menu-swap';
 
 type NotesError = 'invalidNotes' | 'notesNotAllowed' | 'notesChanged' | 'saveNotesFailed';
 type NotesResult = { success: true } | { error: NotesError };
 
 type ResponseError = 'invalidResponse' | 'responseNotAllowed' | 'noteChanged' | 'responseChanged' | 'saveResponseFailed';
 type ResponseResult = { success: true } | { error: ResponseError };
+
+type SwapError = 'invalidSwap' | 'swapNotAllowed' | 'menuChanged' | 'swapFailed';
+type SwapResult = { success: true; updatedAt: string | null } | { error: SwapError };
+
+export async function swapMenuMeals(input: unknown): Promise<SwapResult> {
+  const parsed = menuSwapSchema.safeParse(input);
+  if (!parsed.success) return { error: 'invalidSwap' };
+
+  try {
+    const db = databaseClient(await createClient());
+    const { data: { user }, error: authError } = await db.auth.getUser();
+    if (authError || !user) return { error: 'swapNotAllowed' };
+
+    // The RPC checks administrator or Chef membership, locks the week, and moves ratings with the dishes.
+    const { weekStart, from, to, expectedUpdatedAt } = parsed.data;
+    const { data, error } = await db.rpc('swap_menu_meals', {
+      p_week_start: weekStart,
+      p_day_a: from.day,
+      p_meal_a: from.mealType,
+      p_day_b: to.day,
+      p_meal_b: to.mealType,
+      ...(expectedUpdatedAt ? { p_expected_updated_at: expectedUpdatedAt } : {}),
+    });
+    if (error) {
+      if (error.code === '42501') return { error: 'swapNotAllowed' };
+      if (error.message === 'menuChanged') return { error: 'menuChanged' };
+      if (error.message === 'invalidSwap') return { error: 'invalidSwap' };
+      return { error: 'swapFailed' };
+    }
+    return { success: true, updatedAt: typeof data === 'string' ? data : null };
+  } catch {
+    return { error: 'swapFailed' };
+  }
+}
 
 export async function respondToFoodNote(input: unknown): Promise<ResponseResult> {
   const parsed = foodNoteResponseSchema.safeParse(input);

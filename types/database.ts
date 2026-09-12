@@ -2414,6 +2414,17 @@ export type Database = {
         Args: { p_action: string; p_notes?: string; p_request_id: string }
         Returns: string
       }
+      swap_menu_meals: {
+        Args: {
+          p_day_a: string
+          p_day_b: string
+          p_expected_updated_at?: string
+          p_meal_a: string
+          p_meal_b: string
+          p_week_start: string
+        }
+        Returns: string
+      }
       sync_menu_catalog_from_history: { Args: never; Returns: undefined }
       unmerge_menu_catalog_items: {
         Args: { merge_event_id: string; undo_note?: string }

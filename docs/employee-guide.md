@@ -20,6 +20,8 @@ Administrators can use Add notes or Edit notes on pending requests and their own
 
 Chefs can choose Reply or Mark received beneath food request notes and rating comments, on Food Ratings and the weekly menu. The note's author sees the chef's name, response, and time in the same place. A chef can add a reply after marking a note received. Receiving a note does not complete the food request. If the note is edited, it awaits a new response; previous responses do not acknowledge the new wording.
 
+On the weekly menu, administrators and chefs see Swap beside each meal heading. Choose it, pick a day, then pick the meal to trade with; the two meals change places right away, and an empty meal works as a target for moving. Ratings and notes stay with their dishes. Choose Undo in the confirmation message to reverse the swap. If someone else changed the menu in the meantime, the swap is refused and the latest menu is shown.
+
 Administrators can create requests and view Insights. Administrators and chefs can open Meal ideas on the menu page. Suggestions show rating counts, how many people provided feedback, requests, and dated request completions. Filter by saved dish tags, copy a dish into the menu, or create a request where that action is available. Suggestions do not automatically change a menu or treat a draft plan as proof that a meal was served.
 
 ## Time off
