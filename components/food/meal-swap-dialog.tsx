@@ -65,7 +65,7 @@ export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUp
 
   return (
     <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}>
-      <DialogContent className="sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" showCloseButton={!busy}>
+      <DialogContent className="grid-cols-1 sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" showCloseButton={!busy}>
         <DialogHeader>
           <DialogTitle>{requestApproval ? tRequests('requestTitle', { slot: label(source) }) : t('title', { slot: label(source) })}</DialogTitle>
           <DialogDescription>{requestApproval ? tRequests('requestHelp') : t('description')}</DialogDescription>
