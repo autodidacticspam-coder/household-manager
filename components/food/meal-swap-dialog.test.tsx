@@ -8,6 +8,8 @@ import type { ComponentProps } from 'react';
 import type { DayMeals } from '@/types';
 
 const mocks = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
+const requests = vi.hoisted(() => ({ mutateAsync: vi.fn(), isPending: false }));
+vi.mock('@/hooks/use-menu-requests', () => ({ useMenuRequestMutation: () => requests }));
 vi.mock('@/hooks/use-menu-swap', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/use-menu-swap')>()),
   useSwapMenuMeals: () => mocks,
@@ -40,7 +42,7 @@ function view(overrides: Partial<typeof props> = {}, locale = 'en', translated: 
 const button = (name: string | RegExp) => screen.getByRole('button', { name }) as HTMLButtonElement;
 
 describe('meal swap dialog', () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.isPending = false; mocks.mutateAsync.mockResolvedValue({ success: true, updatedAt: 'v2' }); });
+  beforeEach(() => { vi.clearAllMocks(); mocks.isPending = false; requests.isPending = false; requests.mutateAsync.mockResolvedValue({ success: true }); mocks.mutateAsync.mockResolvedValue({ success: true, updatedAt: 'v2' }); });
   afterEach(cleanup);
 
   it('starts on the meal being swapped and previews every meal of that day', () => {
@@ -106,6 +108,39 @@ describe('meal swap dialog', () => {
     fireEvent.click(button('Cancel'));
     expect(props.onClose).toHaveBeenCalledOnce();
     expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('lets an admin preview a swap and add a note without changing the menu until the request is sent', async () => {
+    render(view({ requestApproval: true }));
+    expect(button('Send to chef').disabled).toBe(true);
+    fireEvent.click(button(/^Dinner/));
+    expect(screen.getByText('Swap Tuesday Lunch with Tuesday Dinner.')).toBeTruthy();
+    expect(requests.mutateAsync).not.toHaveBeenCalled();
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Note to the chef (optional)'), { target: { value: 'Lunch guests prefer soup.' } });
+    fireEvent.click(button('Send to chef'));
+    await waitFor(() => expect(props.onClose).toHaveBeenCalledOnce());
+    expect(requests.mutateAsync).toHaveBeenCalledWith({ weekStart: props.weekStart, from: props.source,
+      to: { day: 'Tuesday', mealType: 'dinner' }, expectedUpdatedAt: props.menuUpdatedAt, note: 'Lunch guests prefer soup.' });
+    expect(mocks.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps a refused request and its note open for correction', async () => {
+    requests.mutateAsync.mockResolvedValueOnce({ error: messages.menuRequests.menuChanged });
+    render(view({ requestApproval: true }));
+    fireEvent.click(button(/^Dinner/));
+    fireEvent.click(button('Send to chef'));
+    expect((await screen.findByRole('alert')).textContent).toBe(messages.menuRequests.menuChanged);
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  it('keeps the meal preview and version from when the dialog opened during background refreshes', async () => {
+    const result = render(view({ requestApproval: true }));
+    fireEvent.click(button(/^Dinner/));
+    result.rerender(view({ requestApproval: true, menuUpdatedAt: '2026-09-15T18:00:00Z', meals: meals.map(day => day.day === 'Tuesday' ? { ...day, lunch: 'Replacement' } : day) }));
+    expect(screen.queryByText('Replacement')).toBeNull();
+    fireEvent.click(button('Send to chef'));
+    await waitFor(() => expect(requests.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ expectedUpdatedAt: props.menuUpdatedAt })));
   });
 
   it.each([['es', es], ['zh', zh]] as const)('translates the picker in %s', (locale, translated) => {

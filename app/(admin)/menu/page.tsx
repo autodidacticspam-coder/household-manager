@@ -2,7 +2,8 @@
 import { MealSuggestions } from '@/components/food/meal-suggestions';
 import { useDateFormat } from '@/hooks/use-date-format';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { startOfWeek, addDays, addWeeks, subWeeks, isToday } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,9 @@ import { Loader2, Edit2, Save, X, UtensilsCrossed, ClipboardPaste, ChevronLeft, 
 import { Input } from '@/components/ui/input';
 import { useWeeklyMenu, useUpdateMenu, useCanEditMenu } from '@/hooks/use-menu';
 import { MealSwapDialog } from '@/components/food/meal-swap-dialog';
+import { MenuChangeRequests } from '@/components/food/menu-change-requests';
+import { MenuUpdateHistory } from '@/components/food/menu-notifications';
+import { menuWeekSchema } from '@/lib/validators/menu-requests';
 import { useMenuSlotLabel } from '@/hooks/use-menu-swap';
 import type { MenuSlot } from '@/lib/validators/menu-swap';
 import { useAllMenuRatings, useMenuRatings, useRateMenuItem, useDeleteMenuRating, useCanAccessFoodRatings, type MenuRating } from '@/hooks/use-menu-ratings';
@@ -306,10 +310,23 @@ function parseMenuText(text: string): DayMeals[] {
 }
 
 export default function MenuPage() {
+  return <Suspense fallback={<Loader2 className="h-8 w-8 animate-spin" />}><MenuWithWeek /></Suspense>;
+}
+
+function MenuWithWeek() {
+  const params = useSearchParams();
+  const week = params.get('week');
+  const parsed = menuWeekSchema.safeParse(week);
+  return <MenuContent key={`${parsed.success ? parsed.data : 'current'}-${params.get('notice') || ''}`} initialWeek={parsed.success ? parsed.data : undefined} />;
+}
+
+function MenuContent({ initialWeek }: { initialWeek?: string }) {
   const formatDate = useDateFormat();
   const tUi = useTranslations('interface');
   const t = useTranslations();
+  const tRequests = useTranslations('menuRequests');
   const [selectedWeek, setSelectedWeek] = useState(() => {
+    if (initialWeek) return new Date(initialWeek + 'T12:00:00');
     // SSR-safe initialization
     if (typeof window === 'undefined') return new Date();
     return startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -336,7 +353,7 @@ export default function MenuPage() {
 
   // Auto-scroll to today when menu loads (only once per page load)
   useEffect(() => {
-    if (!isLoading && menu && isCurrentWeek && todayRef.current && !hasScrolledRef.current) {
+    if (!isLoading && menu && isCurrentWeek && todayRef.current && !hasScrolledRef.current && !window.location.hash) {
       // Small delay to ensure DOM is ready
       const timer = setTimeout(() => {
         todayRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -385,6 +402,7 @@ export default function MenuPage() {
   const [showMealIdeas, setShowMealIdeas] = useState(false);
   const [editedMeals, setEditedMeals] = useState<DayMeals[]>([]);
   const [editedNotes, setEditedNotes] = useState<string>('');
+  const [editVersion, setEditVersion] = useState<string | null>(null);
   const [showPasteDialog, setShowPasteDialog] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [showRequestDialog, setShowRequestDialog] = useState(false);
@@ -415,6 +433,7 @@ export default function MenuPage() {
     if (menu) {
       setEditedMeals([...menu.meals]);
       setEditedNotes(menu.notes || '');
+      setEditVersion(menu.updatedAt || null);
       setIsEditing(true);
     }
   };
@@ -426,11 +445,14 @@ export default function MenuPage() {
   };
 
   const handleSave = async () => {
-    await updateMenu.mutateAsync({
-      meals: editedMeals,
-      notes: editedNotes || null,
-    });
-    setIsEditing(false);
+    try {
+      await updateMenu.mutateAsync({
+        meals: editedMeals,
+        notes: editedNotes || null,
+        expectedUpdatedAt: editVersion,
+      });
+      setIsEditing(false);
+    } catch { /* Keep the draft open; the mutation displays the error. */ }
   };
 
   const updateMeal = (dayIndex: number, mealType: keyof Omit<DayMeals, 'day'>, value: string) => {
@@ -453,6 +475,7 @@ export default function MenuPage() {
     if (menu) {
       setEditedMeals([...menu.meals]);
       setEditedNotes(menu.notes || '');
+      setEditVersion(menu.updatedAt || null);
     }
     setShowPasteDialog(true);
   };
@@ -646,12 +669,12 @@ export default function MenuPage() {
                                   variant="ghost"
                                   size="sm"
                                   className="h-7 px-2 text-xs gap-1 text-amber-600/80 hover:text-amber-700 hover:bg-amber-100 dark:text-amber-400/80 dark:hover:text-amber-300 dark:hover:bg-amber-900/30 touch-manipulation"
-                                  title={tSwap('swapMeal')}
-                                  aria-label={tSwap('title', { slot: slotLabel({ day: dayMeal.day, mealType: key }) })}
+                                  title={isAdmin ? tRequests('requestSwap') : tSwap('swapMeal')}
+                                  aria-label={isAdmin ? tRequests('requestTitle', { slot: slotLabel({ day: dayMeal.day, mealType: key }) }) : tSwap('title', { slot: slotLabel({ day: dayMeal.day, mealType: key }) })}
                                   onClick={() => setSwapSource({ day: dayMeal.day, mealType: key })}
                                 >
                                   <ArrowLeftRight className="h-3.5 w-3.5" aria-hidden="true" />
-                                  <span className="hidden sm:inline">{tSwap('swap')}</span>
+                                  <span>{isAdmin ? tRequests('requestSwap') : tSwap('swap')}</span>
                                 </Button>
                               )}
                             </div>
@@ -790,8 +813,12 @@ export default function MenuPage() {
       )}
 
       {/* Swap Meals Dialog */}
+      <MenuChangeRequests weekStart={weekStartStr} canRespond={canRespondToNotes} enabled={!!canEdit} />
+      {isAdmin && <MenuUpdateHistory weekStart={weekStartStr} />}
       {swapSource && menu && (
         <MealSwapDialog
+          key={weekStartStr}
+          requestApproval={isAdmin}
           source={swapSource}
           meals={menu.meals}
           weekStart={weekStartStr}

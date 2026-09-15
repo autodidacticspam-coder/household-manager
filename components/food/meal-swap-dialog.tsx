@@ -5,12 +5,15 @@ import { useTranslations } from 'next-intl';
 import { addDays } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useDateFormat } from '@/hooks/use-date-format';
 import { useMenuSlotLabel, useSwapMenuMeals } from '@/hooks/use-menu-swap';
 import { MENU_DAYS, MENU_MEAL_TYPES, isSameMenuSlot, type MenuSlot } from '@/lib/validators/menu-swap';
 import type { DayMeals } from '@/types';
 import { cn } from '@/lib/utils';
+import { useMenuRequestMutation } from '@/hooks/use-menu-requests';
 
 type Props = {
   source: MenuSlot;
@@ -19,24 +22,32 @@ type Props = {
   weekStartDate: Date;
   menuUpdatedAt: string | null;
   onClose: () => void;
+  requestApproval?: boolean;
 };
 
-export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUpdatedAt, onClose }: Props) {
+export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUpdatedAt, onClose, requestApproval = false }: Props) {
   const t = useTranslations('menuSwap');
+  const tRequests = useTranslations('menuRequests');
   const tMenu = useTranslations('menu');
   const formatDate = useDateFormat();
   const label = useMenuSlotLabel();
   const [day, setDay] = useState(source.day);
   const [error, setError] = useState<string | null>(null);
   const swap = useSwapMenuMeals(weekStart);
-  const selectedDay = meals.find(dayMeals => dayMeals.day === day);
-  const sourceContent = meals.find(dayMeals => dayMeals.day === source.day)?.[source.mealType]?.trim() || '';
+  const request = useMenuRequestMutation();
+  const [target, setTarget] = useState<MenuSlot | null>(null);
+  const [note, setNote] = useState('');
+  const [snapshot] = useState({ meals, menuUpdatedAt });
+  const busy = swap.isPending || request.isPending;
+  const selectedDay = snapshot.meals.find(dayMeals => dayMeals.day === day);
+  const sourceContent = snapshot.meals.find(dayMeals => dayMeals.day === source.day)?.[source.mealType]?.trim() || '';
 
   async function choose(target: MenuSlot) {
-    if (swap.isPending || isSameMenuSlot(source, target)) return;
+    if (busy || isSameMenuSlot(source, target)) return;
+    if (requestApproval) { setTarget(target); setError(null); return; }
     setError(null);
     try {
-      const result = await swap.mutateAsync({ from: source, to: target, expectedUpdatedAt: menuUpdatedAt });
+      const result = await swap.mutateAsync({ from: source, to: target, expectedUpdatedAt: snapshot.menuUpdatedAt });
       if ('error' in result) setError(result.error);
       else onClose();
     } catch {
@@ -44,12 +55,20 @@ export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUp
     }
   }
 
+  async function sendRequest() {
+    if (!target || !snapshot.menuUpdatedAt || busy) return;
+    setError(null);
+    const result = await request.mutateAsync({ weekStart, from: source, to: target, expectedUpdatedAt: snapshot.menuUpdatedAt, note });
+    if ('error' in result) setError(result.error);
+    else onClose();
+  }
+
   return (
-    <Dialog open onOpenChange={open => { if (!open && !swap.isPending) onClose(); }}>
-      <DialogContent className="sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" showCloseButton={!swap.isPending}>
+    <Dialog open onOpenChange={open => { if (!open && !busy) onClose(); }}>
+      <DialogContent className="sm:max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto" showCloseButton={!busy}>
         <DialogHeader>
-          <DialogTitle>{t('title', { slot: label(source) })}</DialogTitle>
-          <DialogDescription>{t('description')}</DialogDescription>
+          <DialogTitle>{requestApproval ? tRequests('requestTitle', { slot: label(source) }) : t('title', { slot: label(source) })}</DialogTitle>
+          <DialogDescription>{requestApproval ? tRequests('requestHelp') : t('description')}</DialogDescription>
         </DialogHeader>
         <p className="whitespace-pre-wrap break-words rounded-md border bg-muted/40 px-3 py-2 text-sm">{sourceContent}</p>
         <div className="space-y-2">
@@ -60,7 +79,7 @@ export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUp
               const active = day === name;
               return (
                 <button key={name} type="button" aria-pressed={active} aria-label={tMenu(`days.${name.toLowerCase()}`)}
-                  disabled={swap.isPending} onClick={() => setDay(name)}
+                  disabled={busy} onClick={() => setDay(name)}
                   className={cn(
                     'rounded-md border px-1 py-1.5 text-center text-xs leading-tight transition-colors touch-manipulation disabled:opacity-50',
                     active ? 'border-amber-600 bg-amber-600 text-white' : 'bg-background hover:bg-accent',
@@ -74,14 +93,16 @@ export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUp
         </div>
         <div className="space-y-2" role="group" aria-label={tMenu(`days.${day.toLowerCase()}`)}>
           {MENU_MEAL_TYPES.map(mealType => {
-            const target = { day, mealType };
-            const isSource = isSameMenuSlot(source, target);
+            const option = { day, mealType };
+            const isSource = isSameMenuSlot(source, option);
+            const selected = target && isSameMenuSlot(target, option);
             const lines = (selectedDay?.[mealType] || '').split('\n').map(line => line.trim()).filter(Boolean);
             return (
-              <button key={mealType} type="button" disabled={isSource || swap.isPending} onClick={() => void choose(target)}
+              <button key={mealType} type="button" disabled={isSource || busy} onClick={() => void choose(option)} aria-pressed={requestApproval ? !!selected : undefined}
                 className={cn(
                   'flex w-full flex-col items-start gap-0.5 rounded-lg border px-3 py-2 text-left transition-colors touch-manipulation disabled:cursor-not-allowed',
                   isSource ? 'border-dashed opacity-60' : 'bg-background hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50',
+                  selected && 'border-amber-600 ring-1 ring-amber-600',
                 )}>
                 <span className="flex w-full items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                   {tMenu(`meals.${mealType}`)}
@@ -95,12 +116,18 @@ export function MealSwapDialog({ source, meals, weekStart, weekStartDate, menuUp
             );
           })}
         </div>
+        {requestApproval && <div className="space-y-2">
+          {target && <p className="rounded-md bg-amber-50 p-3 text-sm dark:bg-amber-950/30">{tRequests('swapSummary', { from: label(source), to: label(target) })}</p>}
+          <Label htmlFor="swap-request-note">{tRequests('noteOptional')}</Label>
+          <Textarea id="swap-request-note" value={note} onChange={e => setNote(e.target.value)} rows={2} maxLength={2000} disabled={busy} placeholder={tRequests('notePlaceholder')} />
+        </div>}
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter className="sm:justify-between">
           <span className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
             {swap.isPending && <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{t('swapping')}</>}
           </span>
-          <Button type="button" variant="outline" onClick={onClose} disabled={swap.isPending}>{t('cancel')}</Button>
+          <Button type="button" variant="outline" onClick={onClose} disabled={busy}>{t('cancel')}</Button>
+          {requestApproval && <Button disabled={!target || !menuUpdatedAt || busy} onClick={() => void sendRequest()}>{request.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{tRequests('send')}</Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,6 +1,6 @@
 # Database setup and maintenance
 
-The application baseline in `supabase/baseline/schema.sql` represents the household schema through migration `20260911170000_swap_menu_meals.sql`. It contains tables, functions, indexes, policies, the Auth profile trigger, Storage bucket configuration, and the migration journal. It contains no household accounts, requests, task history, files, or credentials. Objects belonging to other applications in the shared hosted project are excluded.
+The application baseline in `supabase/baseline/schema.sql` represents the household schema through migration `20260915180000_menu_change_requests.sql`. It contains tables, functions, indexes, policies, the Auth profile trigger, Storage bucket configuration, and the migration journal. It contains no household accounts, requests, task history, files, or credentials. Objects belonging to other applications in the shared hosted project are excluded.
 
 ## A fresh installation
 
@@ -10,7 +10,7 @@ The application baseline in `supabase/baseline/schema.sql` represents the househ
 4. Copy `.env.example` to `.env.local` and fill in the project's URL, public key, server-only service role key, and application URL. Install with `npm ci`, then run `npm run dev` on port 3501. Add the application URL to Supabase's allowed Auth redirects.
 5. Sign in as the administrator. Create employees and their group memberships from Employees. See [the employee guide](employee-guide.md).
 
-The baseline records the historical migrations it covers, so they will not run again through the CLI. New incremental migration versions must be later than `20260911170000`. Do not use the historical SQL files as a fresh-install sequence: migration `023` removed legacy recurring-task objects that live installations continued to use. The current baseline retains compatibility history and adds stable task series.
+The baseline records the historical migrations it covers, so they will not run again through the CLI. New incremental migration versions must be later than `20260915180000`. Do not use the historical SQL files as a fresh-install sequence: migration `023` removed legacy recurring-task objects that live installations continued to use. The current baseline retains compatibility history and adds stable task series.
 
 ## Existing installations
 
@@ -22,6 +22,10 @@ Food note replies and acknowledgements use `food_note_responses`, added by `2026
 
 Meal swaps use the authenticated `swap_menu_meals` function, added by `20260911170000_swap_menu_meals.sql`. Apply it before deploying the Swap control on the weekly menu. Administrators and Chef group members may call it. The function locks the week's menu row, exchanges two meal texts, records the caller as the editor, and moves the ratings of both meals (with their chef responses) to the new day and meal in the same transaction. Passing the menu's `updated_at` rejects a swap when someone else has changed the menu in the meantime. The function returns the new `updated_at`, which the Undo action passes back.
 
+Menu approvals and alerts use `20260915180000_menu_change_requests.sql`; apply it before deploying the request UI. `request_menu_swap` is administrator-only and captures the two meal texts at submission. `respond_to_menu_swap` permits Chef-group acceptance/rejection and the requesting administrator's withdrawal. Acceptance locks the request and week, checks both meal snapshots, then calls `swap_menu_meals` in the same transaction. A changed meal closes the request as `stale` without swapping; unrelated edits are preserved. `save_weekly_menu` protects full-editor saves with the revision captured when editing began.
+
+An authenticated chef's meal or menu-note change creates a saved `menu_notifications` row for each other administrator, including before/after details. No-op saves do not notify. Approval produces one approval alert per administrator. Requests notify Chef-group members; rejections and stale results notify the requester. Only the recipient can read or mark an alert read. Server actions schedule push delivery after committing; `/api/cron/menu-notifications` retries every minute using the existing `CRON_SECRET`. Service-role-only claims lease rows for two minutes and cap delivery attempts at three. Push failure leaves the saved in-app notification intact. The queue uses the existing APNS configuration and registered iOS tokens.
+
 ## Generated types and shared rules
 
 Run `npm run db:types -- <project-ref>` after applying a schema change, using an authenticated Supabase CLI. The script captures the current public schema and limits `types/database.ts` to the objects in the baseline. When adding an application table or function, update the baseline alongside its incremental migration before regenerating types. Review the generated diff before committing.
@@ -32,13 +36,15 @@ Business rules live in `lib/task-permissions.ts`, `lib/task-series.ts`, `lib/tas
 
 ## Local verification
 
+`NEXT_DIST_DIR` can place a local verification build outside the normal `.next` directory, so browser testing can run independently of the usual development server.
+
 Set `TEST_DATABASE_URL` to a disposable local Supabase PostgreSQL URL, then run:
 
 ```sh
 npm run db:check -- --baseline
 ```
 
-This installs the baseline on an empty local database and runs task-series, leave-accounting, task-permission, food-note-response, and meal-swap checks with fabricated accounts. Each test rolls back its fixtures. Omit `--baseline` when the schema is already installed. The runner rejects remote database hosts.
+This installs the baseline on an empty local database and runs task-series, leave-accounting, task-permission, food-note-response, meal-swap, and menu-request/notification checks with fabricated accounts. Each test rolls back its fixtures. Omit `--baseline` when the schema is already installed. The runner rejects remote database hosts.
 
 An isolated Supabase PostgreSQL test container with Auth and Storage initialized can also be checked with `npm run db:check -- --container household-manager-schema-check-<name>`. It must have networking disabled. The container path is for schema and SQL tests; it does not test Auth HTTP, Storage uploads, email delivery, or push delivery.
 

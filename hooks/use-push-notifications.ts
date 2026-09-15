@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
+import { menuNotificationHref } from '@/lib/notifications/menu-link';
 
 // Check if we're running in Capacitor
 const isCapacitor = typeof window !== 'undefined' && 'Capacitor' in window;
@@ -100,6 +101,8 @@ export function usePushNotifications() {
 
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
           const data = notification.notification.data;
+          const menuLink = menuNotificationHref(data);
+          if (menuLink) { window.location.href = menuLink; return; }
           if (data?.taskId) {
             emitNotificationTap({
               taskId: data.taskId,
@@ -177,6 +180,8 @@ export function usePushNotifications() {
 
         PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
           const data = notification.notification.data;
+          const menuLink = menuNotificationHref(data);
+          if (menuLink) { window.location.href = menuLink; return; }
           if (data?.taskId) {
             window.location.href = `/tasks/${data.taskId}`;
           }

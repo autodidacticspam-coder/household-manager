@@ -25,4 +25,5 @@ export interface WeeklyMenu {
 export interface UpdateMenuInput {
   meals: DayMeals[];
   notes?: string | null;
+  expectedUpdatedAt: string | null;
 }

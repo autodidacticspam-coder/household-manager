@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ getUser: vi.fn(), rpc: vi.fn() }));
+vi.mock('@/lib/notifications/menu-push', () => ({ scheduleMenuPushes: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({ auth: { getUser: mocks.getUser }, rpc: mocks.rpc }),
 }));

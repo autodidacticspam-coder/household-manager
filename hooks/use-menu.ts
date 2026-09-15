@@ -9,6 +9,7 @@ import type { WeeklyMenu, DayMeals, UpdateMenuInput } from '@/types';
 import { toast } from 'sonner';
 import { startOfWeek } from 'date-fns';
 import { formatDateString } from '@/lib/date-utils';
+import { saveWeeklyMenu } from '@/app/(admin)/menu/actions';
 
 function transformMenu(row: Record<string, unknown>): WeeklyMenu {
   return {
@@ -49,6 +50,7 @@ export function useWeeklyMenu(weekStart: string) {
 
   return useQuery({
     queryKey: ['weekly-menu', weekStart],
+    refetchInterval: 15000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weekly_menu')
@@ -81,31 +83,13 @@ export function useCurrentWeekMenu() {
 export function useUpdateMenu(weekStart: string) {
   const feedback = useFeedback();
   const tUi = useTranslations('interface');
-  const supabase = createClient();
+  const tRequests = useTranslations('menuRequests');
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (input: UpdateMenuInput) => {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Upsert the menu for the specified week
-      const { data, error } = await supabase
-        .from('weekly_menu')
-        .upsert({
-          week_start: weekStart,
-          meals: input.meals,
-          notes: input.notes || null,
-          updated_by: user.id,
-        }, {
-          onConflict: 'week_start',
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return transformMenu(data);
+      const result = await saveWeeklyMenu({ weekStart, ...input });
+      if ('error' in result) throw new Error(tRequests(result.error));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['weekly-menu'] });

@@ -2,6 +2,7 @@
 
 import { UserMenu } from './user-menu';
 import { MobileSidebar } from './mobile-sidebar';
+import { MenuNotificationBell } from '@/components/food/menu-notifications';
 
 type HeaderProps = {
   title?: string;
@@ -23,6 +24,7 @@ export function Header({ title }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
+          <MenuNotificationBell />
           <UserMenu />
         </div>
       </div>

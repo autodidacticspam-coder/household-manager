@@ -792,6 +792,82 @@ export type Database = {
           },
         ]
       }
+      menu_change_requests: {
+        Row: {
+          content_a: string
+          content_b: string
+          created_at: string
+          day_a: string
+          day_b: string
+          id: string
+          meal_a: string
+          meal_b: string
+          note: string | null
+          reply: string | null
+          requested_by: string
+          responded_at: string | null
+          responded_by: string | null
+          status: string
+          week_start: string
+        }
+        Insert: {
+          content_a: string
+          content_b: string
+          created_at?: string
+          day_a: string
+          day_b: string
+          id?: string
+          meal_a: string
+          meal_b: string
+          note?: string | null
+          reply?: string | null
+          requested_by: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          week_start: string
+        }
+        Update: {
+          content_a?: string
+          content_b?: string
+          created_at?: string
+          day_a?: string
+          day_b?: string
+          id?: string
+          meal_a?: string
+          meal_b?: string
+          note?: string | null
+          reply?: string | null
+          requested_by?: string
+          responded_at?: string | null
+          responded_by?: string | null
+          status?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_change_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_change_requests_responded_by_fkey"
+            columns: ["responded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_change_requests_week_start_fkey"
+            columns: ["week_start"]
+            isOneToOne: false
+            referencedRelation: "weekly_menu"
+            referencedColumns: ["week_start"]
+          },
+        ]
+      }
       menu_item_merge_events: {
         Row: {
           affected_rating_ids: string[]
@@ -1062,6 +1138,73 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      menu_notifications: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          kind: string
+          push_attempts: number
+          push_claimed_at: string | null
+          push_state: string
+          read_at: string | null
+          recipient_id: string
+          request_id: string | null
+          week_start: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind: string
+          push_attempts?: number
+          push_claimed_at?: string | null
+          push_state?: string
+          read_at?: string | null
+          recipient_id: string
+          request_id?: string | null
+          week_start: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind?: string
+          push_attempts?: number
+          push_claimed_at?: string | null
+          push_state?: string
+          read_at?: string | null
+          recipient_id?: string
+          request_id?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "menu_notifications_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "menu_change_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -2360,6 +2503,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_menu_notification_pushes: {
+        Args: { p_actor?: string }
+        Returns: {
+          actor_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          kind: string
+          push_attempts: number
+          push_claimed_at: string | null
+          push_state: string
+          read_at: string | null
+          recipient_id: string
+          request_id: string | null
+          week_start: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "menu_notifications"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       ensure_task_series: {
         Args: {
           p_days: number[]
@@ -2401,6 +2567,18 @@ export type Database = {
         Args: { target_menu_item_id: string }
         Returns: undefined
       }
+      request_menu_swap: {
+        Args: {
+          p_day_a: string
+          p_day_b: string
+          p_expected_updated_at: string
+          p_meal_a: string
+          p_meal_b: string
+          p_note?: string
+          p_week_start: string
+        }
+        Returns: string
+      }
       respond_to_food_note: {
         Args: {
           p_id: string
@@ -2410,9 +2588,22 @@ export type Database = {
         }
         Returns: undefined
       }
+      respond_to_menu_swap: {
+        Args: { p_decision: string; p_id: string; p_reply?: string }
+        Returns: string
+      }
       review_leave_request: {
         Args: { p_action: string; p_notes?: string; p_request_id: string }
         Returns: string
+      }
+      save_weekly_menu: {
+        Args: {
+          p_expected_updated_at?: string
+          p_meals: Json
+          p_notes: string
+          p_week_start: string
+        }
+        Returns: undefined
       }
       swap_menu_meals: {
         Args: {

@@ -8,7 +8,7 @@ const container = containerIndex >= 0 ? process.argv[containerIndex + 1] : null;
 let client;
 if (container) {
   if (!/^household-manager-schema-check-[a-z0-9-]+$/.test(container)) throw new Error('Use a dedicated household-manager-schema-check-* container.');
-  const inspection = spawnSync('docker', ['inspect', container], { encoding: 'utf8' });
+  const inspection = spawnSync('docker', ['inspect', container], { encoding: 'utf8', windowsHide: true });
   const info = JSON.parse(inspection.stdout)[0];
   if (info.HostConfig.NetworkMode !== 'none') throw new Error('The test container must have networking disabled.');
 } else {
@@ -21,7 +21,7 @@ if (container) {
 }
 const execute = async sql => {
   if (client) return client.query(sql);
-  const result = spawnSync('docker', ['exec', '-i', container, 'psql', '-X', '-q', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8', maxBuffer: 2_000_000 });
+  const result = spawnSync('docker', ['exec', '-i', container, 'psql', '-X', '-q', '-U', 'postgres', '-d', 'postgres', '-v', 'ON_ERROR_STOP=1'], { input: sql, encoding: 'utf8', maxBuffer: 2_000_000, windowsHide: true });
   if (result.status !== 0) throw new Error(result.stderr);
 };
 try {
@@ -33,7 +33,7 @@ try {
     ('00000000-0000-4000-8000-000000000001','schema-admin@example.invalid','{"full_name":"Schema administrator"}'),
     ('00000000-0000-4000-8000-000000000002','schema-employee@example.invalid','{"full_name":"Schema employee"}');
     UPDATE public.users SET role='admin' WHERE id='00000000-0000-4000-8000-000000000001';`;
-  for (const file of ['task_series', 'leave_arithmetic', 'task_permissions', 'food_note_responses', 'menu_swap']) {
+  for (const file of ['task_series', 'leave_arithmetic', 'task_permissions', 'food_note_responses', 'menu_swap', 'menu_requests']) {
     await execute('BEGIN;\n'+fixtures+'\n'+fs.readFileSync(`supabase/tests/${file}.sql`,'utf8')+'\nROLLBACK;');
     console.log(`${file}: passed (fixtures rolled back).`);
   }

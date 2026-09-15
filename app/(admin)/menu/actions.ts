@@ -5,6 +5,8 @@ import { databaseClient } from '@/lib/supabase/database-client';
 import { updateFoodRequestNotesSchema } from '@/lib/validators/food-request-notes';
 import { foodNoteResponseSchema } from '@/lib/validators/food-note-response';
 import { menuSwapSchema } from '@/lib/validators/menu-swap';
+import { menuRequestSchema, menuResponseSchema, saveMenuSchema } from '@/lib/validators/menu-requests';
+import { scheduleMenuPushes } from '@/lib/notifications/menu-push';
 
 type NotesError = 'invalidNotes' | 'notesNotAllowed' | 'notesChanged' | 'saveNotesFailed';
 type NotesResult = { success: true } | { error: NotesError };
@@ -14,6 +16,79 @@ type ResponseResult = { success: true } | { error: ResponseError };
 
 type SwapError = 'invalidSwap' | 'swapNotAllowed' | 'menuChanged' | 'swapFailed';
 type SwapResult = { success: true; updatedAt: string | null } | { error: SwapError };
+
+type MenuError = 'invalidRequest' | 'requestNotAllowed' | 'responseNotAllowed' | 'menuChanged'
+  | 'alreadyRequested' | 'alreadyResponded' | 'noChef' | 'requestFailed' | 'saveNotAllowed' | 'invalidMenu' | 'saveFailed';
+const menuErrors = new Set<MenuError>(['invalidRequest', 'requestNotAllowed', 'responseNotAllowed', 'menuChanged',
+  'alreadyRequested', 'alreadyResponded', 'noChef', 'saveNotAllowed', 'invalidMenu']);
+
+function menuError(error: { message: string }, fallback: MenuError): { error: MenuError } {
+  return { error: menuErrors.has(error.message as MenuError) ? error.message as MenuError : fallback };
+}
+
+export async function saveWeeklyMenu(input: unknown): Promise<{ success: true } | { error: MenuError }> {
+  const parsed = saveMenuSchema.safeParse(input);
+  if (!parsed.success) return { error: 'invalidMenu' };
+  try {
+    const db = databaseClient(await createClient());
+    const { data: { user }, error: authError } = await db.auth.getUser();
+    if (authError || !user) return { error: 'saveNotAllowed' };
+    const value = parsed.data;
+    const { error } = await db.rpc('save_weekly_menu', {
+      p_week_start: value.weekStart, p_meals: value.meals, p_notes: value.notes || '',
+      ...(value.expectedUpdatedAt ? { p_expected_updated_at: value.expectedUpdatedAt } : {}),
+    });
+    if (error) return menuError(error, 'saveFailed');
+    scheduleMenuPushes(user.id);
+    return { success: true };
+  } catch { return { error: 'saveFailed' }; }
+}
+
+export async function requestMenuSwap(input: unknown): Promise<{ success: true } | { error: MenuError }> {
+  const parsed = menuRequestSchema.safeParse(input);
+  if (!parsed.success) return { error: 'invalidRequest' };
+  try {
+    const db = databaseClient(await createClient());
+    const { data: { user }, error: authError } = await db.auth.getUser();
+    if (authError || !user) return { error: 'requestNotAllowed' };
+    const value = parsed.data;
+    const { error } = await db.rpc('request_menu_swap', {
+      p_week_start: value.weekStart, p_day_a: value.from.day, p_meal_a: value.from.mealType,
+      p_day_b: value.to.day, p_meal_b: value.to.mealType, p_expected_updated_at: value.expectedUpdatedAt, p_note: value.note,
+    });
+    if (error) return menuError(error, 'requestFailed');
+    scheduleMenuPushes(user.id);
+    return { success: true };
+  } catch { return { error: 'requestFailed' }; }
+}
+
+export async function respondToMenuSwap(input: unknown): Promise<{ success: true; status: string } | { error: MenuError }> {
+  const parsed = menuResponseSchema.safeParse(input);
+  if (!parsed.success) return { error: 'invalidRequest' };
+  try {
+    const db = databaseClient(await createClient());
+    const { data: { user }, error: authError } = await db.auth.getUser();
+    if (authError || !user) return { error: 'responseNotAllowed' };
+    const { error, data } = await db.rpc('respond_to_menu_swap', {
+      p_id: parsed.data.id, p_decision: parsed.data.decision, p_reply: parsed.data.reply,
+    });
+    if (error) return menuError(error, 'requestFailed');
+    scheduleMenuPushes(user.id);
+    return { success: true, status: data };
+  } catch { return { error: 'requestFailed' }; }
+}
+
+export async function markMenuNotificationRead(id: string): Promise<{ success: true } | { error: MenuError }> {
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: 'invalidRequest' };
+  try {
+    const db = databaseClient(await createClient());
+    const { data: { user }, error: authError } = await db.auth.getUser();
+    if (authError || !user) return { error: 'requestNotAllowed' };
+    const { error } = await db.from('menu_notifications').update({ read_at: new Date().toISOString() })
+      .eq('id', id).eq('recipient_id', user.id).is('read_at', null);
+    return error ? { error: 'requestFailed' } : { success: true };
+  } catch { return { error: 'requestFailed' }; }
+}
 
 export async function swapMenuMeals(input: unknown): Promise<SwapResult> {
   const parsed = menuSwapSchema.safeParse(input);
@@ -40,6 +115,7 @@ export async function swapMenuMeals(input: unknown): Promise<SwapResult> {
       if (error.message === 'invalidSwap') return { error: 'invalidSwap' };
       return { error: 'swapFailed' };
     }
+    scheduleMenuPushes(user.id);
     return { success: true, updatedAt: typeof data === 'string' ? data : null };
   } catch {
     return { error: 'swapFailed' };

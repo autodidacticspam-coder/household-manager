@@ -83,6 +83,10 @@ async function sendPushToDevice(
 
     return new Promise((resolve) => {
       const client = http2.connect(`https://${host}`);
+      client.setTimeout(15000, () => {
+        client.destroy();
+        resolve({ success: false, token: deviceToken, error: 'Push delivery timed out' });
+      });
 
       client.on('error', (err) => {
         console.error('[PUSH] HTTP/2 error:', err.message);

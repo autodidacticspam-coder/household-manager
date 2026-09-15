@@ -18,7 +18,7 @@ if (projectRef === '--input') {
   input = buffer.toString(buffer[0] === 0xff ? 'utf16le' : 'utf8').replace(/^\uFEFF/, '');
 } else {
   if (!/^[a-z0-9]{20}$/.test(projectRef || '')) throw new Error('Pass the Supabase project reference (20 lowercase letters/digits), or --input <generated-types-file>.');
-  input = execSync(`npx --yes supabase@latest gen types --project-id ${projectRef} --schema public --lang typescript`, { encoding: 'utf8', maxBuffer: 8_000_000, stdio: ['ignore', 'pipe', 'inherit'] });
+  input = execSync(`npx --yes supabase@latest gen types --project-id ${projectRef} --schema public --lang typescript`, { encoding: 'utf8', maxBuffer: 8_000_000, stdio: ['ignore', 'pipe', 'inherit'], windowsHide: true });
 }
 const source = ts.createSourceFile('database.ts', input, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 const key = node => node.name?.text;

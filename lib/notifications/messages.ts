@@ -4,7 +4,8 @@ import es from '@/messages/es.json';
 import zh from '@/messages/zh.json';
 import { isDateOnly } from '@/lib/leave-dates';
 
-export type PushMessageKind = 'assigned' | 'reminder' | 'completed' | 'booking' | 'accepted' | 'declined' | 'shiftCancelled' | 'requestCancelled' | 'expiring';
+export type PushMessageKind = 'assigned' | 'reminder' | 'completed' | 'booking' | 'accepted' | 'declined' | 'shiftCancelled' | 'requestCancelled' | 'expiring'
+  | 'menu_updated' | 'swap_requested' | 'swap_accepted' | 'swap_rejected' | 'swap_stale' | 'swap_cancelled';
 export type PushValues = Record<string, string | number>;
 
 export function localizedPushMessage(locale: string, kind: PushMessageKind, values: PushValues) {
