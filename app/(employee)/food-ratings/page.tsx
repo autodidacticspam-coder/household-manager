@@ -1022,8 +1022,6 @@ export default function FoodRatingsPage() {
                   setShowRequestDialog(false);
                   setRequestFoodName('');
                   setRequestNotes('');
-                  setRequestView('pending');
-                  setActiveTab('requests');
                 } });
               }}
               disabled={!requestFoodName.trim() || createFoodRequest.isPending}
