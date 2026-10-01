@@ -50,6 +50,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { NoAudienceDialog } from '@/components/shared/no-audience-dialog';
 import { formatTime12h, formatTime24h } from '@/lib/format-time';
 import { format, startOfMonth, endOfMonth, subWeeks, addWeeks, addYears } from 'date-fns';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Clock, Settings, CheckCircle, Loader2, Moon, Utensils, Baby, ShowerHead, Gift, Briefcase, Pencil, Trash2, Plus, PartyPopper, Repeat } from 'lucide-react';
@@ -290,6 +291,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   const [activityGroupIds, setActivityGroupIds] = useState<string[]>([]);
   const [activityUserIds, setActivityUserIds] = useState<string[]>([]);
   const [showSpecificPeople, setShowSpecificPeople] = useState(false);
+  const [confirmAdminOnlyActivity, setConfirmAdminOnlyActivity] = useState(false);
 
   // Activity repeat state (same repeat system as tasks: multi-select days + interval + end date)
   const [activityRepeatEnabled, setActivityRepeatEnabled] = useState(false);
@@ -419,7 +421,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
   };
 
   // Handle creating a new activity (stored as an activity task with viewers controlling visibility)
-  const handleCreateActivity = async () => {
+  const handleCreateActivity = async ({ allowAdminOnly = false }: { allowAdminOnly?: boolean } = {}) => {
     if (!addScheduleDialog || !newActivityTitle.trim() || !newScheduleStartTime || !newScheduleEndTime) return;
 
     const startTime24 = formatTime24h(`${newScheduleStartTime} ${newScheduleStartAmPm}`);
@@ -445,6 +447,12 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
       for (const userId of activityUserIds) {
         viewers.push({ targetType: 'user', targetUserId: userId });
       }
+    }
+
+    // With no viewers only admins can see the activity, so confirm first
+    if (viewers.length === 0 && !allowAdminOnly) {
+      setConfirmAdminOnlyActivity(true);
+      return;
     }
 
     const repeating = activityRepeatEnabled && activityRepeatDays.length > 0 && !!activityRepeatEndDate;
@@ -2171,7 +2179,7 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
               {t('common.cancel')}
             </Button>
             <Button
-              onClick={addDialogTab === 'schedule' ? handleCreateSchedule : handleCreateActivity}
+              onClick={addDialogTab === 'schedule' ? handleCreateSchedule : () => handleCreateActivity()}
               disabled={
                 addDialogTab === 'schedule'
                   ? !newScheduleEmployee || !newScheduleStartTime || !newScheduleEndTime || createOneOffSchedule.isPending
@@ -2187,6 +2195,16 @@ export function CalendarView({ userId, isEmployee = false }: CalendarViewProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NoAudienceDialog
+        open={confirmAdminOnlyActivity}
+        onCancel={() => setConfirmAdminOnlyActivity(false)}
+        onConfirm={() => {
+          setConfirmAdminOnlyActivity(false);
+          // Failures are already shown by the mutation's error toast.
+          handleCreateActivity({ allowAdminOnly: true }).catch(() => {});
+        }}
+      />
 
       <style jsx global>{`
         .calendar-wrapper .fc {

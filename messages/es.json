@@ -240,6 +240,12 @@
       "invalidUrl": "Por favor ingresa una URL válida",
       "fileTooLarge": "El archivo de video es muy grande. Máximo 250 MB",
       "invalidFormat": "Formato de video inválido. Permitidos: MP4, WebM, MOV, AVI, MKV"
+    },
+    "noAudience": {
+      "title": "Solo los administradores verán esto",
+      "description": "No hay ningún empleado ni grupo asignado o con permiso para verlo, así que el personal no lo verá en su horario ni en su calendario.",
+      "goBack": "Volver",
+      "saveAnyway": "Guardar de todos modos"
     }
   },
   "leave": {

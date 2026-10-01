@@ -240,6 +240,12 @@
       "invalidUrl": "Please enter a valid URL",
       "fileTooLarge": "Video file is too large. Maximum size is 250 MB",
       "invalidFormat": "Invalid video format. Allowed: MP4, WebM, MOV, AVI, MKV"
+    },
+    "noAudience": {
+      "title": "Only admins will see this",
+      "description": "No employee or group is assigned or set to see this, so staff won't see it on their schedule or calendar.",
+      "goBack": "Go back",
+      "saveAnyway": "Save anyway"
     }
   },
   "leave": {

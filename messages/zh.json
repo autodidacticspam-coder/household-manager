@@ -240,6 +240,12 @@
       "invalidUrl": "请输入有效的URL",
       "fileTooLarge": "视频文件过大，最大250 MB",
       "invalidFormat": "视频格式无效。允许：MP4、WebM、MOV、AVI、MKV"
+    },
+    "noAudience": {
+      "title": "只有管理员能看到",
+      "description": "没有指派任何员工或小组，也没有设置可查看的人，所以员工不会在他们的日程或日历中看到它。",
+      "goBack": "返回",
+      "saveAnyway": "仍然保存"
     }
   },
   "leave": {

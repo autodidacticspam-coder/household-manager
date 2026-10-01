@@ -45,3 +45,14 @@ export function withPendingTaskTarget(
 
   return isDuplicate ? resolvedTargets : [...resolvedTargets, pendingTarget];
 }
+
+/**
+ * Tasks with no assignees and no viewers are visible only to admins
+ * (see can_access_task), so the forms confirm before saving one.
+ */
+export function hasTaskAudience(
+  assignments: readonly TaskAssignmentInput[],
+  viewers: readonly TaskAssignmentInput[]
+): boolean {
+  return assignments.length > 0 || viewers.length > 0;
+}

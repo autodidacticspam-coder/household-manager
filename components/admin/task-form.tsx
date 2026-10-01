@@ -72,10 +72,11 @@ import { toast } from 'sonner';
 import { useTaskCategories, useEmployeeGroups, useEmployees, useCreateTask, useUpdateTask, useUpdateFutureTasks } from '@/hooks/use-tasks';
 import { useTaskTemplates, useCreateTaskTemplate, useUpdateTaskTemplate, useDeleteTaskTemplate } from '@/hooks/use-task-templates';
 import { createTaskSchema, type CreateTaskInput, type TaskAssignmentInput, type TaskViewerInput } from '@/lib/validators/task';
-import { withPendingTaskTarget } from '@/lib/task-targets';
+import { hasTaskAudience, withPendingTaskTarget } from '@/lib/task-targets';
 import type { TaskWithRelations, TaskTemplate, TemplateAssignment } from '@/types';
 import { Eye } from 'lucide-react';
 import { TaskVideosSection } from '@/components/admin/task-videos-section';
+import { NoAudienceDialog } from '@/components/shared/no-audience-dialog';
 import type { VideoInput } from '@/hooks/use-task-videos';
 
 type TaskFormProps = {
@@ -123,6 +124,8 @@ export function TaskForm({
   const [overwriteTemplateId, setOverwriteTemplateId] = useState<string | null>(null);
   const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null);
   const [loadedTemplate, setLoadedTemplate] = useState<TaskTemplate | null>(initialTemplate || null);
+  // A save that is waiting for the "only admins will see this" confirmation
+  const [adminOnlySubmit, setAdminOnlySubmit] = useState<CreateTaskInput | null>(null);
 
   // Initialize assignments from task or template
   const getInitialAssignments = (): TaskAssignmentInput[] => {
@@ -683,7 +686,7 @@ export function TaskForm({
         : {};
     })();
 
-    const submitData = {
+    const submitData: CreateTaskInput = {
       ...data,
       dueTime: data.isActivity ? null : dueTime24,
       startTime: data.isActivity ? startTime24 : null,
@@ -694,6 +697,15 @@ export function TaskForm({
       ...repeatData,
     };
 
+    if (!hasTaskAudience(finalAssignments, finalViewers)) {
+      setAdminOnlySubmit(submitData);
+      return;
+    }
+
+    await saveTask(submitData);
+  };
+
+  const saveTask = async (submitData: CreateTaskInput) => {
     if (task) {
       if (batchMode) {
         // Update all future occurrences of this repeating task
@@ -1529,6 +1541,17 @@ export function TaskForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NoAudienceDialog
+        open={!!adminOnlySubmit}
+        onCancel={() => setAdminOnlySubmit(null)}
+        onConfirm={() => {
+          const submitData = adminOnlySubmit;
+          setAdminOnlySubmit(null);
+          // Failures are already shown by the mutation's error toast.
+          if (submitData) saveTask(submitData).catch(() => {});
+        }}
+      />
 
       {/* Delete Template Confirmation */}
       <AlertDialog open={!!deleteTemplateId} onOpenChange={() => setDeleteTemplateId(null)}>
